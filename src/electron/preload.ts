@@ -12,7 +12,7 @@ export interface DockerApi {
   disconnect(id: string): Promise<boolean>;
   listStatuses(): Promise<unknown[]>;
 
-  listContainers(hostId: string, all?: boolean): Promise<unknown[]>;
+  listContainers(hostId: string, all?: boolean, enrichPorts?: boolean): Promise<unknown[]>;
   inspectContainer(hostId: string, id: string): Promise<unknown>;
   startContainer(hostId: string, id: string): Promise<boolean>;
   stopContainer(hostId: string, id: string): Promise<boolean>;
@@ -114,7 +114,8 @@ const api: DockerApi = {
   disconnect: (id) => ipcRenderer.invoke('docker:disconnect', id),
   listStatuses: () => ipcRenderer.invoke('docker:listStatuses'),
 
-  listContainers: (hostId, all) => ipcRenderer.invoke('docker:listContainers', hostId, all),
+  listContainers: (hostId, all, enrichPorts) =>
+    ipcRenderer.invoke('docker:listContainers', hostId, all, enrichPorts),
   inspectContainer: (hostId, id) => ipcRenderer.invoke('docker:inspectContainer', hostId, id),
   startContainer: (hostId, id) => ipcRenderer.invoke('docker:startContainer', hostId, id),
   stopContainer: (hostId, id) => ipcRenderer.invoke('docker:stopContainer', hostId, id),

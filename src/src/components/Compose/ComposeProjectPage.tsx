@@ -46,7 +46,7 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
     try {
       const [projects, all] = await Promise.all([
         window.dockerApi.listComposeProjects(hostId),
-        window.dockerApi.listContainers(hostId, true),
+        window.dockerApi.listContainers(hostId, true, true),
       ]);
       const p = projects.find((x) => x.name === projectName) || null;
       setProject(p);

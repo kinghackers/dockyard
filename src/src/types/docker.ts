@@ -302,7 +302,7 @@ declare global {
       disconnect(id: string): Promise<boolean>;
       listStatuses(): Promise<ConnectionStatus[]>;
 
-      listContainers(hostId: string, all?: boolean): Promise<ContainerSummary[]>;
+      listContainers(hostId: string, all?: boolean, enrichPorts?: boolean): Promise<ContainerSummary[]>;
       inspectContainer(hostId: string, id: string): Promise<ContainerDetail>;
       startContainer(hostId: string, id: string): Promise<boolean>;
       stopContainer(hostId: string, id: string): Promise<boolean>;

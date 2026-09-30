@@ -46,8 +46,10 @@ export function registerIpc(manager: DockerConnectionManager, getWindows: () => 
   ipcMain.handle('docker:listStatuses', () => manager.listStatuses());
 
   // ---- containers ----
-  ipcMain.handle('docker:listContainers', (_e, hostId: string, all?: boolean) =>
-    manager.listContainers(hostId, all)
+  ipcMain.handle(
+    'docker:listContainers',
+    (_e, hostId: string, all?: boolean, enrichPorts?: boolean) =>
+      manager.listContainers(hostId, all, { enrichPorts })
   );
   ipcMain.handle('docker:inspectContainer', (_e, hostId: string, id: string) =>
     manager.inspectContainer(hostId, id)

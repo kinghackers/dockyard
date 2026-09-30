@@ -395,13 +395,19 @@ export class DockerConnectionManager {
   }
 
   // ---------- containers ----------
-  async listContainers(hostId: string, all = true): Promise<ContainerSummary[]> {
+  async listContainers(
+    hostId: string,
+    all = true,
+    opts?: { enrichPorts?: boolean }
+  ): Promise<ContainerSummary[]> {
     const docker = this.dockerOf(hostId);
     const list = await docker.listContainers({ all, size: false });
     const summaries = list.map(toSummary);
 
-    // List API only reports live NetworkSettings ports. For stopped containers
-    // fall back to HostConfig.PortBindings so the configured mapping stays visible.
+    // Opt-in: filling HostConfig port bindings for stopped containers costs
+    // one inspect each — skip for dashboard/sidebar/event refresh paths.
+    if (!opts?.enrichPorts) return summaries;
+
     await Promise.all(
       summaries.map(async (s, i) => {
         if (s.state === 'running' || s.state === 'paused') return;
@@ -1272,34 +1278,36 @@ export class DockerConnectionManager {
     let blockRead = 0;
     let blockWrite = 0;
 
-    for (const c of containers) {
-      if (c.State !== 'running') continue;
-      try {
-        const stats = await new Promise<Docker.ContainerStats>((resolve, reject) => {
-          const t = setTimeout(() => reject(new Error('操作超时')), 3000);
+    const running = containers.filter((c) => c.State === 'running');
+    // Sample in parallel — serial stats() calls made the dashboard feel stuck.
+    const samples = await Promise.all(
+      running.map((c) =>
+        new Promise<Docker.ContainerStats | null>((resolve) => {
+          const t = setTimeout(() => resolve(null), 1500);
           docker
             .getContainer(c.Id)
             .stats({ stream: false }, (err, s) => {
               clearTimeout(t);
-              if (err) reject(err);
-              else resolve(s as Docker.ContainerStats);
+              resolve(err ? null : (s as Docker.ContainerStats));
             });
-        });
-        const cpuDelta = stats.cpu_stats.cpu_usage.total_usage - stats.precpu_stats.cpu_usage.total_usage;
-        const systemDelta = stats.cpu_stats.system_cpu_usage - stats.precpu_stats.system_cpu_usage;
-        const cpuCount = stats.cpu_stats.online_cpus || stats.cpu_stats.cpu_usage.percpu_usage?.length || 1;
-        if (systemDelta > 0) cpuPercent += (cpuDelta / systemDelta) * cpuCount * 100;
-        memUsage += stats.memory_stats.usage || 0;
-        for (const n of Object.values(stats.networks || {})) {
-          netRx += n.rx_bytes || 0;
-          netTx += n.tx_bytes || 0;
-        }
-        for (const b of stats.blkio_stats?.io_service_bytes_recursive || []) {
-          if (b.op?.toLowerCase() === 'read') blockRead += b.value || 0;
-          if (b.op?.toLowerCase() === 'write') blockWrite += b.value || 0;
-        }
-      } catch {
-        /* skip */
+        })
+      )
+    );
+
+    for (const stats of samples) {
+      if (!stats) continue;
+      const cpuDelta = stats.cpu_stats.cpu_usage.total_usage - stats.precpu_stats.cpu_usage.total_usage;
+      const systemDelta = stats.cpu_stats.system_cpu_usage - stats.precpu_stats.system_cpu_usage;
+      const cpuCount = stats.cpu_stats.online_cpus || stats.cpu_stats.cpu_usage.percpu_usage?.length || 1;
+      if (systemDelta > 0) cpuPercent += (cpuDelta / systemDelta) * cpuCount * 100;
+      memUsage += stats.memory_stats.usage || 0;
+      for (const n of Object.values(stats.networks || {})) {
+        netRx += n.rx_bytes || 0;
+        netTx += n.tx_bytes || 0;
+      }
+      for (const b of stats.blkio_stats?.io_service_bytes_recursive || []) {
+        if (b.op?.toLowerCase() === 'read') blockRead += b.value || 0;
+        if (b.op?.toLowerCase() === 'write') blockWrite += b.value || 0;
       }
     }
 

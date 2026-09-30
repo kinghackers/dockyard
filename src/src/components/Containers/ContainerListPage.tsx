@@ -54,7 +54,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await window.dockerApi.listContainers(hostId, true);
+      const data = await window.dockerApi.listContainers(hostId, true, true);
       setContainers(hostId, data);
     } catch (e) {
       reportError(e, toast);
