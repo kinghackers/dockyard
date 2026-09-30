@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import {
   RefreshCw,
   Play,
@@ -20,6 +20,7 @@ import type { ContainerSummary } from '../../types/docker';
 import { useAppStore } from '../../stores/appStore';
 import { reportError } from '../../utils/connection';
 import { useConfirm } from '../../utils/useConfirm';
+import { useHotkeys } from '../../utils/useHotkeys';
 import { localizeStatusChip, localizeContainerStatus } from '../../utils/localize';
 import { formatPortMappings } from '../../utils/ports';
 import { getContainerActions } from '../../utils/containerActions';
@@ -42,6 +43,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
   const [runOpen, setRunOpen] = useState(false);
   const [confirmDialog, confirm] = useConfirm();
   const ctx = useContextMenu();
+  const filterRef = useRef<HTMLInputElement>(null);
   const list = containersByHost[hostId] || [];
 
   const load = useCallback(async () => {
@@ -219,6 +221,24 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
       reportError(e, toast);
     }
   };
+
+  useHotkeys({
+    'mod+f': () => filterRef.current?.focus(),
+    f5: () => void load(),
+    'mod+a': () => {
+      if (filtered.length === 0) return;
+      setChecked(new Set(filtered.map((c) => c.id)));
+    },
+    escape: () => setChecked(new Set()),
+    delete: () => {
+      const ids = checked.size > 0 ? [...checked] : selected ? [selected] : [];
+      if (ids.length === 0) return;
+      const first = list.find((c) => c.id === ids[0]);
+      void (ids.length === 1 && first
+        ? removeOne(ids[0], first.name)
+        : removeMany(ids));
+    },
+  });
 
   const rowMenu = (c: ContainerSummary): ContextMenuItem[] => {
     const a = getContainerActions(c.state, c.status);
@@ -461,9 +481,10 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
               }}
             />
             <input
+              ref={filterRef}
               className="search-input"
               style={{ paddingLeft: 26 }}
-              placeholder="过滤名称 / 镜像 / 项目"
+              placeholder="过滤名称 / 镜像 / 项目（Ctrl+F）"
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
             />

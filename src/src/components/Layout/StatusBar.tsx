@@ -11,6 +11,7 @@ export function StatusBar() {
       </span>
       {refreshing && <span className="spinner" style={{ width: 10, height: 10 }} />}
       <div style={{ flex: 1 }} />
+      <span style={{ opacity: 0.7 }}>Ctrl+F 搜索 · F5 刷新 · Ctrl+A 全选 · Del 删除</span>
       <span>Docker 管理器</span>
     </div>
   );

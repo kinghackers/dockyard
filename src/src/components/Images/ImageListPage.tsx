@@ -1,10 +1,24 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
-import { RefreshCw, Trash2, Download, Search, Play } from 'lucide-react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import {
+  RefreshCw,
+  Trash2,
+  Download,
+  Search,
+  Play,
+  ArrowUp,
+  ArrowDown,
+  Copy,
+  Tag,
+} from 'lucide-react';
 import type { ImageSummary } from '../../types/docker';
 import { useAppStore } from '../../stores/appStore';
 import { reportError } from '../../utils/connection';
 import { useConfirm } from '../../utils/useConfirm';
+import { useHotkeys } from '../../utils/useHotkeys';
 import { RunContainerDialog } from '../Containers/RunContainerDialog';
+import { ContextMenu, useContextMenu, type ContextMenuItem } from '../common/ContextMenu';
+
+type SortKey = 'tags' | 'id' | 'size' | 'created';
 
 function fmtBytes(n: number): string {
   if (!n || n < 0) return '0 B';
@@ -18,18 +32,27 @@ function fmtBytes(n: number): string {
   return `${v.toFixed(v >= 100 ? 0 : 1)} ${units[i]}`;
 }
 
+function tagsLabel(img: ImageSummary): string {
+  return img.repoTags.length > 0 ? img.repoTags.join(', ') : `<none>:${img.id.slice(7, 19)}`;
+}
+
 export function ImageListPage({ hostId }: { hostId: string }) {
   const { toast, containersVersion } = useAppStore();
   const [list, setList] = useState<ImageSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState('');
   const [selected, setSelected] = useState<string | null>(null);
+  const [checked, setChecked] = useState<Set<string>>(new Set());
+  const [sortKey, setSortKey] = useState<SortKey>('created');
+  const [sortAsc, setSortAsc] = useState(false);
   const [pullName, setPullName] = useState('');
   const [pulling, setPulling] = useState(false);
   const [pullMessage, setPullMessage] = useState('');
   const [runImage, setRunImage] = useState<string | null>(null);
   const [confirmDialog, confirm] = useConfirm();
   const pullOffRef = useRef<(() => void) | null>(null);
+  const filterRef = useRef<HTMLInputElement>(null);
+  const ctx = useContextMenu();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -75,29 +98,185 @@ export function ImageListPage({ hostId }: { hostId: string }) {
     }
   }, [pullName, pulling, hostId, toast, load]);
 
-  const filtered = list.filter((img) => {
-    if (!filter) return true;
-    const q = filter.toLowerCase();
-    return (
-      img.repoTags.some((t) => t.toLowerCase().includes(q)) ||
-      img.id.toLowerCase().includes(q)
-    );
+  const filtered = useMemo(() => {
+    const rows = list.filter((img) => {
+      if (!filter) return true;
+      const q = filter.toLowerCase();
+      return (
+        img.repoTags.some((t) => t.toLowerCase().includes(q)) ||
+        img.id.toLowerCase().includes(q)
+      );
+    });
+    const dir = sortAsc ? 1 : -1;
+    return [...rows].sort((a, b) => {
+      switch (sortKey) {
+        case 'tags':
+          return dir * tagsLabel(a).localeCompare(tagsLabel(b));
+        case 'id':
+          return dir * a.id.localeCompare(b.id);
+        case 'size':
+          return dir * (a.size - b.size);
+        case 'created':
+          return dir * (a.created - b.created);
+        default:
+          return 0;
+      }
+    });
+  }, [list, filter, sortKey, sortAsc]);
+
+  const selectedImage = useMemo(
+    () => list.find((i) => i.id === selected) || null,
+    [list, selected]
+  );
+  const allChecked = filtered.length > 0 && filtered.every((i) => checked.has(i.id));
+
+  const toggleChecked = (id: string) => {
+    setChecked((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    setChecked(allChecked ? new Set() : new Set(filtered.map((i) => i.id)));
+  };
+
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) setSortAsc(!sortAsc);
+    else {
+      setSortKey(key);
+      setSortAsc(key === 'tags' || key === 'id');
+    }
+  };
+
+  const runOne = (img: ImageSummary) => {
+    setRunImage(img.repoTags[0] || img.id.slice(0, 12));
+  };
+
+  const removeOne = async (id: string, label: string) => {
+    const ok = await confirm({
+      title: '删除镜像',
+      message: `确认删除镜像「${label}」？若有容器仍在使用将删除失败。`,
+      confirmLabel: '删除',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await window.dockerApi.removeImage(hostId, id, false);
+      toast('镜像已删除', 'success');
+      setSelected(null);
+      setChecked((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+      await load();
+    } catch (e) {
+      reportError(e, toast);
+    }
+  };
+
+  const removeMany = async (ids: string[]) => {
+    const ok = await confirm({
+      title: '批量删除镜像',
+      message: `确认删除选中的 ${ids.length} 个镜像？正在使用的镜像会删除失败。`,
+      confirmLabel: '删除',
+      danger: true,
+    });
+    if (!ok) return;
+    let okCount = 0;
+    for (const id of ids) {
+      try {
+        await window.dockerApi.removeImage(hostId, id, false);
+        okCount++;
+      } catch {
+        /* keep going */
+      }
+    }
+    toast(`已删除 ${okCount}/${ids.length} 个镜像`, okCount === ids.length ? 'success' : 'error');
+    setChecked(new Set());
+    setSelected(null);
+    await load();
+  };
+
+  useHotkeys({
+    'mod+f': () => filterRef.current?.focus(),
+    f5: () => void load(),
+    'mod+a': () => {
+      if (filtered.length === 0) return;
+      setChecked(new Set(filtered.map((i) => i.id)));
+    },
+    escape: () => setChecked(new Set()),
+    delete: () => {
+      const ids = checked.size > 0 ? [...checked] : selected ? [selected] : [];
+      if (ids.length === 0) return;
+      const first = list.find((i) => i.id === ids[0]);
+      void (ids.length === 1 && first
+        ? removeOne(ids[0], tagsLabel(first))
+        : removeMany(ids));
+    },
   });
 
+  const rowMenu = (img: ImageSummary): ContextMenuItem[] => {
+    const ids = checked.has(img.id) && checked.size > 1 ? [...checked] : [img.id];
+    const multi = ids.length > 1;
+    const label = tagsLabel(img);
+    return [
+      {
+        key: 'run',
+        label: '运行…',
+        icon: <Play size={13} />,
+        disabled: multi,
+        onSelect: () => runOne(img),
+      },
+      {
+        key: 'copy',
+        label: '复制镜像 ID',
+        icon: <Copy size={13} />,
+        disabled: multi,
+        onSelect: () => {
+          void navigator.clipboard?.writeText(img.id);
+          toast('已复制镜像 ID', 'info');
+        },
+      },
+      {
+        key: 'copyTag',
+        label: '复制仓库:标签',
+        icon: <Tag size={13} />,
+        disabled: multi || img.repoTags.length === 0,
+        onSelect: () => {
+          void navigator.clipboard?.writeText(img.repoTags[0]);
+          toast('已复制镜像名', 'info');
+        },
+      },
+      { key: 'sep', label: '', separator: true, onSelect: () => {} },
+      {
+        key: 'del',
+        label: multi ? `删除 ${ids.length} 个…` : '删除…',
+        icon: <Trash2 size={13} />,
+        danger: true,
+        onSelect: () => void (multi ? removeMany(ids) : removeOne(img.id, label)),
+      },
+    ];
+  };
+
+  const sortInd = (key: SortKey) =>
+    sortKey === key ? (
+      <span className="sort-ind">{sortAsc ? <ArrowUp size={11} /> : <ArrowDown size={11} />}</span>
+    ) : null;
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
       <div className="content-toolbar">
         <button className="btn" onClick={load} disabled={loading}>
           <RefreshCw size={14} className={loading ? 'spinner' : ''} /> 刷新
         </button>
         <button
           className="btn primary"
-          disabled={!selected}
-          onClick={() => {
-            if (!selected) return;
-            const img = list.find((i) => i.id === selected);
-            setRunImage(img?.repoTags[0] || img?.id.slice(0, 12) || selected);
-          }}
+          disabled={!selectedImage}
+          onClick={() => selectedImage && runOne(selectedImage)}
         >
           <Play size={13} /> 运行
         </button>
@@ -105,28 +284,24 @@ export function ImageListPage({ hostId }: { hostId: string }) {
           className="btn danger"
           disabled={!selected}
           onClick={() => {
-            if (!selected) return;
-            void (async () => {
-              const ok = await confirm({
-                title: '删除镜像',
-                message: '确认删除该镜像？若有容器仍在使用将删除失败。',
-                confirmLabel: '删除',
-                danger: true,
-              });
-              if (!ok) return;
-              try {
-                await window.dockerApi.removeImage(hostId, selected, false);
-                toast('镜像已删除', 'success');
-                setSelected(null);
-                await load();
-              } catch (e) {
-                reportError(e, toast);
-              }
-            })();
+            if (!selected || !selectedImage) return;
+            void removeOne(selected, tagsLabel(selectedImage));
           }}
         >
           <Trash2 size={13} /> 删除
         </button>
+        {checked.size > 1 && (
+          <>
+            <div style={{ width: 1, height: 18, background: 'var(--border)', margin: '0 4px' }} />
+            <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>已选 {checked.size}</span>
+            <button className="btn danger" onClick={() => void removeMany([...checked])}>
+              <Trash2 size={13} /> 批量删除
+            </button>
+            <button className="btn ghost" onClick={() => setChecked(new Set())}>
+              清除选择
+            </button>
+          </>
+        )}
         <div style={{ flex: 1 }} />
         <input
           className="search-input"
@@ -151,9 +326,10 @@ export function ImageListPage({ hostId }: { hostId: string }) {
         <div style={{ position: 'relative' }}>
           <Search size={13} style={{ position: 'absolute', left: 8, top: 8, color: 'var(--text-muted)' }} />
           <input
+            ref={filterRef}
             className="search-input"
             style={{ paddingLeft: 26 }}
-            placeholder="过滤镜像"
+            placeholder="过滤镜像（Ctrl+F）"
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
           />
@@ -178,7 +354,7 @@ export function ImageListPage({ hostId }: { hostId: string }) {
         </div>
       )}
 
-      <div style={{ flex: 1, overflow: 'auto' }}>
+      <div style={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
         {filtered.length === 0 ? (
           <div className="empty-state">
             <p>{list.length === 0 ? '暂无镜像' : '没有匹配的镜像'}</p>
@@ -187,25 +363,68 @@ export function ImageListPage({ hostId }: { hostId: string }) {
           <table className="table">
             <thead>
               <tr>
-                <th style={{ width: 28 }}></th>
-                <th>仓库:标签</th>
-                <th>ID</th>
-                <th>大小</th>
-                <th>创建时间</th>
+                <th style={{ width: 28 }}>
+                  <input
+                    type="checkbox"
+                    checked={allChecked}
+                    onChange={toggleAll}
+                    style={{ width: 12, height: 12 }}
+                  />
+                </th>
+                <th className="sortable" onClick={() => toggleSort('tags')}>
+                  仓库:标签{sortInd('tags')}
+                </th>
+                <th className="sortable" onClick={() => toggleSort('id')}>
+                  ID{sortInd('id')}
+                </th>
+                <th className="sortable" onClick={() => toggleSort('size')}>
+                  大小{sortInd('size')}
+                </th>
+                <th className="sortable" onClick={() => toggleSort('created')}>
+                  创建时间{sortInd('created')}
+                </th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((img) => (
                 <tr
                   key={img.id}
-                  className={selected === img.id ? 'selected' : ''}
-                  onClick={() => setSelected(img.id)}
+                  className={`${selected === img.id ? 'selected' : ''} ${checked.has(img.id) ? 'checked' : ''}`}
+                  onClick={(e) => {
+                    if (e.ctrlKey || e.metaKey) {
+                      toggleChecked(img.id);
+                      setSelected(img.id);
+                      return;
+                    }
+                    if (e.shiftKey && selected) {
+                      const from = filtered.findIndex((x) => x.id === selected);
+                      const to = filtered.findIndex((x) => x.id === img.id);
+                      if (from >= 0 && to >= 0) {
+                        const [a, b] = from < to ? [from, to] : [to, from];
+                        setChecked((prev) => {
+                          const next = new Set(prev);
+                          for (let i = a; i <= b; i++) next.add(filtered[i].id);
+                          return next;
+                        });
+                      }
+                      setSelected(img.id);
+                      return;
+                    }
+                    setSelected(img.id);
+                  }}
+                  onDoubleClick={() => runOne(img)}
+                  onContextMenu={(e) => {
+                    setSelected(img.id);
+                    if (!checked.has(img.id)) setChecked(new Set([img.id]));
+                    ctx.open(e, rowMenu(img));
+                  }}
                 >
                   <td>
                     <input
-                      type="radio"
-                      checked={selected === img.id}
-                      onChange={() => setSelected(img.id)}
+                      type="checkbox"
+                      checked={checked.has(img.id)}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={() => toggleChecked(img.id)}
                       style={{ width: 12, height: 12 }}
                     />
                   </td>
@@ -248,6 +467,7 @@ export function ImageListPage({ hostId }: { hostId: string }) {
         />
       )}
       {confirmDialog}
+      {ctx.menu && <ContextMenu state={ctx.menu} onClose={ctx.close} />}
     </div>
   );
 }
