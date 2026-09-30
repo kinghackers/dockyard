@@ -1,0 +1,212 @@
+import { Client, ConnectConfig } from 'ssh2';
+import * as net from 'net';
+import * as fs from 'fs';
+
+export interface SshAuthOptions {
+  host: string;
+  port: number;
+  username: string;
+  password?: string;
+  privateKeyPath?: string;
+  passphrase?: string;
+}
+
+export interface SshTunnel {
+  localPort: number;
+  close: () => Promise<void>;
+}
+
+function buildSshConfig(opts: SshAuthOptions): ConnectConfig {
+  const cfg: ConnectConfig = {
+    host: opts.host,
+    port: opts.port || 22,
+    username: opts.username,
+    readyTimeout: 20000,
+    keepaliveInterval: 10000,
+  };
+  if (opts.password) cfg.password = opts.password;
+  if (opts.privateKeyPath) {
+    cfg.privateKey = fs.readFileSync(opts.privateKeyPath);
+    if (opts.passphrase) cfg.passphrase = opts.passphrase;
+  }
+  return cfg;
+}
+
+/**
+ * Each incoming local TCP connection is bridged to a remote Docker HTTP API
+ * stream over SSH. Prefers `docker system dial-stdio` (the same transport
+ * `docker -H ssh://` uses), falls back to `socat` on the unix socket.
+ */
+export async function createSshDockerTunnel(
+  ssh: SshAuthOptions,
+  dockerSocketPath = '/var/run/docker.sock'
+): Promise<SshTunnel> {
+  return new Promise((resolve, reject) => {
+    const conn = new Client();
+    let server: net.Server | null = null;
+    let settled = false;
+    const sockets = new Set<net.Socket>();
+
+    const cleanup = () => {
+      for (const s of sockets) {
+        try {
+          s.destroy();
+        } catch {
+          /* ignore */
+        }
+      }
+      sockets.clear();
+      try {
+        server?.close();
+      } catch {
+        /* ignore */
+      }
+      try {
+        conn.end();
+      } catch {
+        /* ignore */
+      }
+    };
+
+    conn.on('ready', () => {
+      const bridge = (client: net.Socket) => {
+        sockets.add(client);
+        client.on('close', () => sockets.delete(client));
+        client.on('error', () => sockets.delete(client));
+
+        // docker system dial-stdio: speak Docker API over stdio
+        conn.exec('docker system dial-stdio', (err, stream) => {
+          if (err) {
+            // fallback: pipe to the unix socket via socat
+            conn.exec(`socat -u STDIO UNIX-CONNECT:${dockerSocketPath}`, (err2, stream2) => {
+              if (err2) {
+                client.destroy();
+                return;
+              }
+              client.pipe(stream2 as unknown as NodeJS.WritableStream);
+              (stream2 as unknown as NodeJS.ReadableStream).pipe(client);
+              stream2.on('close', () => client.destroy());
+              client.on('close', () => stream2.end());
+            });
+            return;
+          }
+          client.pipe(stream as unknown as NodeJS.WritableStream);
+          (stream as unknown as NodeJS.ReadableStream).pipe(client);
+          stream.on('close', () => client.destroy());
+          client.on('close', () => stream.end());
+        });
+      };
+
+      server = net.createServer(bridge);
+      server.on('error', (e) => {
+        if (!settled) {
+          settled = true;
+          cleanup();
+          reject(e);
+        }
+      });
+
+      server.listen(0, '127.0.0.1', () => {
+        const addr = server!.address() as net.AddressInfo;
+        if (!settled) {
+          settled = true;
+          resolve({
+            localPort: addr.port,
+            close: async () => cleanup(),
+          });
+        }
+      });
+    });
+
+    conn.on('error', (err) => {
+      if (!settled) {
+        settled = true;
+        cleanup();
+        reject(err);
+      }
+    });
+
+    conn.connect(buildSshConfig(ssh));
+  });
+}
+
+/** Forward a remote TCP port through SSH (for docker daemon on tcp://). */
+export async function createSshTcpTunnel(
+  ssh: SshAuthOptions,
+  remoteHost: string,
+  remotePort: number
+): Promise<SshTunnel> {
+  return new Promise((resolve, reject) => {
+    const conn = new Client();
+    let server: net.Server | null = null;
+    let settled = false;
+    const sockets = new Set<net.Socket>();
+
+    const cleanup = () => {
+      for (const s of sockets) {
+        try {
+          s.destroy();
+        } catch {
+          /* ignore */
+        }
+      }
+      sockets.clear();
+      try {
+        server?.close();
+      } catch {
+        /* ignore */
+      }
+      try {
+        conn.end();
+      } catch {
+        /* ignore */
+      }
+    };
+
+    conn.on('ready', () => {
+      server = net.createServer((client) => {
+        sockets.add(client);
+        client.on('close', () => sockets.delete(client));
+        conn.forwardOut('127.0.0.1', 0, remoteHost, remotePort, (err, stream) => {
+          if (err) {
+            client.destroy();
+            return;
+          }
+          client.pipe(stream as unknown as NodeJS.WritableStream);
+          (stream as unknown as NodeJS.ReadableStream).pipe(client);
+          stream.on('close', () => client.destroy());
+          client.on('close', () => stream.end());
+        });
+      });
+
+      server.on('error', (e) => {
+        if (!settled) {
+          settled = true;
+          cleanup();
+          reject(e);
+        }
+      });
+
+      server.listen(0, '127.0.0.1', () => {
+        const addr = server!.address() as net.AddressInfo;
+        if (!settled) {
+          settled = true;
+          resolve({
+            localPort: addr.port,
+            close: async () => cleanup(),
+          });
+        }
+      });
+    });
+
+    conn.on('error', (err) => {
+      if (!settled) {
+        settled = true;
+        cleanup();
+        reject(err);
+      }
+    });
+
+    conn.connect(buildSshConfig(ssh));
+  });
+}

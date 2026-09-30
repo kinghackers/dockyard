@@ -1,0 +1,47 @@
+{
+  "name": "idea-docker",
+  "version": "0.1.0",
+  "description": "Multi-host Docker management client inspired by IntelliJ IDEA Docker view",
+  "main": "dist-electron/main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron dist-electron/main.js",
+    "dev": "concurrently -k \"vite\" \"node scripts/dev-electron.mjs\"",
+    "build": "vite build && node scripts/build-electron.mjs",
+    "build:renderer": "vite build",
+    "build:electron": "node scripts/build-electron.mjs",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.node.json --noEmit",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@xterm/addon-fit": "^0.10.0",
+    "@xterm/addon-web-links": "^0.11.0",
+    "@xterm/xterm": "^5.5.0",
+    "dockerode": "^4.0.4",
+    "lucide-react": "^0.462.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "ssh2": "^1.16.0",
+    "zustand": "^4.5.5"
+  },
+  "devDependencies": {
+    "@types/dockerode": "^3.3.31",
+    "@types/node": "^20.16.11",
+    "@types/react": "^18.3.11",
+    "@types/react-dom": "^18.3.1",
+    "@types/ssh2": "^1.15.1",
+    "@vitejs/plugin-react": "^4.3.2",
+    "concurrently": "^8.2.2",
+    "electron": "^33.0.0",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.9"
+  },
+  "allowScripts": {
+    "electron@33.4.11": true,
+    "esbuild@0.24.2": true,
+    "esbuild@0.21.5": true,
+    "protobufjs@7.6.6": true,
+    "ssh2@1.17.0": true
+  }
+}

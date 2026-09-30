@@ -1,0 +1,259 @@
+import { useEffect, useState, useCallback, useMemo } from 'react';
+import {
+  RefreshCw,
+  Play,
+  Square,
+  RotateCw,
+  Trash2,
+  FileText,
+  Terminal as TermIcon,
+  Search,
+  Pause,
+  PlayCircle,
+} from 'lucide-react';
+import type { ContainerSummary } from '../../types/docker';
+import { useAppStore } from '../../stores/appStore';
+import { reportError } from '../../utils/connection';
+
+export function ContainerListPage({ hostId }: { hostId: string }) {
+  const { openTab, toast, setContainers, containersByHost } = useAppStore();
+  const [loading, setLoading] = useState(false);
+  const [filter, setFilter] = useState('');
+  const [stateFilter, setStateFilter] = useState<'all' | 'running' | 'exited' | 'paused'>('all');
+  const [selected, setSelected] = useState<string | null>(null);
+  const list = containersByHost[hostId] || [];
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await window.dockerApi.listContainers(hostId, true);
+      setContainers(hostId, data);
+    } catch (e) {
+      reportError(e, toast);
+    } finally {
+      setLoading(false);
+    }
+  }, [hostId, setContainers, toast]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const filtered = useMemo(() => {
+    return list.filter((c) => {
+      if (stateFilter !== 'all' && c.state !== stateFilter) return false;
+      if (!filter) return true;
+      const q = filter.toLowerCase();
+      return (
+        c.name.toLowerCase().includes(q) ||
+        c.image.toLowerCase().includes(q) ||
+        c.id.toLowerCase().includes(q) ||
+        (c.composeProject || '').toLowerCase().includes(q)
+      );
+    });
+  }, [list, filter, stateFilter]);
+
+  const action = async (fn: () => Promise<unknown>, okMsg: string) => {
+    try {
+      await fn();
+      toast(okMsg, 'success');
+      await load();
+    } catch (e) {
+      reportError(e, toast);
+    }
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div className="content-toolbar">
+        <button className="btn" onClick={load} disabled={loading}>
+          <RefreshCw size={14} className={loading ? 'spinner' : ''} /> 刷新
+        </button>
+        <button
+          className="btn"
+          disabled={!selected}
+          onClick={() => selected && action(() => window.dockerApi.startContainer(hostId, selected), '已启动')}
+        >
+          <Play size={13} /> 启动
+        </button>
+        <button
+          className="btn"
+          disabled={!selected}
+          onClick={() => selected && action(() => window.dockerApi.stopContainer(hostId, selected), '已停止')}
+        >
+          <Square size={13} /> 停止
+        </button>
+        <button
+          className="btn"
+          disabled={!selected}
+          onClick={() => selected && action(() => window.dockerApi.restartContainer(hostId, selected), '已重启')}
+        >
+          <RotateCw size={13} /> 重启
+        </button>
+        <button
+          className="btn"
+          disabled={!selected}
+          onClick={() =>
+            selected &&
+            action(() => window.dockerApi.pauseContainer(hostId, selected), '已暂停')
+          }
+        >
+          <Pause size={13} /> 暂停
+        </button>
+        <button
+          className="btn"
+          disabled={!selected}
+          onClick={() =>
+            selected &&
+            action(() => window.dockerApi.unpauseContainer(hostId, selected), '已恢复')
+          }
+        >
+          <PlayCircle size={13} /> 恢复
+        </button>
+        <button
+          className="btn"
+          disabled={!selected}
+          onClick={() => {
+            if (!selected) return;
+            openTab({
+              id: `logs:${hostId}:${selected}`,
+              title: `日志 · ${list.find((c) => c.id === selected)?.name || ''}`,
+              kind: 'logs',
+              hostId,
+              containerId: selected,
+            });
+          }}
+        >
+          <FileText size={13} /> 日志
+        </button>
+        <button
+          className="btn"
+          disabled={!selected}
+          onClick={() => {
+            if (!selected) return;
+            openTab({
+              id: `terminal:${hostId}:${selected}`,
+              title: `终端 · ${list.find((c) => c.id === selected)?.name || ''}`,
+              kind: 'terminal',
+              hostId,
+              containerId: selected,
+            });
+          }}
+        >
+          <TermIcon size={13} /> 终端
+        </button>
+        <button
+          className="btn danger"
+          disabled={!selected}
+          onClick={() => {
+            if (!selected) return;
+            if (!confirm('确认删除该容器？数据卷将一并移除。')) return;
+            action(() => window.dockerApi.removeContainer(hostId, selected, true), '已删除');
+          }}
+        >
+          <Trash2 size={13} /> 删除
+        </button>
+        <div style={{ flex: 1 }} />
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <select
+            value={stateFilter}
+            onChange={(e) => setStateFilter(e.target.value as typeof stateFilter)}
+            style={{ height: 28 }}
+          >
+            <option value="all">全部状态</option>
+            <option value="running">运行中</option>
+            <option value="exited">已退出</option>
+            <option value="paused">已暂停</option>
+          </select>
+          <div style={{ position: 'relative' }}>
+            <Search
+              size={13}
+              style={{
+                position: 'absolute',
+                left: 8,
+                top: 8,
+                color: 'var(--text-muted)',
+              }}
+            />
+            <input
+              className="search-input"
+              style={{ paddingLeft: 26 }}
+              placeholder="过滤名称 / 镜像 / 项目"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div style={{ flex: 1, overflow: 'auto' }}>
+        {filtered.length === 0 ? (
+          <div className="empty-state">
+            <p>{list.length === 0 ? '暂无容器' : '没有匹配的容器'}</p>
+          </div>
+        ) : (
+          <table className="table">
+            <thead>
+              <tr>
+                <th style={{ width: 28 }}></th>
+                <th>名称</th>
+                <th>状态</th>
+                <th>镜像</th>
+                <th>项目</th>
+                <th>端口</th>
+                <th>创建时间</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((c) => (
+                <tr
+                  key={c.id}
+                  className={selected === c.id ? 'selected' : ''}
+                  onClick={() => setSelected(c.id)}
+                  onDoubleClick={() =>
+                    openTab({
+                      id: `containerDetail:${hostId}:${c.id}`,
+                      title: `容器: ${c.name}`,
+                      kind: 'containerDetail',
+                      hostId,
+                      containerId: c.id,
+                    })
+                  }
+                >
+                  <td>
+                    <input
+                      type="radio"
+                      checked={selected === c.id}
+                      onChange={() => setSelected(c.id)}
+                      style={{ width: 12, height: 12 }}
+                    />
+                  </td>
+                  <td style={{ color: 'var(--text-bright)' }}>{c.name}</td>
+                  <td>
+                    <span className={`chip ${c.state}`}>
+                      <span className="dot" />
+                      {c.status}
+                    </span>
+                  </td>
+                  <td className="mono" style={{ color: 'var(--text-dim)', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {c.image}
+                  </td>
+                  <td style={{ color: 'var(--compose)' }}>{c.composeProject || '-'}</td>
+                  <td className="mono" style={{ fontSize: 11 }}>
+                    {c.ports
+                      .filter((p) => p.publicPort)
+                      .map((p) => `${p.publicPort}→${p.privatePort}`)
+                      .join(', ') || '-'}
+                  </td>
+                  <td style={{ color: 'var(--text-muted)', fontSize: 11 }}>
+                    {new Date(c.created * 1000).toLocaleString()}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,109 @@
+import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
+
+export interface DockerApi {
+  listConnections(): Promise<unknown[]>;
+  upsertConnection(cfg: unknown): Promise<unknown>;
+  removeConnection(id: string): Promise<boolean>;
+  testConnection(cfg: unknown): Promise<unknown>;
+  connect(id: string): Promise<unknown>;
+  disconnect(id: string): Promise<boolean>;
+  listStatuses(): Promise<unknown[]>;
+
+  listContainers(hostId: string, all?: boolean): Promise<unknown[]>;
+  inspectContainer(hostId: string, id: string): Promise<unknown>;
+  startContainer(hostId: string, id: string): Promise<boolean>;
+  stopContainer(hostId: string, id: string): Promise<boolean>;
+  restartContainer(hostId: string, id: string): Promise<boolean>;
+  killContainer(hostId: string, id: string): Promise<boolean>;
+  removeContainer(hostId: string, id: string, force?: boolean): Promise<boolean>;
+  pauseContainer(hostId: string, id: string): Promise<boolean>;
+  unpauseContainer(hostId: string, id: string): Promise<boolean>;
+
+  openLogs(hostId: string, containerId: string, tail?: number): Promise<boolean>;
+  closeLogs(hostId: string, containerId: string): Promise<boolean>;
+  onLogData(cb: (payload: { key: string; data: string }) => void): () => void;
+  onLogError(cb: (payload: { key: string; error: string }) => void): () => void;
+  onLogEnd(cb: (payload: { key: string }) => void): () => void;
+
+  openExec(hostId: string, containerId: string, sessionId: string): Promise<boolean>;
+  execInput(sessionId: string, data: string): Promise<boolean>;
+  execResize(sessionId: string, h: number, w: number): Promise<boolean>;
+  closeExec(sessionId: string): Promise<boolean>;
+  onExecData(cb: (payload: { sessionId: string; data: string }) => void): () => void;
+  onExecError(cb: (payload: { sessionId: string; error: string }) => void): () => void;
+  onExecEnd(cb: (payload: { sessionId: string }) => void): () => void;
+
+  listImages(hostId: string): Promise<unknown[]>;
+  removeImage(hostId: string, id: string, force?: boolean): Promise<boolean>;
+  pullImage(hostId: string, name: string): Promise<boolean>;
+  onPullProgress(cb: (payload: { name: string; message: string }) => void): () => void;
+
+  listNetworks(hostId: string): Promise<unknown[]>;
+  removeNetwork(hostId: string, id: string): Promise<boolean>;
+  listVolumes(hostId: string): Promise<unknown[]>;
+  removeVolume(hostId: string, name: string, force?: boolean): Promise<boolean>;
+
+  listComposeProjects(hostId: string): Promise<unknown[]>;
+  listUnclassified(hostId: string): Promise<unknown[]>;
+  systemStats(hostId: string): Promise<unknown>;
+  systemInfo(hostId: string): Promise<unknown>;
+  cleanupAll(): Promise<boolean>;
+}
+
+function subscribe<T>(channel: string, cb: (payload: T) => void): () => void {
+  const listener = (_e: IpcRendererEvent, payload: T) => cb(payload);
+  ipcRenderer.on(channel, listener);
+  return () => ipcRenderer.removeListener(channel, listener);
+}
+
+const api: DockerApi = {
+  listConnections: () => ipcRenderer.invoke('docker:listConnections'),
+  upsertConnection: (cfg) => ipcRenderer.invoke('docker:upsertConnection', cfg),
+  removeConnection: (id) => ipcRenderer.invoke('docker:removeConnection', id),
+  testConnection: (cfg) => ipcRenderer.invoke('docker:testConnection', cfg),
+  connect: (id) => ipcRenderer.invoke('docker:connect', id),
+  disconnect: (id) => ipcRenderer.invoke('docker:disconnect', id),
+  listStatuses: () => ipcRenderer.invoke('docker:listStatuses'),
+
+  listContainers: (hostId, all) => ipcRenderer.invoke('docker:listContainers', hostId, all),
+  inspectContainer: (hostId, id) => ipcRenderer.invoke('docker:inspectContainer', hostId, id),
+  startContainer: (hostId, id) => ipcRenderer.invoke('docker:startContainer', hostId, id),
+  stopContainer: (hostId, id) => ipcRenderer.invoke('docker:stopContainer', hostId, id),
+  restartContainer: (hostId, id) => ipcRenderer.invoke('docker:restartContainer', hostId, id),
+  killContainer: (hostId, id) => ipcRenderer.invoke('docker:killContainer', hostId, id),
+  removeContainer: (hostId, id, force) => ipcRenderer.invoke('docker:removeContainer', hostId, id, force),
+  pauseContainer: (hostId, id) => ipcRenderer.invoke('docker:pauseContainer', hostId, id),
+  unpauseContainer: (hostId, id) => ipcRenderer.invoke('docker:unpauseContainer', hostId, id),
+
+  openLogs: (hostId, containerId, tail) => ipcRenderer.invoke('docker:openLogs', hostId, containerId, tail),
+  closeLogs: (hostId, containerId) => ipcRenderer.invoke('docker:closeLogs', hostId, containerId),
+  onLogData: (cb) => subscribe('docker:logData', cb),
+  onLogError: (cb) => subscribe('docker:logError', cb),
+  onLogEnd: (cb) => subscribe('docker:logEnd', cb),
+
+  openExec: (hostId, containerId, sessionId) => ipcRenderer.invoke('docker:openExec', hostId, containerId, sessionId),
+  execInput: (sessionId, data) => ipcRenderer.invoke('docker:execInput', sessionId, data),
+  execResize: (sessionId, h, w) => ipcRenderer.invoke('docker:execResize', sessionId, h, w),
+  closeExec: (sessionId) => ipcRenderer.invoke('docker:closeExec', sessionId),
+  onExecData: (cb) => subscribe('docker:execData', cb),
+  onExecError: (cb) => subscribe('docker:execError', cb),
+  onExecEnd: (cb) => subscribe('docker:execEnd', cb),
+
+  listImages: (hostId) => ipcRenderer.invoke('docker:listImages', hostId),
+  removeImage: (hostId, id, force) => ipcRenderer.invoke('docker:removeImage', hostId, id, force),
+  pullImage: (hostId, name) => ipcRenderer.invoke('docker:pullImage', hostId, name),
+  onPullProgress: (cb) => subscribe('docker:pullProgress', cb),
+
+  listNetworks: (hostId) => ipcRenderer.invoke('docker:listNetworks', hostId),
+  removeNetwork: (hostId, id) => ipcRenderer.invoke('docker:removeNetwork', hostId, id),
+  listVolumes: (hostId) => ipcRenderer.invoke('docker:listVolumes', hostId),
+  removeVolume: (hostId, name, force) => ipcRenderer.invoke('docker:removeVolume', hostId, name, force),
+
+  listComposeProjects: (hostId) => ipcRenderer.invoke('docker:listComposeProjects', hostId),
+  listUnclassified: (hostId) => ipcRenderer.invoke('docker:listUnclassified', hostId),
+  systemStats: (hostId) => ipcRenderer.invoke('docker:systemStats', hostId),
+  systemInfo: (hostId) => ipcRenderer.invoke('docker:systemInfo', hostId),
+  cleanupAll: () => ipcRenderer.invoke('docker:cleanupAll'),
+};
+
+contextBridge.exposeInMainWorld('dockerApi', api);
