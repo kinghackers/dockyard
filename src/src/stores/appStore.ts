@@ -170,7 +170,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   openTab: (tab) => {
     // session tabs only — list/detail views belong to the main surface
-    if (tab.kind !== 'logs' && tab.kind !== 'terminal') {
+    if (tab.kind !== 'logs' && tab.kind !== 'terminal' && tab.kind !== 'composeLogs') {
       get().setMainView(tab);
       return;
     }

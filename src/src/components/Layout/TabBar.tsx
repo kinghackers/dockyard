@@ -12,6 +12,7 @@ const kindIcon: Record<ViewKind, React.ReactNode> = {
   composeProject: <Layers size={13} />,
   containerDetail: <Boxes size={13} />,
   logs: <FileText size={13} />,
+  composeLogs: <FileText size={13} />,
   terminal: <Term size={13} />,
   settings: <FileText size={13} />,
 };

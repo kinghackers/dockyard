@@ -337,6 +337,20 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
         >
           <RotateCw size={13} /> 重启全部
         </button>
+        <button
+          className="btn"
+          onClick={() =>
+            openTab({
+              id: `composeLogs:${hostId}:${projectName}`,
+              title: `项目日志 · ${projectName}`,
+              kind: 'composeLogs',
+              hostId,
+              projectName,
+            })
+          }
+        >
+          <FileText size={13} /> 项目日志
+        </button>
         <div style={{ flex: 1 }} />
         {(() => {
           const cur = containers.find((c) => c.id === selected);

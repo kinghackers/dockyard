@@ -274,6 +274,7 @@ export type ViewKind =
   | 'composeProject'
   | 'containerDetail'
   | 'logs'
+  | 'composeLogs'
   | 'terminal'
   | 'settings';
 

@@ -10,6 +10,7 @@ import { VolumeListPage } from '../Volumes/VolumeListPage';
 import { ComposeListPage } from '../Compose/ComposeListPage';
 import { ComposeProjectPage } from '../Compose/ComposeProjectPage';
 import { LogViewerPage } from '../Containers/LogViewerPage';
+import { ComposeLogsPage } from '../Compose/ComposeLogsPage';
 import { TerminalPage } from '../Containers/TerminalPage';
 
 function renderView(view: OpenTab) {
@@ -40,6 +41,10 @@ function renderView(view: OpenTab) {
     case 'logs':
       return view.containerId ? (
         <LogViewerPage hostId={view.hostId} containerId={view.containerId} />
+      ) : null;
+    case 'composeLogs':
+      return view.projectName ? (
+        <ComposeLogsPage hostId={view.hostId} projectName={view.projectName} />
       ) : null;
     case 'terminal':
       return view.containerId ? (
@@ -72,6 +77,7 @@ export function ContentRouter() {
     'volumes',
     'composeProject',
     'logs',
+    'composeLogs',
     'terminal',
   ]);
   const className = fillKinds.has(view.kind) ? 'content fill' : 'content';

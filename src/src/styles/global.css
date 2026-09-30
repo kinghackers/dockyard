@@ -769,6 +769,11 @@ textarea:focus {
   color: #6e6e6e;
 }
 
+.log-svc {
+  color: #c678dd;
+  font-weight: 500;
+}
+
 .log-hl {
   background: rgba(217, 164, 6, 0.35);
   color: inherit;
