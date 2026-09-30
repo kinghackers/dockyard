@@ -5,7 +5,7 @@ import { useAppStore } from '../../stores/appStore';
 import { reportError } from '../../utils/connection';
 
 export function ComposeListPage({ hostId }: { hostId: string }) {
-  const { toast, openTab } = useAppStore();
+  const { toast, openTab, containersVersion } = useAppStore();
   const [projects, setProjects] = useState<ComposeProject[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -24,6 +24,11 @@ export function ComposeListPage({ hostId }: { hostId: string }) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (containersVersion > 0) void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [containersVersion]);
 
   const startProject = async (p: ComposeProject) => {
     try {

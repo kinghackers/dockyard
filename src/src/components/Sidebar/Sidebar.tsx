@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   Plus,
   RefreshCw,
-  Settings,
   Plug,
   PlugZap,
   Pencil,
@@ -20,6 +19,7 @@ import {
   FileText,
 } from 'lucide-react';
 import { useAppStore } from '../../stores/appStore';
+import { useConfirm } from '../../utils/useConfirm';
 import type { ComposeProject, ContainerSummary, DockerConnectionConfig } from '../../types/docker';
 
 interface Props {
@@ -47,6 +47,7 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
 
   const [hostProjects, setHostProjects] = useState<Record<string, ComposeProject[]>>({});
   const [hostLoose, setHostLoose] = useState<Record<string, ContainerSummary[]>>({});
+  const [confirmDialog, confirm] = useConfirm();
 
   const refreshHostTree = useCallback(
     async (hostId: string) => {
@@ -68,11 +69,24 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
     [statuses, setContainers]
   );
 
-  // when a host connects, refresh its tree
+  // when a host connects, refresh its tree; when it drops, clear stale rows
   useEffect(() => {
     for (const c of connections) {
       if (statuses[c.id]?.connected) {
         void refreshHostTree(c.id);
+      } else {
+        setHostProjects((m) => {
+          if (!(c.id in m)) return m;
+          const next = { ...m };
+          delete next[c.id];
+          return next;
+        });
+        setHostLoose((m) => {
+          if (!(c.id in m)) return m;
+          const next = { ...m };
+          delete next[c.id];
+          return next;
+        });
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -214,9 +228,21 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
                   title="删除"
                   onClick={async (e) => {
                     e.stopPropagation();
-                    if (confirm(`确认删除连接 ${conn.name}?`)) {
+                    const ok = await confirm({
+                      title: '删除连接',
+                      message: `确认删除连接「${conn.name}」？仅移除配置，不影响远程 Docker 资源。`,
+                      confirmLabel: '删除',
+                      danger: true,
+                    });
+                    if (!ok) return;
+                    try {
                       await window.dockerApi.removeConnection(conn.id);
                       useAppStore.getState().removeConnectionLocal(conn.id);
+                    } catch (err) {
+                      useAppStore.getState().toast(
+                        err instanceof Error ? err.message : String(err),
+                        'error'
+                      );
                     }
                   }}
                 >
@@ -412,12 +438,14 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
           display: 'flex',
           gap: 4,
           flexShrink: 0,
+          justifyContent: 'flex-end',
         }}
       >
-        <button className="btn ghost icon-btn" title="设置" onClick={onAddConnection}>
-          <Settings size={14} />
-        </button>
+        <span style={{ fontSize: 10, color: 'var(--text-muted)', lineHeight: '22px' }}>
+          IDEA Docker Manager
+        </span>
       </div>
+      {confirmDialog}
     </div>
   );
 }

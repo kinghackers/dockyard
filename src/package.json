@@ -11,6 +11,8 @@
     "build:renderer": "vite build",
     "build:electron": "node scripts/build-electron.mjs",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.node.json --noEmit",
+    "check:ipc": "node scripts/check-ipc.mjs",
+    "verify": "npm run typecheck && npm run check:ipc",
     "preview": "vite preview"
   },
   "dependencies": {

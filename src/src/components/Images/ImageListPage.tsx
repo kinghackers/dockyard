@@ -1,8 +1,9 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { RefreshCw, Trash2, Download, Search, Play } from 'lucide-react';
 import type { ImageSummary } from '../../types/docker';
 import { useAppStore } from '../../stores/appStore';
 import { reportError } from '../../utils/connection';
+import { useConfirm } from '../../utils/useConfirm';
 import { RunContainerDialog } from '../Containers/RunContainerDialog';
 
 function fmtBytes(n: number): string {
@@ -25,7 +26,10 @@ export function ImageListPage({ hostId }: { hostId: string }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [pullName, setPullName] = useState('');
   const [pulling, setPulling] = useState(false);
+  const [pullMessage, setPullMessage] = useState('');
   const [runImage, setRunImage] = useState<string | null>(null);
+  const [confirmDialog, confirm] = useConfirm();
+  const pullOffRef = useRef<(() => void) | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -47,6 +51,29 @@ export function ImageListPage({ hostId }: { hostId: string }) {
     if (containersVersion > 0) void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [containersVersion]);
+
+  const doPull = useCallback(async () => {
+    const name = pullName.trim();
+    if (!name || pulling) return;
+    setPulling(true);
+    setPullMessage('');
+    pullOffRef.current = window.dockerApi.onPullProgress((p) => {
+      if (p.name === name) setPullMessage(p.message);
+    });
+    try {
+      await window.dockerApi.pullImage(hostId, name);
+      toast(`已拉取 ${name}`, 'success');
+      setPullName('');
+      await load();
+    } catch (e) {
+      reportError(e, toast);
+    } finally {
+      pullOffRef.current?.();
+      pullOffRef.current = null;
+      setPulling(false);
+      setPullMessage('');
+    }
+  }, [pullName, pulling, hostId, toast, load]);
 
   const filtered = list.filter((img) => {
     if (!filter) return true;
@@ -77,16 +104,25 @@ export function ImageListPage({ hostId }: { hostId: string }) {
         <button
           className="btn danger"
           disabled={!selected}
-          onClick={async () => {
+          onClick={() => {
             if (!selected) return;
-            if (!confirm('确认删除该镜像？')) return;
-            try {
-              await window.dockerApi.removeImage(hostId, selected, false);
-              toast('镜像已删除', 'success');
-              await load();
-            } catch (e) {
-              reportError(e, toast);
-            }
+            void (async () => {
+              const ok = await confirm({
+                title: '删除镜像',
+                message: '确认删除该镜像？若有容器仍在使用将删除失败。',
+                confirmLabel: '删除',
+                danger: true,
+              });
+              if (!ok) return;
+              try {
+                await window.dockerApi.removeImage(hostId, selected, false);
+                toast('镜像已删除', 'success');
+                setSelected(null);
+                await load();
+              } catch (e) {
+                reportError(e, toast);
+              }
+            })();
           }}
         >
           <Trash2 size={13} /> 删除
@@ -98,23 +134,17 @@ export function ImageListPage({ hostId }: { hostId: string }) {
           placeholder="如 nginx:latest"
           value={pullName}
           onChange={(e) => setPullName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && pullName.trim() && !pulling) {
+              (e.target as HTMLInputElement).blur();
+              void doPull();
+            }
+          }}
         />
         <button
           className="btn primary"
           disabled={!pullName.trim() || pulling}
-          onClick={async () => {
-            setPulling(true);
-            try {
-              await window.dockerApi.pullImage(hostId, pullName.trim());
-              toast(`已拉取 ${pullName}`, 'success');
-              setPullName('');
-              await load();
-            } catch (e) {
-              reportError(e, toast);
-            } finally {
-              setPulling(false);
-            }
-          }}
+          onClick={() => void doPull()}
         >
           <Download size={13} /> {pulling ? '拉取中…' : '拉取镜像'}
         </button>
@@ -129,6 +159,24 @@ export function ImageListPage({ hostId }: { hostId: string }) {
           />
         </div>
       </div>
+
+      {pulling && pullMessage && (
+        <div
+          style={{
+            padding: '6px 12px',
+            fontSize: 11,
+            color: 'var(--text-dim)',
+            background: 'var(--bg-panel-alt)',
+            borderTop: '1px solid var(--border)',
+            fontFamily: 'var(--font-mono)',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {pullMessage}
+        </div>
+      )}
 
       <div style={{ flex: 1, overflow: 'auto' }}>
         {filtered.length === 0 ? (
@@ -199,6 +247,7 @@ export function ImageListPage({ hostId }: { hostId: string }) {
           }}
         />
       )}
+      {confirmDialog}
     </div>
   );
 }

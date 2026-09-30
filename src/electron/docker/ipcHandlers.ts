@@ -245,7 +245,18 @@ export function registerIpc(manager: DockerConnectionManager, getWindows: () => 
   // ---- compose / stats ----
   ipcMain.handle('docker:listComposeProjects', (_e, hostId: string) => manager.listComposeProjects(hostId));
   ipcMain.handle('docker:listUnclassified', (_e, hostId: string) => manager.listUnclassifiedContainers(hostId));
-  ipcMain.handle('docker:systemStats', (_e, hostId: string) => manager.systemStats(hostId));
+  ipcMain.handle('docker:systemStats', async (_e, hostId: string) => {
+    try {
+      return await manager.systemStats(hostId);
+    } catch (e) {
+      // connection-level failures (ECONNRESET / hang up) — return a clean error
+      // instead of letting ipcMain.handle log a raw stack for every poll
+      const msg = e instanceof Error ? e.message : String(e);
+      throw new Error(msg.includes('ECONNRESET') || msg.includes('socket hang up')
+        ? `与 Docker 主机的连接中断: ${hostId}`
+        : msg);
+    }
+  });
   ipcMain.handle('docker:systemInfo', async (_e, hostId: string) => {
     const s = manager.status(hostId);
     return s?.info;

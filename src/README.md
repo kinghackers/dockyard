@@ -18,6 +18,7 @@
 ```bash
 npm install
 npm run dev        # 同时启动 Vite 与 Electron，支持热更新
+npm run verify     # 类型检查 + IPC 一致性检验
 ```
 
 ## 构建 / 运行

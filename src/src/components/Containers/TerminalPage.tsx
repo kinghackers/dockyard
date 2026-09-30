@@ -15,12 +15,16 @@ export function TerminalPage({ hostId, containerId }: { hostId: string; containe
   const wrapRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
+  const cleanupRef = useRef<(() => void) | null>(null);
 
   const start = async () => {
     if (!wrapRef.current) return;
     setStatus('connecting');
     setError(null);
 
+    // tear down any previous session first
+    cleanupRef.current?.();
+    cleanupRef.current = null;
     if (termRef.current) {
       termRef.current.dispose();
       termRef.current = null;
@@ -69,32 +73,41 @@ export function TerminalPage({ hostId, containerId }: { hostId: string; containe
       term.writeln('\r\n\x1b[33m[会话已结束]\x1b[0m');
     });
 
-    try {
-      await window.dockerApi.openExec(hostId, containerId, sessionId);
-      setStatus('open');
-      term.focus();
-      void window.dockerApi.execResize(sessionId, term.rows, term.cols);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-      setStatus('error');
-    }
-
-    return () => {
+    const cleanup = () => {
       unsubData();
       unsubErr();
       unsubEnd();
       void window.dockerApi.closeExec(sessionId);
     };
+    cleanupRef.current = cleanup;
+
+    try {
+      await window.dockerApi.openExec(hostId, containerId, sessionId);
+      // if unmounted while opening, abort the session we just created
+      if (cleanupRef.current !== cleanup) {
+        cleanup();
+        return;
+      }
+      setStatus('open');
+      term.focus();
+      void window.dockerApi.execResize(sessionId, term.rows, term.cols);
+    } catch (e) {
+      if (cleanupRef.current === cleanup) {
+        setError(e instanceof Error ? e.message : String(e));
+        setStatus('error');
+      } else {
+        cleanup();
+      }
+    }
   };
 
   useEffect(() => {
-    let cleanup: (() => void) | undefined;
-    void (async () => {
-      cleanup = await start();
-    })();
+    void start();
     return () => {
-      cleanup?.();
+      cleanupRef.current?.();
+      cleanupRef.current = null;
       termRef.current?.dispose();
+      termRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId, hostId, containerId]);
@@ -113,7 +126,8 @@ export function TerminalPage({ hostId, containerId }: { hostId: string; containe
         <button
           className="btn"
           onClick={() => {
-            void window.dockerApi.closeExec(sessionId);
+            cleanupRef.current?.();
+            cleanupRef.current = null;
             void start();
           }}
         >
@@ -122,7 +136,8 @@ export function TerminalPage({ hostId, containerId }: { hostId: string; containe
         <button
           className="btn"
           onClick={() => {
-            void window.dockerApi.closeExec(sessionId);
+            cleanupRef.current?.();
+            cleanupRef.current = null;
             setStatus('closed');
           }}
         >

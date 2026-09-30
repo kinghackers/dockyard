@@ -3,6 +3,7 @@ import { RefreshCw, Trash2, Search, Plus } from 'lucide-react';
 import type { VolumeSummary } from '../../types/docker';
 import { useAppStore } from '../../stores/appStore';
 import { reportError } from '../../utils/connection';
+import { useConfirm } from '../../utils/useConfirm';
 import { CreateVolumeDialog } from './CreateVolumeDialog';
 
 export function VolumeListPage({ hostId }: { hostId: string }) {
@@ -12,6 +13,7 @@ export function VolumeListPage({ hostId }: { hostId: string }) {
   const [filter, setFilter] = useState('');
   const [selected, setSelected] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [confirmDialog, confirm] = useConfirm();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -52,17 +54,25 @@ export function VolumeListPage({ hostId }: { hostId: string }) {
         <button
           className="btn danger"
           disabled={!selected}
-          onClick={async () => {
+          onClick={() => {
             if (!selected) return;
-            if (!confirm(`确认删除数据卷 ${selected}？其中数据将丢失。`)) return;
-            try {
-              await window.dockerApi.removeVolume(hostId, selected, true);
-              toast('数据卷已删除', 'success');
-              setSelected(null);
-              await load();
-            } catch (e) {
-              reportError(e, toast);
-            }
+            void (async () => {
+              const ok = await confirm({
+                title: '删除数据卷',
+                message: `确认删除数据卷「${selected}」？卷中数据将永久丢失。`,
+                confirmLabel: '删除',
+                danger: true,
+              });
+              if (!ok) return;
+              try {
+                await window.dockerApi.removeVolume(hostId, selected, true);
+                toast('数据卷已删除', 'success');
+                setSelected(null);
+                await load();
+              } catch (e) {
+                reportError(e, toast);
+              }
+            })();
           }}
         >
           <Trash2 size={13} /> 删除
@@ -143,6 +153,7 @@ export function VolumeListPage({ hostId }: { hostId: string }) {
           }}
         />
       )}
+      {confirmDialog}
     </div>
   );
 }

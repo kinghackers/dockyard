@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { RefreshCw, Cpu, HardDrive, Network, Box, Image as ImageIcon, Database, Activity } from 'lucide-react';
 import type { ConnectionStatus, SystemStats, DockerInfoLite } from '../../types/docker';
 import { useAppStore } from '../../stores/appStore';
@@ -27,11 +27,14 @@ export function DashboardPage({ hostId }: { hostId?: string }) {
   const [info, setInfo] = useState<DockerInfoLite | undefined>(undefined);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const inflight = useRef(false);
+  const failCount = useRef(0);
 
   const targetHost = hostId || connections.find((c) => statuses[c.id]?.connected)?.id;
 
   const load = useCallback(async () => {
-    if (!targetHost) return;
+    if (!targetHost || inflight.current) return;
+    inflight.current = true;
     setLoading(true);
     setRefreshing(true);
     setError(null);
@@ -42,9 +45,12 @@ export function DashboardPage({ hostId }: { hostId?: string }) {
       ]);
       setStats(s);
       setInfo(i);
+      failCount.current = 0;
     } catch (e) {
+      failCount.current += 1;
       setError(e instanceof Error ? e.message : String(e));
     } finally {
+      inflight.current = false;
       setLoading(false);
       setRefreshing(false);
     }
@@ -52,8 +58,20 @@ export function DashboardPage({ hostId }: { hostId?: string }) {
 
   useEffect(() => {
     void load();
-    const t = setInterval(() => void load(), 10000);
-    return () => clearInterval(t);
+    // back off when the host keeps failing so we don't hammer a dead endpoint
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const tick = async () => {
+      if (stopped) return;
+      await load();
+      const delay = failCount.current > 0 ? Math.min(10000 * failCount.current, 60000) : 10000;
+      timer = setTimeout(() => void tick(), delay);
+    };
+    void tick();
+    return () => {
+      stopped = true;
+      if (timer) clearTimeout(timer);
+    };
   }, [load]);
 
   // refresh sooner when docker events indicate activity

@@ -15,6 +15,7 @@ import {
 import type { ContainerSummary } from '../../types/docker';
 import { useAppStore } from '../../stores/appStore';
 import { reportError } from '../../utils/connection';
+import { useConfirm } from '../../utils/useConfirm';
 import { RunContainerDialog } from './RunContainerDialog';
 
 export function ContainerListPage({ hostId }: { hostId: string }) {
@@ -24,6 +25,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
   const [stateFilter, setStateFilter] = useState<'all' | 'running' | 'exited' | 'paused'>('all');
   const [selected, setSelected] = useState<string | null>(null);
   const [runOpen, setRunOpen] = useState(false);
+  const [confirmDialog, confirm] = useConfirm();
   const list = containersByHost[hostId] || [];
 
   const load = useCallback(async () => {
@@ -159,8 +161,16 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
           disabled={!selected}
           onClick={() => {
             if (!selected) return;
-            if (!confirm('确认删除该容器？数据卷将一并移除。')) return;
-            action(() => window.dockerApi.removeContainer(hostId, selected, true), '已删除');
+            void (async () => {
+              const ok = await confirm({
+                title: '删除容器',
+                message: '确认删除该容器？数据卷将一并移除。',
+                confirmLabel: '删除',
+                danger: true,
+              });
+              if (!ok) return;
+              action(() => window.dockerApi.removeContainer(hostId, selected, true), '已删除');
+            })();
           }}
         >
           <Trash2 size={13} /> 删除
@@ -279,6 +289,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
           }}
         />
       )}
+      {confirmDialog}
     </div>
   );
 }

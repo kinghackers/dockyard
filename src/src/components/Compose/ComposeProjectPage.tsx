@@ -13,7 +13,7 @@ import { useAppStore } from '../../stores/appStore';
 import { reportError } from '../../utils/connection';
 
 export function ComposeProjectPage({ hostId, projectName }: { hostId: string; projectName: string }) {
-  const { toast, openTab } = useAppStore();
+  const { toast, openTab, containersVersion } = useAppStore();
   const [containers, setContainers] = useState<ContainerSummary[]>([]);
   const [project, setProject] = useState<ComposeProject | null>(null);
   const [loading, setLoading] = useState(false);
@@ -41,6 +41,11 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
     const t = setInterval(() => void load(), 8000);
     return () => clearInterval(t);
   }, [load]);
+
+  useEffect(() => {
+    if (containersVersion > 0) void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [containersVersion]);
 
   const action = async (fn: () => Promise<unknown>, msg: string) => {
     try {

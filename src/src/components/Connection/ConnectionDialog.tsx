@@ -84,7 +84,20 @@ export function ConnectionDialog({ initial, onClose, onSaved }: Props) {
     }
   };
 
+  const validate = (): string | null => {
+    if (!name.trim()) return '请填写连接名称';
+    if (kind === 'tcp' && !host.trim()) return '请填写主机地址';
+    if (kind === 'ssh' && !sshHost.trim()) return '请填写 SSH 主机地址';
+    if (kind === 'unix' && !socketPath.trim()) return '请填写 Unix socket 路径';
+    return null;
+  };
+
   const handleSave = async () => {
+    const msg = validate();
+    if (msg) {
+      setTestResult({ ok: false, message: msg });
+      return;
+    }
     setSaving(true);
     try {
       await window.dockerApi.upsertConnection(buildConfig());

@@ -14,6 +14,7 @@ import {
 import type { ContainerDetail, ContainerStatsSample } from '../../types/docker';
 import { useAppStore } from '../../stores/appStore';
 import { reportError } from '../../utils/connection';
+import { useConfirm } from '../../utils/useConfirm';
 
 function fmtBytes(n: number | undefined): string {
   if (!n || n < 0) return '0 B';
@@ -33,6 +34,7 @@ export function ContainerDetailPage({ hostId, containerId }: { hostId: string; c
   const [live, setLive] = useState<ContainerStatsSample | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmDialog, confirm] = useConfirm();
   const liveSupported = useRef(true);
 
   const load = useCallback(async () => {
@@ -64,10 +66,13 @@ export function ContainerDetailPage({ hostId, containerId }: { hostId: string; c
   // live CPU / memory / net / block I/O stream while running
   const isRunning = detail?.state === 'running';
   useEffect(() => {
-    if (!isRunning || !liveSupported.current) {
+    if (!isRunning) {
       setLive(null);
+      // allow retrying stats next time the container starts
+      liveSupported.current = true;
       return;
     }
+    if (!liveSupported.current) return;
     let cancelled = false;
     let close: (() => void) | null = null;
     let offData: (() => void) | null = null;
@@ -84,15 +89,17 @@ export function ContainerDetailPage({ hostId, containerId }: { hostId: string; c
         });
         offErr = window.dockerApi.onStatsError((p) => {
           if (p.key === `${hostId}:${containerId}`) {
-            // stats may be unsupported (e.g. windows containers) — fall back silently
-            liveSupported.current = false;
+            // stats may be briefly unavailable (restart race) — stop this stream
+            // but keep liveSupported so the next start can retry
+            close?.();
+            close = null;
           }
         });
         close = () => {
           void window.dockerApi.closeStats(hostId, containerId);
         };
       } catch {
-        liveSupported.current = false;
+        // openStats failed (e.g. container already exited) — try again next cycle
       }
     })();
 
@@ -178,11 +185,19 @@ export function ContainerDetailPage({ hostId, containerId }: { hostId: string; c
         <button
           className="btn danger"
           onClick={() => {
-            if (!confirm('确认删除该容器？')) return;
-            void action(async () => {
-              await window.dockerApi.removeContainer(hostId, containerId, true);
-              closeTab(`containerDetail:${hostId}:${containerId}`);
-            }, '已删除');
+            void (async () => {
+              const ok = await confirm({
+                title: '删除容器',
+                message: `确认删除容器「${detail?.name || containerId.slice(0, 12)}」？此操作不可撤销。`,
+                confirmLabel: '删除',
+                danger: true,
+              });
+              if (!ok) return;
+              void action(async () => {
+                await window.dockerApi.removeContainer(hostId, containerId, true);
+                closeTab(`containerDetail:${hostId}:${containerId}`);
+              }, '已删除');
+            })();
           }}
         >
           <Trash2 size={13} /> 删除
@@ -315,6 +330,7 @@ export function ContainerDetailPage({ hostId, containerId }: { hostId: string; c
           )}
         </>
       )}
+      {confirmDialog}
     </div>
   );
 }

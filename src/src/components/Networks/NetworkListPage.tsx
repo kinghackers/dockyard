@@ -3,6 +3,7 @@ import { RefreshCw, Trash2, Search, Plus } from 'lucide-react';
 import type { NetworkSummary } from '../../types/docker';
 import { useAppStore } from '../../stores/appStore';
 import { reportError } from '../../utils/connection';
+import { useConfirm } from '../../utils/useConfirm';
 import { CreateNetworkDialog } from './CreateNetworkDialog';
 
 export function NetworkListPage({ hostId }: { hostId: string }) {
@@ -13,6 +14,7 @@ export function NetworkListPage({ hostId }: { hostId: string }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [confirmDialog, confirm] = useConfirm();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -53,17 +55,25 @@ export function NetworkListPage({ hostId }: { hostId: string }) {
         <button
           className="btn danger"
           disabled={!selected}
-          onClick={async () => {
+          onClick={() => {
             if (!selected) return;
-            if (!confirm('确认删除该网络？')) return;
-            try {
-              await window.dockerApi.removeNetwork(hostId, selected);
-              toast('网络已删除', 'success');
-              setSelected(null);
-              await load();
-            } catch (e) {
-              reportError(e, toast);
-            }
+            void (async () => {
+              const ok = await confirm({
+                title: '删除网络',
+                message: '确认删除该网络？已连接的容器将被断开。',
+                confirmLabel: '删除',
+                danger: true,
+              });
+              if (!ok) return;
+              try {
+                await window.dockerApi.removeNetwork(hostId, selected);
+                toast('网络已删除', 'success');
+                setSelected(null);
+                await load();
+              } catch (e) {
+                reportError(e, toast);
+              }
+            })();
           }}
         >
           <Trash2 size={13} /> 删除
@@ -189,6 +199,7 @@ export function NetworkListPage({ hostId }: { hostId: string }) {
           }}
         />
       )}
+      {confirmDialog}
     </div>
   );
 }
