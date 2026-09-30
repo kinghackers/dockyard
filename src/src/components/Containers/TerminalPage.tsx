@@ -121,7 +121,7 @@ export function TerminalPage({ hostId, containerId }: { hostId: string; containe
   }, []);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, overflow: 'hidden' }}>
       <div className="content-toolbar">
         <button
           className="btn"

@@ -150,7 +150,7 @@ export function LogViewerPage({ hostId, containerId }: { hostId: string; contain
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, overflow: 'hidden' }}>
       <div className="content-toolbar">
         <button className="btn" onClick={handleReload}>
           <RefreshCw size={14} /> 重新加载
@@ -203,7 +203,7 @@ export function LogViewerPage({ hostId, containerId }: { hostId: string; contain
         </div>
       )}
 
-      <div ref={bodyRef} className="log-view" style={{ flex: 1, overflow: 'auto' }}>
+      <div ref={bodyRef} className="log-view" style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
         {lines.length === 0 && (
           <div style={{ color: 'var(--text-muted)', padding: 12 }}>
             {status === 'connecting' ? '正在获取日志…' : '等待日志输出…'}

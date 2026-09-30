@@ -64,16 +64,28 @@ export function ContentRouter() {
 
   const body = renderView(view);
 
+  // logs/terminal and list surfaces scroll internally — clip the content shell
+  const fillKinds = new Set([
+    'containers',
+    'images',
+    'networks',
+    'volumes',
+    'composeProject',
+    'logs',
+    'terminal',
+  ]);
+  const className = fillKinds.has(view.kind) ? 'content fill' : 'content';
+
   if (view.hostId) {
     return (
-      <div className="content" key={contentKey}>
+      <div className={className} key={contentKey}>
         <HostGuard hostId={view.hostId}>{body}</HostGuard>
       </div>
     );
   }
 
   return (
-    <div className="content" key={contentKey}>
+    <div className={className} key={contentKey}>
       {body}
     </div>
   );

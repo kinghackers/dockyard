@@ -215,6 +215,23 @@ textarea:focus {
   min-height: 0;
 }
 
+/* Full-bleed views (logs / terminal / lists) own their scrolling;
+   the content area must clip so only one scrollbar is visible. */
+.content.fill {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.content.fill > * {
+  flex: 1;
+  min-height: 0;
+}
+
+.content.fill > .page {
+  overflow: auto;
+}
+
 .status-bar {
   height: var(--status-height);
   background: var(--bg-panel);
@@ -616,7 +633,9 @@ textarea:focus {
   color: #a9b7c6;
   white-space: pre-wrap;
   word-break: break-all;
-  min-height: 100%;
+  /* let flex size this box; min-height:100% would overflow past the toolbar */
+  min-height: 0;
+  overflow: auto;
 }
 
 .log-line-ts {
