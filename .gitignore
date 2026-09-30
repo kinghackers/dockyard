@@ -7,6 +7,7 @@ dist-electron/
 release/
 out-win/
 release-build/
+generated-*.png
 
 # Logs
 *.log
