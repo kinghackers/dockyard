@@ -42,6 +42,7 @@ export function useDockerEvents() {
   const statuses = useAppStore((s) => s.statuses);
   const bumpContainers = useAppStore((s) => s.bumpContainers);
   const noteEvent = useAppStore((s) => s.noteEvent);
+  const pushEvent = useAppStore((s) => s.pushEvent);
   const openHostsRef = useRef<Set<string>>(new Set());
 
   const connectedIds = connections
@@ -57,6 +58,13 @@ export function useDockerEvents() {
 
     const handleEvent = (e: DockerEvent) => {
       noteEvent(e.hostId, `${e.type}.${e.action}`);
+      pushEvent({
+        hostId: e.hostId,
+        type: e.type,
+        action: e.action,
+        name: e.name,
+        time: e.time || Date.now(),
+      });
       if (REFRESH_ACTIONS.has(e.action) || REFRESH_ACTIONS.has(`${e.type}.${e.action}`)) {
         bumpContainers();
       }
@@ -97,7 +105,7 @@ export function useDockerEvents() {
       off();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [connectedIds, bumpContainers, noteEvent]);
+  }, [connectedIds, bumpContainers, noteEvent, pushEvent]);
 
   // close every event stream when the app unmounts
   useEffect(() => {

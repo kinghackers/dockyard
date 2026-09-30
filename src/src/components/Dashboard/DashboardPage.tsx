@@ -1,7 +1,18 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
-import { RefreshCw, Cpu, HardDrive, Network, Box, Image as ImageIcon, Database, Activity } from 'lucide-react';
-import type { ConnectionStatus, SystemStats, DockerInfoLite } from '../../types/docker';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
+import {
+  RefreshCw,
+  Cpu,
+  HardDrive,
+  Network,
+  Box,
+  Database,
+  Activity,
+  AlertTriangle,
+  Radio,
+} from 'lucide-react';
+import type { ConnectionStatus, SystemStats, DockerInfoLite, ContainerSummary } from '../../types/docker';
 import { useAppStore } from '../../stores/appStore';
+import { formatBuildLabel } from '../../utils/buildInfo';
 
 function fmtBytes(n: number): string {
   if (!n || n < 0) return '0 B';
@@ -21,8 +32,85 @@ function meterClass(pct: number) {
   return 'meter success';
 }
 
+type Problem = {
+  id: string;
+  name: string;
+  level: 'error' | 'warning';
+  reason: string;
+};
+
+function detectProblems(list: ContainerSummary[]): Problem[] {
+  const out: Problem[] = [];
+  for (const c of list) {
+    const st = c.status || '';
+    if (c.state === 'restarting' || /^restarting\b/i.test(st)) {
+      out.push({
+        id: c.id,
+        name: c.name,
+        level: 'error',
+        reason: '自动重启中（可能是崩溃循环）',
+      });
+      continue;
+    }
+    if (/\(unhealthy\)/i.test(st)) {
+      out.push({ id: c.id, name: c.name, level: 'error', reason: '健康检查失败' });
+      continue;
+    }
+    const ex = st.match(/Exited\s*\((-?\d+)\)/i);
+    if (c.state === 'exited' && ex && Number(ex[1]) !== 0) {
+      out.push({
+        id: c.id,
+        name: c.name,
+        level: 'warning',
+        reason: `异常退出（退出码 ${ex[1]}）`,
+      });
+      continue;
+    }
+    if (/\(health:\s*starting\)/i.test(st) && c.state === 'running') {
+      out.push({ id: c.id, name: c.name, level: 'warning', reason: '健康检查中' });
+    }
+  }
+  return out;
+}
+
+const EVENT_LABEL: Record<string, string> = {
+  'container.start': '启动',
+  'container.stop': '停止',
+  'container.die': '退出',
+  'container.kill': '强杀',
+  'container.restart': '重启',
+  'container.destroy': '删除',
+  'container.create': '创建',
+  'container.pause': '暂停',
+  'container.unpause': '恢复',
+  'container.rename': '重命名',
+  'image.pull': '拉取镜像',
+  'image.tag': '镜像打标签',
+  'image.untag': '取消标签',
+  'image.delete': '删除镜像',
+  'volume.create': '创建卷',
+  'volume.destroy': '删除卷',
+  'network.create': '创建网络',
+  'network.destroy': '删除网络',
+};
+
+function fmtEventTime(ts: number) {
+  const d = new Date(ts);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
 export function DashboardPage({ hostId }: { hostId?: string }) {
-  const { connections, statuses, setRefreshing, containersVersion } = useAppStore();
+  const {
+    connections,
+    statuses,
+    setRefreshing,
+    containersVersion,
+    recentEvents,
+    openTab,
+    containersByHost,
+    setContainers,
+  } = useAppStore();
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [info, setInfo] = useState<DockerInfoLite | undefined>(undefined);
   const [loading, setLoading] = useState(false);
@@ -39,12 +127,14 @@ export function DashboardPage({ hostId }: { hostId?: string }) {
     setRefreshing(true);
     setError(null);
     try {
-      const [s, i] = await Promise.all([
+      const [s, i, list] = await Promise.all([
         window.dockerApi.systemStats(targetHost),
         window.dockerApi.systemInfo(targetHost),
+        window.dockerApi.listContainers(targetHost, true),
       ]);
       setStats(s);
       setInfo(i);
+      setContainers(targetHost, list);
       failCount.current = 0;
     } catch (e) {
       failCount.current += 1;
@@ -54,11 +144,10 @@ export function DashboardPage({ hostId }: { hostId?: string }) {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [targetHost, setRefreshing]);
+  }, [targetHost, setRefreshing, setContainers]);
 
   useEffect(() => {
     void load();
-    // back off when the host keeps failing so we don't hammer a dead endpoint
     let stopped = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
     const tick = async () => {
@@ -74,11 +163,20 @@ export function DashboardPage({ hostId }: { hostId?: string }) {
     };
   }, [load]);
 
-  // refresh sooner when docker events indicate activity
   useEffect(() => {
     if (containersVersion > 0) void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [containersVersion]);
+
+  const containers = useMemo(
+    () => (targetHost ? containersByHost[targetHost] || [] : []),
+    [containersByHost, targetHost]
+  );
+  const problems = useMemo(() => detectProblems(containers), [containers]);
+  const hostEvents = useMemo(
+    () => recentEvents.filter((e) => !targetHost || e.hostId === targetHost).slice(0, 12),
+    [recentEvents, targetHost]
+  );
 
   if (!targetHost) {
     return (
@@ -105,6 +203,7 @@ export function DashboardPage({ hostId }: { hostId?: string }) {
           {info?.serverVersion ? `Docker ${info.serverVersion}` : ''}
           {info?.os ? ` · ${info.os}` : ''}
           {info?.arch ? ` · ${info.arch}` : ''}
+          <span style={{ marginLeft: 10, opacity: 0.65 }}>{formatBuildLabel()}</span>
         </div>
         <div style={{ flex: 1 }} />
         <button className="btn" onClick={load} disabled={loading}>
@@ -147,7 +246,77 @@ export function DashboardPage({ hostId }: { hostId?: string }) {
               <div className="stat-label">数据卷</div>
               <div className="stat-value">{stats.volumes}</div>
             </div>
+            <div
+              className="stat-card"
+              style={problems.length > 0 ? { border: '1px solid rgba(207,91,86,0.45)' } : undefined}
+            >
+              <div className="stat-label">异常</div>
+              <div
+                className="stat-value"
+                style={{ color: problems.length > 0 ? 'var(--error)' : 'var(--success)' }}
+              >
+                {problems.length}
+              </div>
+              <div className="stat-sub">{problems.length > 0 ? '需要关注' : '状态正常'}</div>
+            </div>
           </div>
+
+          <div className="section-title">排障速览</div>
+          {problems.length === 0 ? (
+            <div
+              style={{
+                padding: '10px 12px',
+                borderRadius: 4,
+                background: 'rgba(89,168,105,0.1)',
+                border: '1px solid rgba(89,168,105,0.25)',
+                color: 'var(--success)',
+                fontSize: 12,
+                marginBottom: 8,
+              }}
+            >
+              当前没有检测到重启循环、健康检查失败或异常退出的容器。
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 8 }}>
+              {problems.map((p) => (
+                <div
+                  key={p.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    padding: '8px 12px',
+                    borderRadius: 4,
+                    cursor: 'pointer',
+                    border: `1px solid ${
+                      p.level === 'error' ? 'rgba(207,91,86,0.35)' : 'rgba(217,164,6,0.35)'
+                    }`,
+                    background:
+                      p.level === 'error' ? 'rgba(207,91,86,0.1)' : 'rgba(217,164,6,0.1)',
+                  }}
+                  onClick={() =>
+                    openTab({
+                      id: `containerDetail:${targetHost}:${p.id}`,
+                      title: `容器: ${p.name}`,
+                      kind: 'containerDetail',
+                      hostId: targetHost,
+                      containerId: p.id,
+                    })
+                  }
+                >
+                  <AlertTriangle
+                    size={14}
+                    color={p.level === 'error' ? 'var(--error)' : 'var(--warning)'}
+                  />
+                  <span style={{ color: 'var(--text-bright)', fontWeight: 500, minWidth: 120 }}>
+                    {p.name}
+                  </span>
+                  <span style={{ flex: 1, fontSize: 12, color: 'var(--text)' }}>{p.reason}</span>
+                  <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>查看详情 ›</span>
+                </div>
+              ))}
+            </div>
+          )}
 
           <div className="section-title">资源占用</div>
 
@@ -186,6 +355,50 @@ export function DashboardPage({ hostId }: { hostId?: string }) {
               读 {fmtBytes(stats.blockRead)} &nbsp;&nbsp; 写 {fmtBytes(stats.blockWrite)}
             </div>
           </div>
+
+          <div className="section-title">
+            <Radio size={13} style={{ marginRight: 6, verticalAlign: -2 }} />
+            最近事件
+          </div>
+          {hostEvents.length === 0 ? (
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>
+              暂无事件。启动/停止容器后这里会滚动显示。
+            </div>
+          ) : (
+            <div
+              style={{
+                border: '1px solid var(--border)',
+                borderRadius: 4,
+                overflow: 'hidden',
+                marginBottom: 16,
+              }}
+            >
+              {hostEvents.map((e) => {
+                const key = `${e.type}.${e.action}`;
+                return (
+                  <div
+                    key={e.id}
+                    style={{
+                      display: 'flex',
+                      gap: 10,
+                      padding: '6px 12px',
+                      fontSize: 12,
+                      borderBottom: '1px solid var(--border)',
+                      color: 'var(--text)',
+                    }}
+                  >
+                    <span className="mono" style={{ color: 'var(--text-muted)', width: 64 }}>
+                      {fmtEventTime(e.time)}
+                    </span>
+                    <span style={{ color: 'var(--text-bright)', minWidth: 72 }}>
+                      {EVENT_LABEL[key] || e.action}
+                    </span>
+                    <span style={{ flex: 1, color: 'var(--text-dim)' }}>{e.name || e.type}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           {info && (
             <>

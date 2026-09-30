@@ -75,6 +75,15 @@ interface AppState {
   /** per-host last event action, useful for subtle live badges */
   lastEventByHost: Record<string, string>;
   noteEvent: (hostId: string, action: string) => void;
+  /** rolling event feed for the dashboard */
+  recentEvents: { id: string; hostId: string; type: string; action: string; name?: string; time: number }[];
+  pushEvent: (e: {
+    hostId: string;
+    type: string;
+    action: string;
+    name?: string;
+    time: number;
+  }) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -217,4 +226,17 @@ export const useAppStore = create<AppState>((set, get) => ({
   lastEventByHost: {},
   noteEvent: (hostId, action) =>
     set({ lastEventByHost: { ...get().lastEventByHost, [hostId]: action } }),
+  recentEvents: [],
+  pushEvent: (e) => {
+    const item = {
+      id: `${e.time}-${Math.random().toString(36).slice(2, 7)}`,
+      hostId: e.hostId,
+      type: e.type,
+      action: e.action,
+      name: e.name,
+      time: e.time,
+    };
+    const next = [item, ...get().recentEvents];
+    set({ recentEvents: next.length > 40 ? next.slice(0, 40) : next });
+  },
 }));
