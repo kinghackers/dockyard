@@ -42,9 +42,11 @@
   --radius: 4px;
   --radius-sm: 3px;
   --sidebar-width: 300px;
-  --topbar-height: 36px;
+  --topbar-height: 34px;
   --tab-height: 34px;
   --status-height: 26px;
+  /* window caption buttons (titleBarOverlay) reserve this width on the right */
+  --caption-width: 138px;
 }
 
 * {
@@ -141,7 +143,7 @@ textarea:focus {
 }
 
 .sidebar-toolbar {
-  height: 32px;
+  height: var(--topbar-height);
   display: flex;
   align-items: center;
   gap: 2px;
@@ -149,6 +151,13 @@ textarea:focus {
   background: var(--bg-toolbar);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+  -webkit-app-region: drag;
+}
+
+.sidebar-toolbar .btn,
+.sidebar-toolbar input,
+.sidebar-toolbar select {
+  -webkit-app-region: no-drag;
 }
 
 .sidebar-body {
@@ -172,7 +181,15 @@ textarea:focus {
   background: var(--bg-panel-alt);
   border-bottom: 1px solid var(--border);
   overflow-x: auto;
+  overflow-y: hidden;
   flex-shrink: 0;
+  -webkit-app-region: drag;
+  /* leave room for minimize / maximize / close overlay */
+  padding-right: var(--caption-width);
+}
+
+.tab-bar .tab-item {
+  -webkit-app-region: no-drag;
 }
 
 .tab-item {
@@ -750,6 +767,13 @@ textarea:focus {
 
 .log-line-ts {
   color: #6e6e6e;
+}
+
+.log-hl {
+  background: rgba(217, 164, 6, 0.35);
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 1px;
 }
 
 .terminal-wrap {

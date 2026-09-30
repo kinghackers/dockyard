@@ -20,6 +20,12 @@ function createWindow() {
     backgroundColor: '#2B2B2B',
     title: APP_DISPLAY_NAME,
     autoHideMenuBar: true,
+    // dark chrome so the native frame matches the app theme
+    titleBarStyle: 'hidden',
+    titleBarOverlay:
+      process.platform === 'win32'
+        ? { color: '#2b2b2b', symbolColor: '#d8d8d8', height: 34 }
+        : undefined,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,

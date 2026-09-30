@@ -256,38 +256,47 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
           <RotateCw size={13} /> 重启全部
         </button>
         <div style={{ flex: 1 }} />
-        <button
-          className="btn"
-          disabled={!selected}
-          onClick={() => {
-            if (!selected) return;
-            openTab({
-              id: `logs:${hostId}:${selected}`,
-              title: `日志 · ${containers.find((c) => c.id === selected)?.name || ''}`,
-              kind: 'logs',
-              hostId,
-              containerId: selected,
-            });
-          }}
-        >
-          <FileText size={13} /> 日志
-        </button>
-        <button
-          className="btn"
-          disabled={!selected}
-          onClick={() => {
-            if (!selected) return;
-            openTab({
-              id: `terminal:${hostId}:${selected}`,
-              title: `终端 · ${containers.find((c) => c.id === selected)?.name || ''}`,
-              kind: 'terminal',
-              hostId,
-              containerId: selected,
-            });
-          }}
-        >
-          <TermIcon size={13} /> 终端
-        </button>
+        {(() => {
+          const cur = containers.find((c) => c.id === selected);
+          const curActs = cur ? getContainerActions(cur.state, cur.status) : null;
+          return (
+            <>
+              <button
+                className="btn"
+                disabled={!selected || !curActs?.canLogs}
+                onClick={() => {
+                  if (!selected || !cur) return;
+                  openTab({
+                    id: `logs:${hostId}:${selected}`,
+                    title: `日志 · ${cur.name}`,
+                    kind: 'logs',
+                    hostId,
+                    containerId: selected,
+                  });
+                }}
+              >
+                <FileText size={13} /> 日志
+              </button>
+              <button
+                className="btn"
+                disabled={!selected || !curActs?.canExec}
+                title={selected && !curActs?.canExec ? '仅运行中的容器可打开终端' : '打开终端'}
+                onClick={() => {
+                  if (!selected || !cur) return;
+                  openTab({
+                    id: `terminal:${hostId}:${selected}`,
+                    title: `终端 · ${cur.name}`,
+                    kind: 'terminal',
+                    hostId,
+                    containerId: selected,
+                  });
+                }}
+              >
+                <TermIcon size={13} /> 终端
+              </button>
+            </>
+          );
+        })()}
       </div>
 
       <div style={{ flex: 1, overflow: 'auto' }}>

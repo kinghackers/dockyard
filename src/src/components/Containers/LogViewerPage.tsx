@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { RefreshCw, Download, Trash2, Radio, Search, X } from 'lucide-react';
 import { useAppStore } from '../../stores/appStore';
 import { useHotkeys } from '../../utils/useHotkeys';
@@ -170,6 +170,43 @@ export function LogViewerPage({ hostId, containerId }: { hostId: string; contain
     },
   });
 
+  /** Render a log line, highlighting active filter matches. */
+  const renderLine = (line: string, i: number) => {
+    const q = logFilter.trim();
+    const m = line.match(/^(\S+Z)\s(.*)$/);
+    const text = m ? m[2] : line;
+    const ts = m ? m[1].slice(0, 19) : null;
+
+    let body: ReactNode = text || ' ';
+    if (q) {
+      const lower = text.toLowerCase();
+      const needle = q.toLowerCase();
+      const parts: ReactNode[] = [];
+      let from = 0;
+      let hit = lower.indexOf(needle, from);
+      let key = 0;
+      while (hit >= 0) {
+        if (hit > from) parts.push(text.slice(from, hit));
+        parts.push(
+          <mark key={key++} className="log-hl">
+            {text.slice(hit, hit + q.length)}
+          </mark>
+        );
+        from = hit + q.length;
+        hit = lower.indexOf(needle, from);
+      }
+      if (from < text.length) parts.push(text.slice(from));
+      body = parts;
+    }
+
+    return (
+      <div key={i}>
+        {ts && <span className="log-line-ts">{ts} </span>}
+        {body}
+      </div>
+    );
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, overflow: 'hidden' }}>
       <div className="content-toolbar">
@@ -266,19 +303,7 @@ export function LogViewerPage({ hostId, containerId }: { hostId: string; contain
         {lines.length > 0 && visibleLines.length === 0 && (
           <div style={{ color: 'var(--text-muted)', padding: 12 }}>没有匹配的日志行</div>
         )}
-        {visibleLines.map((line, i) => {
-          // docker --timestamps format: 2024-01-01T00:00:00.000000000Z message
-          const m = line.match(/^(\S+Z)\s(.*)$/);
-          if (m) {
-            return (
-              <div key={i}>
-                <span className="log-line-ts">{m[1].slice(0, 19)} </span>
-                {m[2]}
-              </div>
-            );
-          }
-          return <div key={i}>{line || ' '}</div>;
-        })}
+        {visibleLines.map((line, i) => renderLine(line, i))}
       </div>
     </div>
   );

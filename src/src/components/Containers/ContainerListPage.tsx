@@ -36,8 +36,8 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
   const { openTab, toast, setContainers, containersByHost, containersVersion } = useAppStore();
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState(() => loadUiPref('containers.filter', ''));
-  const [stateFilter, setStateFilter] = useState<'all' | 'running' | 'exited' | 'paused'>(() =>
-    loadUiPref('containers.stateFilter', 'all')
+  const [stateFilter, setStateFilter] = useState<'all' | 'running' | 'exited' | 'paused' | 'restarting'>(
+    () => loadUiPref('containers.stateFilter', 'all')
   );
   const [selected, setSelected] = useState<string | null>(null);
   /** multi-select ids (checkbox). `selected` remains the focus row for toolbar actions. */
@@ -246,6 +246,23 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
       setChecked(new Set(filtered.map((c) => c.id)));
     },
     escape: () => setChecked(new Set()),
+    arrowdown: () => {
+      if (filtered.length === 0) return;
+      const idx = selected ? filtered.findIndex((c) => c.id === selected) : -1;
+      const next = filtered[Math.min(idx + 1, filtered.length - 1)] ?? filtered[0];
+      setSelected(next.id);
+    },
+    arrowup: () => {
+      if (filtered.length === 0) return;
+      const idx = selected ? filtered.findIndex((c) => c.id === selected) : filtered.length;
+      const next = filtered[Math.max(idx - 1, 0)] ?? filtered[0];
+      setSelected(next.id);
+    },
+    enter: () => {
+      if (!selected) return;
+      const c = list.find((x) => x.id === selected);
+      if (c) openDetail(c.id, c.name);
+    },
     delete: () => {
       const ids = checked.size > 0 ? [...checked] : selected ? [selected] : [];
       if (ids.length === 0) return;
@@ -408,7 +425,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
         </button>
         <button
           className="btn"
-          disabled={!selected}
+          disabled={!selected || !selActions?.canLogs}
           onClick={() => {
             if (!selected) return;
             openLogs(selected, list.find((c) => c.id === selected)?.name || '');
@@ -418,7 +435,8 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
         </button>
         <button
           className="btn"
-          disabled={!selected}
+          disabled={!selected || !selActions?.canExec}
+          title={selected && !selActions?.canExec ? '仅运行中的容器可打开终端' : '打开终端'}
           onClick={() => {
             if (!selected) return;
             openTerminal(selected, list.find((c) => c.id === selected)?.name || '');
@@ -486,6 +504,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
             <option value="running">运行中</option>
             <option value="exited">已退出</option>
             <option value="paused">已暂停</option>
+            <option value="restarting">重启中</option>
           </select>
           <div style={{ position: 'relative' }}>
             <Search

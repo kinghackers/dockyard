@@ -575,8 +575,6 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
         >
           <RefreshCw size={14} />
         </button>
-        <div style={{ flex: 1 }} />
-        <span style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: 0.5 }}>DOCKER 资源管理</span>
       </div>
 
       <div className="sidebar-body">
@@ -682,21 +680,6 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
         })}
       </div>
 
-      {/* quick actions footer of sidebar */}
-      <div
-        style={{
-          borderTop: '1px solid var(--border)',
-          padding: '6px 8px',
-          display: 'flex',
-          gap: 4,
-          flexShrink: 0,
-          justifyContent: 'flex-end',
-        }}
-      >
-        <span style={{ fontSize: 10, color: 'var(--text-muted)', lineHeight: '22px' }}>
-          Docker 管理器
-        </span>
-      </div>
       {confirmDialog}
       {groupDialog && (
         <GroupNameDialog

@@ -6,6 +6,7 @@ import type {
   DockerConnectionConfig,
   OpenTab,
 } from '../types/docker';
+import { loadUiPref, saveUiPref } from '../utils/uiPrefs';
 
 /** Stable id for the single primary content surface driven by the tree. */
 export const MAIN_VIEW_ID = '__main_view__';
@@ -80,8 +81,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   connections: [],
   groups: [],
   statuses: {},
-  expandedHosts: {},
-  expandedGroups: {},
+  expandedHosts: loadUiPref('sidebar.expandedHosts', {}),
+  expandedGroups: loadUiPref('sidebar.expandedGroups', {}),
   expandedCompose: {},
   selectedTreeKey: null,
   selectedHostId: null,
@@ -134,11 +135,17 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ statuses: map });
   },
 
-  toggleHost: (id) =>
-    set({ expandedHosts: { ...get().expandedHosts, [id]: !get().expandedHosts[id] } }),
+  toggleHost: (id) => {
+    const expandedHosts = { ...get().expandedHosts, [id]: !get().expandedHosts[id] };
+    saveUiPref('sidebar.expandedHosts', expandedHosts);
+    set({ expandedHosts });
+  },
 
-  toggleGroup: (id) =>
-    set({ expandedGroups: { ...get().expandedGroups, [id]: !get().expandedGroups[id] } }),
+  toggleGroup: (id) => {
+    const expandedGroups = { ...get().expandedGroups, [id]: !get().expandedGroups[id] };
+    saveUiPref('sidebar.expandedGroups', expandedGroups);
+    set({ expandedGroups });
+  },
 
   toggleCompose: (key) =>
     set({ expandedCompose: { ...get().expandedCompose, [key]: !get().expandedCompose[key] } }),

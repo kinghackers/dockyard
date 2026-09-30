@@ -213,6 +213,7 @@ export function ContainerDetailPage({ hostId, containerId }: { hostId: string; c
         )}
         <button
           className="btn"
+          disabled={!acts?.canLogs}
           onClick={() =>
             openTab({
               id: `logs:${hostId}:${containerId}`,
