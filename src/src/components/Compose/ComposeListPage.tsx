@@ -1,14 +1,16 @@
 import { useEffect, useState, useCallback } from 'react';
-import { RefreshCw, Layers, Play, Square, ChevronRight } from 'lucide-react';
+import { RefreshCw, Layers, Play, Square, ChevronRight, FolderUp } from 'lucide-react';
 import type { ComposeProject } from '../../types/docker';
 import { useAppStore } from '../../stores/appStore';
 import { reportError } from '../../utils/connection';
 import { localizeStatusChip, localizeContainerStatus, localizeContainerState } from '../../utils/localize';
+import { ComposeUpDialog } from './ComposeUpDialog';
 
 export function ComposeListPage({ hostId }: { hostId: string }) {
   const { toast, openTab, containersVersion } = useAppStore();
   const [projects, setProjects] = useState<ComposeProject[]>([]);
   const [loading, setLoading] = useState(false);
+  const [upOpen, setUpOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -63,6 +65,9 @@ export function ComposeListPage({ hostId }: { hostId: string }) {
           Docker Compose 项目
         </div>
         <div style={{ flex: 1 }} />
+        <button className="btn primary" onClick={() => setUpOpen(true)}>
+          <FolderUp size={13} /> 从文件部署
+        </button>
         <button className="btn" onClick={load} disabled={loading}>
           <RefreshCw size={14} className={loading ? 'spinner' : ''} /> 刷新
         </button>
@@ -172,6 +177,16 @@ export function ComposeListPage({ hostId }: { hostId: string }) {
             </div>
           ))}
         </div>
+      )}
+      {upOpen && (
+        <ComposeUpDialog
+          hostId={hostId}
+          onClose={() => setUpOpen(false)}
+          onDeployed={async () => {
+            await load();
+          }}
+          toast={toast}
+        />
       )}
     </div>
   );

@@ -63,6 +63,8 @@ export interface DockerApi {
   createContainer(hostId: string, opts: unknown, start?: boolean): Promise<string>;
   createNetwork(hostId: string, opts: unknown): Promise<string>;
   createVolume(hostId: string, opts: unknown): Promise<string>;
+  composeUp(hostId: string, filePath: string): Promise<{ ok: boolean; output: string; exitCode: number | null }>;
+  selectFile(filters?: { name: string; extensions: string[] }[]): Promise<string | null>;
 
   openStats(hostId: string, containerId: string): Promise<boolean>;
   closeStats(hostId: string, containerId: string): Promise<boolean>;
@@ -142,6 +144,8 @@ const api: DockerApi = {
   createContainer: (hostId, opts, start) => ipcRenderer.invoke('docker:createContainer', hostId, opts, start),
   createNetwork: (hostId, opts) => ipcRenderer.invoke('docker:createNetwork', hostId, opts),
   createVolume: (hostId, opts) => ipcRenderer.invoke('docker:createVolume', hostId, opts),
+  composeUp: (hostId, filePath) => ipcRenderer.invoke('docker:composeUp', hostId, filePath),
+  selectFile: (filters) => ipcRenderer.invoke('docker:selectFile', filters),
 
   openStats: (hostId, containerId) => ipcRenderer.invoke('docker:openStats', hostId, containerId),
   closeStats: (hostId, containerId) => ipcRenderer.invoke('docker:closeStats', hostId, containerId),

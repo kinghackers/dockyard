@@ -353,6 +353,11 @@ declare global {
       createContainer(hostId: string, opts: CreateContainerOptions, start?: boolean): Promise<string>;
       createNetwork(hostId: string, opts: CreateNetworkOptions): Promise<string>;
       createVolume(hostId: string, opts: CreateVolumeOptions): Promise<string>;
+      composeUp(
+        hostId: string,
+        filePath: string
+      ): Promise<{ ok: boolean; output: string; exitCode: number | null }>;
+      selectFile(filters?: { name: string; extensions: string[] }[]): Promise<string | null>;
 
       openStats(hostId: string, containerId: string): Promise<boolean>;
       closeStats(hostId: string, containerId: string): Promise<boolean>;

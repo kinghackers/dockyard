@@ -1,4 +1,4 @@
-import { ipcMain, BrowserWindow, IpcMainInvokeEvent } from 'electron';
+import { ipcMain, BrowserWindow, IpcMainInvokeEvent, dialog } from 'electron';
 import { DockerConnectionManager } from './connectionManager';
 import {
   ConnectionGroup,
@@ -106,6 +106,19 @@ export function registerIpc(manager: DockerConnectionManager, getWindows: () => 
   });
   ipcMain.handle('docker:createVolume', async (_e, hostId: string, opts: CreateVolumeOptions) => {
     return manager.createVolume(hostId, opts);
+  });
+
+  ipcMain.handle('docker:composeUp', (_e, hostId: string, filePath: string) =>
+    manager.composeUp(hostId, filePath)
+  );
+
+  ipcMain.handle('docker:selectFile', async (e, filters?: { name: string; extensions: string[] }[]) => {
+    const win = BrowserWindow.fromWebContents(e.sender) || undefined;
+    const res = await dialog.showOpenDialog(win as BrowserWindow, {
+      properties: ['openFile'],
+      filters: filters?.length ? filters : [{ name: 'Compose 文件', extensions: ['yml', 'yaml'] }],
+    });
+    return res.canceled || res.filePaths.length === 0 ? null : res.filePaths[0];
   });
 
   // ---- logs (streaming via events) ----
