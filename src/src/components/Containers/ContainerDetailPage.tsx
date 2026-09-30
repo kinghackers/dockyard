@@ -16,6 +16,7 @@ import { useAppStore } from '../../stores/appStore';
 import { reportError } from '../../utils/connection';
 import { useConfirm } from '../../utils/useConfirm';
 import { localizeContainerStatus, localizeContainerState, localizeRestartPolicy } from '../../utils/localize';
+import { formatPortMappingsDetailed } from '../../utils/ports';
 import { getContainerActions } from '../../utils/containerActions';
 
 function fmtBytes(n: number | undefined): string {
@@ -376,11 +377,7 @@ export function ContainerDetailPage({ hostId, containerId }: { hostId: string; c
             <dt>网络</dt>
             <dd>{(detail.networks || []).join(', ') || '-'}</dd>
             <dt>端口</dt>
-            <dd>
-              {detail.ports
-                .map((p) => `${p.ip || '0.0.0.0'}:${p.publicPort || '-'} → ${p.privatePort}/${p.type}`)
-                .join('\n') || '-'}
-            </dd>
+            <dd style={{ whiteSpace: 'pre-line' }}>{formatPortMappingsDetailed(detail.ports)}</dd>
           </dl>
 
           {detail.mounts && detail.mounts.length > 0 && (

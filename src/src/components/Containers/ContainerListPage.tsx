@@ -18,6 +18,7 @@ import { useAppStore } from '../../stores/appStore';
 import { reportError } from '../../utils/connection';
 import { useConfirm } from '../../utils/useConfirm';
 import { localizeStatusChip, localizeContainerStatus } from '../../utils/localize';
+import { formatPortMappings } from '../../utils/ports';
 import { getContainerActions } from '../../utils/containerActions';
 import { RunContainerDialog } from './RunContainerDialog';
 import { ContainerRowActions } from './ContainerRowActions';
@@ -304,10 +305,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
                   </td>
                   <td style={{ color: 'var(--compose)' }}>{c.composeProject || '-'}</td>
                   <td className="mono" style={{ fontSize: 11 }}>
-                    {c.ports
-                      .filter((p) => p.publicPort)
-                      .map((p) => `${p.publicPort}→${p.privatePort}`)
-                      .join(', ') || '-'}
+                    {formatPortMappings(c.ports)}
                   </td>
                   <td style={{ color: 'var(--text-muted)', fontSize: 11 }}>
                     {new Date(c.created * 1000).toLocaleString()}

@@ -12,6 +12,7 @@ import type { ContainerSummary, ComposeProject } from '../../types/docker';
 import { useAppStore } from '../../stores/appStore';
 import { reportError } from '../../utils/connection';
 import { localizeStatusChip, localizeContainerStatus } from '../../utils/localize';
+import { formatPortMappings } from '../../utils/ports';
 import { ContainerRowActions } from '../Containers/ContainerRowActions';
 
 export function ComposeProjectPage({ hostId, projectName }: { hostId: string; projectName: string }) {
@@ -221,10 +222,7 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
                     {c.image}
                   </td>
                   <td className="mono" style={{ fontSize: 11 }}>
-                    {c.ports
-                      .filter((p) => p.publicPort)
-                      .map((p) => `${p.publicPort}→${p.privatePort}`)
-                      .join(', ') || '-'}
+                    {formatPortMappings(c.ports)}
                   </td>
                   <td>
                     <ContainerRowActions

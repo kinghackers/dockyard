@@ -50,7 +50,7 @@ function toSummary(c: Docker.ContainerInfo): ContainerSummary {
     ports: (c.Ports || []).map((p) => ({
       ip: p.IP,
       privatePort: p.PrivatePort,
-      publicPort: p.PublicPort,
+      publicPort: p.PublicPort || undefined,
       type: p.Type,
     })),
     labels,
@@ -58,6 +58,21 @@ function toSummary(c: Docker.ContainerInfo): ContainerSummary {
     composeService: labels['com.docker.compose.service'],
     networkMode: c.HostConfig?.NetworkMode,
   };
+}
+
+/** Convert HostConfig.PortBindings into summary port entries. */
+function portsFromBindings(
+  bindings: Record<string, { HostIp?: string; HostPort?: string }[] | null> | undefined
+): ContainerSummary['ports'] {
+  return Object.entries(bindings || {}).flatMap(([key, binds]) => {
+    const [privatePort, type] = key.split('/');
+    return (binds || []).map((b) => ({
+      ip: b.HostIp || undefined,
+      privatePort: Number(privatePort),
+      publicPort: b.HostPort ? Number(b.HostPort) : undefined,
+      type: type || 'tcp',
+    }));
+  });
 }
 
 function parseStatsSample(stats: Docker.ContainerStats): ContainerStatsSample {
@@ -335,22 +350,41 @@ export class DockerConnectionManager {
   async listContainers(hostId: string, all = true): Promise<ContainerSummary[]> {
     const docker = this.dockerOf(hostId);
     const list = await docker.listContainers({ all, size: false });
-    return list.map(toSummary);
+    const summaries = list.map(toSummary);
+
+    // List API only reports live NetworkSettings ports. For stopped containers
+    // fall back to HostConfig.PortBindings so the configured mapping stays visible.
+    await Promise.all(
+      summaries.map(async (s, i) => {
+        if (s.state === 'running' || s.state === 'paused') return;
+        if (s.ports.some((p) => p.publicPort)) return;
+        try {
+          const inspect = await docker.getContainer(s.id).inspect();
+          const fromBindings = portsFromBindings(inspect.HostConfig?.PortBindings);
+          if (fromBindings.length > 0) summaries[i] = { ...s, ports: fromBindings };
+        } catch {
+          /* keep empty ports */
+        }
+      })
+    );
+
+    return summaries;
   }
 
   async inspectContainer(hostId: string, id: string): Promise<ContainerDetail> {
     const docker = this.dockerOf(hostId);
     const c = await docker.getContainer(id).inspect();
     const labels = c.Config?.Labels || {};
-    const ports = Object.entries(c.NetworkSettings?.Ports || {}).flatMap(([key, binds]) => {
+    const livePorts = Object.entries(c.NetworkSettings?.Ports || {}).flatMap(([key, binds]) => {
       const [privatePort, type] = key.split('/');
       return (binds || []).map((b) => ({
         ip: b.HostIp,
         privatePort: Number(privatePort),
-        publicPort: Number(b.HostPort),
+        publicPort: b.HostPort ? Number(b.HostPort) : undefined,
         type: type || 'tcp',
       }));
     });
+    const ports = livePorts.length > 0 ? livePorts : portsFromBindings(c.HostConfig?.PortBindings);
 
     let cpuPercent = 0;
     let memUsage = 0;
