@@ -3,6 +3,7 @@
   "productName": "Docker 管理器",
   "version": "0.1.0",
   "description": "多主机 Docker 管理客户端",
+  "author": "Dockyard",
   "main": "dist-electron/main.js",
   "private": true,
   "scripts": {
@@ -55,6 +56,8 @@
     "appId": "com.dockyard.docker-manager",
     "productName": "Docker 管理器",
     "copyright": "Copyright © 2026 Dockyard",
+    "electronDist": "node_modules/electron/dist",
+    "npmRebuild": true,
     "directories": {
       "output": "release",
       "buildResources": "build"
