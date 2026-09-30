@@ -20,6 +20,7 @@ import {
 import type { ContainerSummary } from '../../types/docker';
 import { useAppStore } from '../../stores/appStore';
 import { reportError } from '../../utils/connection';
+import { runAction } from '../../utils/runAction';
 import { useConfirm } from '../../utils/useConfirm';
 import { useHotkeys } from '../../utils/useHotkeys';
 import { localizeStatusChip, localizeContainerStatus, statusChipExtraClass } from '../../utils/localize';
@@ -115,20 +116,24 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
     });
   }, [list, filter, stateFilter, sortKey, sortAsc]);
 
-  const action = async (fn: () => Promise<unknown>, okMsg: string) => {
-    try {
-      await fn();
-      toast(okMsg, 'success');
-      await load();
-    } catch (e) {
-      reportError(e, toast);
-    }
+  const action = async (fn: () => Promise<unknown>, okMsg: string, pendingMsg = '处理中…') => {
+    await runAction(toast, { pending: pendingMsg, ok: okMsg }, fn);
+    await load();
   };
 
-  const runOn = (ids: string[], fn: (id: string) => Promise<unknown>, okMsg: string) =>
-    action(async () => {
-      for (const id of ids) await fn(id);
-    }, okMsg);
+  const runOn = (
+    ids: string[],
+    fn: (id: string) => Promise<unknown>,
+    okMsg: string,
+    pendingMsg = '处理中…'
+  ) =>
+    action(
+      async () => {
+        for (const id of ids) await fn(id);
+      },
+      okMsg,
+      pendingMsg
+    );
 
   const selectedContainer = useMemo(
     () => list.find((c) => c.id === selected) || null,
@@ -284,7 +289,13 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
         key: 'start',
         label: multi ? `启动 ${ids.length} 个` : '启动',
         icon: <Play size={13} />,
-        onSelect: () => void runOn(ids, (id) => window.dockerApi.startContainer(hostId, id), multi ? `已启动 ${ids.length} 个` : '已启动'),
+        onSelect: () =>
+          void runOn(
+            ids,
+            (id) => window.dockerApi.startContainer(hostId, id),
+            multi ? `已启动 ${ids.length} 个` : '已启动',
+            multi ? `正在启动 ${ids.length} 个…` : `${c.name}: 正在启动…`
+          ),
       });
     }
     if (a.canStop) {
@@ -292,7 +303,13 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
         key: 'stop',
         label: multi ? `停止 ${ids.length} 个` : '停止',
         icon: <Square size={13} />,
-        onSelect: () => void runOn(ids, (id) => window.dockerApi.stopContainer(hostId, id), multi ? `已停止 ${ids.length} 个` : '已停止'),
+        onSelect: () =>
+          void runOn(
+            ids,
+            (id) => window.dockerApi.stopContainer(hostId, id),
+            multi ? `已停止 ${ids.length} 个` : '已停止',
+            multi ? `正在停止 ${ids.length} 个…` : `${c.name}: 正在停止…`
+          ),
       });
     }
     if (a.canRestart) {
@@ -300,7 +317,13 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
         key: 'restart',
         label: multi ? `重启 ${ids.length} 个` : '重启',
         icon: <RotateCw size={13} />,
-        onSelect: () => void runOn(ids, (id) => window.dockerApi.restartContainer(hostId, id), multi ? `已重启 ${ids.length} 个` : '已重启'),
+        onSelect: () =>
+          void runOn(
+            ids,
+            (id) => window.dockerApi.restartContainer(hostId, id),
+            multi ? `已重启 ${ids.length} 个` : '已重启',
+            multi ? `正在重启 ${ids.length} 个…` : `${c.name}: 正在重启…`
+          ),
       });
     }
     if (a.canKill && !multi) {
@@ -308,7 +331,12 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
         key: 'kill',
         label: '强制终止',
         icon: <Skull size={13} />,
-        onSelect: () => void action(() => window.dockerApi.killContainer(hostId, c.id), '已强制终止'),
+        onSelect: () =>
+          void action(
+            () => window.dockerApi.killContainer(hostId, c.id),
+            '已强制终止',
+            `${c.name}: 正在强杀…`
+          ),
       });
     }
     if (a.isRestartLoop && !multi) {
@@ -377,21 +405,42 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
         <button
           className="btn"
           disabled={!selected || !selActions?.canStart}
-          onClick={() => selected && action(() => window.dockerApi.startContainer(hostId, selected), '已启动')}
+          onClick={() =>
+            selected &&
+            action(
+              () => window.dockerApi.startContainer(hostId, selected),
+              '已启动',
+              '正在启动…'
+            )
+          }
         >
           <Play size={13} /> 启动
         </button>
         <button
           className="btn"
           disabled={!selected || !selActions?.canStop}
-          onClick={() => selected && action(() => window.dockerApi.stopContainer(hostId, selected), '已停止')}
+          onClick={() =>
+            selected &&
+            action(
+              () => window.dockerApi.stopContainer(hostId, selected),
+              '已停止',
+              '正在停止…'
+            )
+          }
         >
           <Square size={13} /> 停止
         </button>
         <button
           className="btn"
           disabled={!selected || !selActions?.canRestart}
-          onClick={() => selected && action(() => window.dockerApi.restartContainer(hostId, selected), '已重启')}
+          onClick={() =>
+            selected &&
+            action(
+              () => window.dockerApi.restartContainer(hostId, selected),
+              '已重启',
+              '正在重启…'
+            )
+          }
         >
           <RotateCw size={13} /> 重启
         </button>
@@ -400,7 +449,11 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
           disabled={!selected || !selActions?.canPause}
           onClick={() =>
             selected &&
-            action(() => window.dockerApi.pauseContainer(hostId, selected), '已暂停')
+            action(
+              () => window.dockerApi.pauseContainer(hostId, selected),
+              '已暂停',
+              '正在暂停…'
+            )
           }
         >
           <Pause size={13} /> 暂停
@@ -410,7 +463,11 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
           disabled={!selected || !selActions?.canUnpause}
           onClick={() =>
             selected &&
-            action(() => window.dockerApi.unpauseContainer(hostId, selected), '已恢复')
+            action(
+              () => window.dockerApi.unpauseContainer(hostId, selected),
+              '已恢复',
+              '正在恢复…'
+            )
           }
         >
           <PlayCircle size={13} /> 恢复
@@ -419,7 +476,14 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
           className="btn"
           disabled={!selected || !selActions?.canKill}
           title="强制终止"
-          onClick={() => selected && action(() => window.dockerApi.killContainer(hostId, selected), '已强制终止')}
+          onClick={() =>
+            selected &&
+            action(
+              () => window.dockerApi.killContainer(hostId, selected),
+              '已强制终止',
+              '正在强杀…'
+            )
+          }
         >
           <Skull size={13} /> 强杀
         </button>
@@ -630,12 +694,48 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
                   <td>
                     <ContainerRowActions
                       container={c}
-                      onStart={() => void action(() => window.dockerApi.startContainer(hostId, c.id), '已启动')}
-                      onStop={() => void action(() => window.dockerApi.stopContainer(hostId, c.id), '已停止')}
-                      onRestart={() => void action(() => window.dockerApi.restartContainer(hostId, c.id), '已重启')}
-                      onPause={() => void action(() => window.dockerApi.pauseContainer(hostId, c.id), '已暂停')}
-                      onUnpause={() => void action(() => window.dockerApi.unpauseContainer(hostId, c.id), '已恢复')}
-                      onKill={() => void action(() => window.dockerApi.killContainer(hostId, c.id), '已强制终止')}
+                      onStart={() =>
+                        void action(
+                          () => window.dockerApi.startContainer(hostId, c.id),
+                          '已启动',
+                          `${c.name}: 正在启动…`
+                        )
+                      }
+                      onStop={() =>
+                        void action(
+                          () => window.dockerApi.stopContainer(hostId, c.id),
+                          '已停止',
+                          `${c.name}: 正在停止…`
+                        )
+                      }
+                      onRestart={() =>
+                        void action(
+                          () => window.dockerApi.restartContainer(hostId, c.id),
+                          '已重启',
+                          `${c.name}: 正在重启…`
+                        )
+                      }
+                      onPause={() =>
+                        void action(
+                          () => window.dockerApi.pauseContainer(hostId, c.id),
+                          '已暂停',
+                          `${c.name}: 正在暂停…`
+                        )
+                      }
+                      onUnpause={() =>
+                        void action(
+                          () => window.dockerApi.unpauseContainer(hostId, c.id),
+                          '已恢复',
+                          `${c.name}: 正在恢复…`
+                        )
+                      }
+                      onKill={() =>
+                        void action(
+                          () => window.dockerApi.killContainer(hostId, c.id),
+                          '已强制终止',
+                          `${c.name}: 正在强杀…`
+                        )
+                      }
                       onStopRestartLoop={() => void stopRestartLoop(c.id, c.name)}
                       extra={
                         <>

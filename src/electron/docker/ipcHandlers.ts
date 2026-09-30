@@ -132,6 +132,11 @@ export function registerIpc(manager: DockerConnectionManager, getWindows: () => 
     return res.canceled || res.filePaths.length === 0 ? null : res.filePaths[0];
   });
 
+  ipcMain.handle('docker:readTextFile', async (_e, filePath: string) => {
+    const fs = await import('fs');
+    return fs.readFileSync(filePath, 'utf8');
+  });
+
   // ---- logs (streaming via events) ----
   ipcMain.handle(
     'docker:openLogs',

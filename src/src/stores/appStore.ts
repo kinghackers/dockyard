@@ -63,7 +63,7 @@ interface AppState {
   closeTab: (id: string) => void;
   setActiveTab: (id: string) => void;
 
-  toast: (message: string, type?: Toast['type']) => void;
+  toast: (message: string, type?: Toast['type'], durationMs?: number) => void;
   dismissToast: (id: string) => void;
 
   setContainers: (hostId: string, list: ContainerSummary[]) => void;
@@ -197,12 +197,12 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setActiveTab: (id) => set({ activeTabId: id }),
 
-  toast: (message, type = 'info') => {
+  toast: (message, type = 'info', durationMs = 3500) => {
     const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     set({ toasts: [...get().toasts, { id, message, type }] });
     setTimeout(() => {
       set({ toasts: get().toasts.filter((t) => t.id !== id) });
-    }, 3500);
+    }, durationMs);
   },
 
   dismissToast: (id) => set({ toasts: get().toasts.filter((t) => t.id !== id) }),

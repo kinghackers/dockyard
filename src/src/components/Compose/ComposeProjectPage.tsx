@@ -18,6 +18,7 @@ import {
 import type { ContainerSummary, ComposeProject } from '../../types/docker';
 import { useAppStore } from '../../stores/appStore';
 import { reportError } from '../../utils/connection';
+import { runAction } from '../../utils/runAction';
 import { useConfirm } from '../../utils/useConfirm';
 import { useHotkeys } from '../../utils/useHotkeys';
 import { loadUiPref, saveUiPref } from '../../utils/uiPrefs';
@@ -68,14 +69,9 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [containersVersion]);
 
-  const action = async (fn: () => Promise<unknown>, msg: string) => {
-    try {
-      await fn();
-      toast(msg, 'success');
-      await load();
-    } catch (e) {
-      reportError(e, toast);
-    }
+  const action = async (fn: () => Promise<unknown>, msg: string, pendingMsg = '处理中…') => {
+    await runAction(toast, { pending: pendingMsg, ok: msg }, fn);
+    await load();
   };
 
   const stopRestartLoop = async (id: string, name: string) => {
@@ -351,11 +347,15 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
         <button
           className="btn"
           onClick={() =>
-            action(async () => {
-              for (const c of containers) {
-                if (c.state !== 'running') await window.dockerApi.startContainer(hostId, c.id);
-              }
-            }, '项目已启动')
+            action(
+              async () => {
+                for (const c of containers) {
+                  if (c.state !== 'running') await window.dockerApi.startContainer(hostId, c.id);
+                }
+              },
+              '项目已启动',
+              '正在启动全部…'
+            )
           }
         >
           <Play size={13} /> 启动全部
@@ -363,11 +363,15 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
         <button
           className="btn"
           onClick={() =>
-            action(async () => {
-              for (const c of containers) {
-                if (c.state === 'running') await window.dockerApi.stopContainer(hostId, c.id);
-              }
-            }, '项目已停止')
+            action(
+              async () => {
+                for (const c of containers) {
+                  if (c.state === 'running') await window.dockerApi.stopContainer(hostId, c.id);
+                }
+              },
+              '项目已停止',
+              '正在停止全部…'
+            )
           }
         >
           <Square size={13} /> 停止全部
@@ -375,9 +379,13 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
         <button
           className="btn"
           onClick={() =>
-            action(async () => {
-              for (const c of containers) await window.dockerApi.restartContainer(hostId, c.id);
-            }, '项目已重启')
+            action(
+              async () => {
+                for (const c of containers) await window.dockerApi.restartContainer(hostId, c.id);
+              },
+              '项目已重启',
+              '正在重启全部…'
+            )
           }
         >
           <RotateCw size={13} /> 重启全部
@@ -519,12 +527,48 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
                   <td>
                     <ContainerRowActions
                       container={c}
-                      onStart={() => void action(() => window.dockerApi.startContainer(hostId, c.id), '已启动')}
-                      onStop={() => void action(() => window.dockerApi.stopContainer(hostId, c.id), '已停止')}
-                      onRestart={() => void action(() => window.dockerApi.restartContainer(hostId, c.id), '已重启')}
-                      onPause={() => void action(() => window.dockerApi.pauseContainer(hostId, c.id), '已暂停')}
-                      onUnpause={() => void action(() => window.dockerApi.unpauseContainer(hostId, c.id), '已恢复')}
-                      onKill={() => void action(() => window.dockerApi.killContainer(hostId, c.id), '已强制终止')}
+                      onStart={() =>
+                        void action(
+                          () => window.dockerApi.startContainer(hostId, c.id),
+                          '已启动',
+                          `${c.name}: 正在启动…`
+                        )
+                      }
+                      onStop={() =>
+                        void action(
+                          () => window.dockerApi.stopContainer(hostId, c.id),
+                          '已停止',
+                          `${c.name}: 正在停止…`
+                        )
+                      }
+                      onRestart={() =>
+                        void action(
+                          () => window.dockerApi.restartContainer(hostId, c.id),
+                          '已重启',
+                          `${c.name}: 正在重启…`
+                        )
+                      }
+                      onPause={() =>
+                        void action(
+                          () => window.dockerApi.pauseContainer(hostId, c.id),
+                          '已暂停',
+                          `${c.name}: 正在暂停…`
+                        )
+                      }
+                      onUnpause={() =>
+                        void action(
+                          () => window.dockerApi.unpauseContainer(hostId, c.id),
+                          '已恢复',
+                          `${c.name}: 正在恢复…`
+                        )
+                      }
+                      onKill={() =>
+                        void action(
+                          () => window.dockerApi.killContainer(hostId, c.id),
+                          '已强制终止',
+                          `${c.name}: 正在强杀…`
+                        )
+                      }
                       onStopRestartLoop={() => void stopRestartLoop(c.id, c.name)}
                     />
                   </td>

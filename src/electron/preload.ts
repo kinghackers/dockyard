@@ -79,6 +79,7 @@ export interface DockerApi {
     projectName: string
   ): Promise<{ ok: boolean; output: string; exitCode: number | null }>;
   selectFile(filters?: { name: string; extensions: string[] }[]): Promise<string | null>;
+  readTextFile(filePath: string): Promise<string>;
 
   openStats(hostId: string, containerId: string): Promise<boolean>;
   closeStats(hostId: string, containerId: string): Promise<boolean>;
@@ -166,6 +167,7 @@ const api: DockerApi = {
   composeProjectPull: (hostId, projectName) =>
     ipcRenderer.invoke('docker:composeProjectPull', hostId, projectName),
   selectFile: (filters) => ipcRenderer.invoke('docker:selectFile', filters),
+  readTextFile: (filePath) => ipcRenderer.invoke('docker:readTextFile', filePath),
 
   openStats: (hostId, containerId) => ipcRenderer.invoke('docker:openStats', hostId, containerId),
   closeStats: (hostId, containerId) => ipcRenderer.invoke('docker:closeStats', hostId, containerId),

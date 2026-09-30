@@ -19,11 +19,13 @@ import {
   FolderPlus,
   FolderOpen,
   FolderInput,
+  HardDriveDownload,
 } from 'lucide-react';
 import { useAppStore } from '../../stores/appStore';
 import { useConfirm } from '../../utils/useConfirm';
 import type { ComposeProject, ContainerSummary, DockerConnectionConfig } from '../../types/docker';
 import { GroupNameDialog } from './GroupNameDialog';
+import { ConnectionBackupDialog } from '../Connection/ConnectionBackupDialog';
 import { ContextMenu, useContextMenu, type ContextMenuItem } from '../common/ContextMenu';
 
 interface Props {
@@ -54,6 +56,7 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
     setContainers,
     containersByHost,
     containersVersion,
+    toast,
   } = useAppStore();
 
   const [hostProjects, setHostProjects] = useState<Record<string, ComposeProject[]>>({});
@@ -62,6 +65,7 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
   const [groupDialog, setGroupDialog] = useState<
     { mode: 'create' } | { mode: 'rename'; id: string; name: string } | null
   >(null);
+  const [backupOpen, setBackupOpen] = useState(false);
   const ctx = useContextMenu();
 
   const refreshHostTree = useCallback(
@@ -575,6 +579,13 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
         >
           <RefreshCw size={14} />
         </button>
+        <button
+          className="btn ghost icon-btn"
+          title="导入 / 导出连接配置"
+          onClick={() => setBackupOpen(true)}
+        >
+          <HardDriveDownload size={14} />
+        </button>
       </div>
 
       <div className="sidebar-body">
@@ -687,6 +698,28 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
           initialName={groupDialog.mode === 'rename' ? groupDialog.name : ''}
           onClose={() => setGroupDialog(null)}
           onSubmit={submitGroup}
+        />
+      )}
+      {backupOpen && (
+        <ConnectionBackupDialog
+          connections={connections}
+          groups={groups}
+          onClose={() => setBackupOpen(false)}
+          onImported={async () => {
+            // refresh connection list from disk after import
+            try {
+              const list = await window.dockerApi.listConnections();
+              useAppStore.getState().setConnections(list);
+              const g = await window.dockerApi.listGroups();
+              useAppStore.getState().setGroups(g);
+            } catch (err) {
+              useAppStore.getState().toast(
+                err instanceof Error ? err.message : String(err),
+                'error'
+              );
+            }
+          }}
+          toast={toast}
         />
       )}
       {ctx.menu && <ContextMenu state={ctx.menu} onClose={ctx.close} />}

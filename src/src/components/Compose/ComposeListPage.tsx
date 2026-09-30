@@ -3,6 +3,7 @@ import { RefreshCw, Layers, Play, Square, ChevronRight, FolderUp } from 'lucide-
 import type { ComposeProject } from '../../types/docker';
 import { useAppStore } from '../../stores/appStore';
 import { reportError } from '../../utils/connection';
+import { runAction } from '../../utils/runAction';
 import { localizeStatusChip, localizeContainerStatus, localizeContainerState } from '../../utils/localize';
 import { ComposeUpDialog } from './ComposeUpDialog';
 
@@ -34,27 +35,35 @@ export function ComposeListPage({ hostId }: { hostId: string }) {
   }, [containersVersion]);
 
   const startProject = async (p: ComposeProject) => {
-    try {
-      for (const c of p.containers) {
-        if (c.state !== 'running') await window.dockerApi.startContainer(hostId, c.id);
+    await runAction(
+      toast,
+      {
+        pending: `正在启动项目 ${p.name}…`,
+        ok: `项目 ${p.name} 已启动`,
+      },
+      async () => {
+        for (const c of p.containers) {
+          if (c.state !== 'running') await window.dockerApi.startContainer(hostId, c.id);
+        }
       }
-      toast(`项目 ${p.name} 已启动`, 'success');
-      await load();
-    } catch (e) {
-      reportError(e, toast);
-    }
+    );
+    await load();
   };
 
   const stopProject = async (p: ComposeProject) => {
-    try {
-      for (const c of p.containers) {
-        if (c.state === 'running') await window.dockerApi.stopContainer(hostId, c.id);
+    await runAction(
+      toast,
+      {
+        pending: `正在停止项目 ${p.name}…`,
+        ok: `项目 ${p.name} 已停止`,
+      },
+      async () => {
+        for (const c of p.containers) {
+          if (c.state === 'running') await window.dockerApi.stopContainer(hostId, c.id);
+        }
       }
-      toast(`项目 ${p.name} 已停止`, 'success');
-      await load();
-    } catch (e) {
-      reportError(e, toast);
-    }
+    );
+    await load();
   };
 
   return (

@@ -15,6 +15,7 @@ import {
 import type { ContainerDetail, ContainerStatsSample } from '../../types/docker';
 import { useAppStore } from '../../stores/appStore';
 import { reportError } from '../../utils/connection';
+import { runAction } from '../../utils/runAction';
 import { useConfirm } from '../../utils/useConfirm';
 import { localizeContainerStatus, localizeContainerState, localizeRestartPolicy } from '../../utils/localize';
 import { formatPortMappingsDetailed } from '../../utils/ports';
@@ -116,14 +117,9 @@ export function ContainerDetailPage({ hostId, containerId }: { hostId: string; c
     };
   }, [hostId, containerId, isRunning]);
 
-  const action = async (fn: () => Promise<unknown>, msg: string) => {
-    try {
-      await fn();
-      toast(msg, 'success');
-      await load();
-    } catch (e) {
-      reportError(e, toast);
-    }
+  const action = async (fn: () => Promise<unknown>, msg: string, pendingMsg = '处理中…') => {
+    await runAction(toast, { pending: pendingMsg, ok: msg, name: detail?.name }, fn);
+    await load();
   };
 
   const cpu = live?.cpuPercent ?? detail?.cpuPercent ?? 0;
@@ -247,22 +243,58 @@ export function ContainerDetailPage({ hostId, containerId }: { hostId: string; c
           <RefreshCw size={14} className={loading ? 'spinner' : ''} /> 刷新
         </button>
         {acts?.canStart && (
-          <button className="btn" onClick={() => action(() => window.dockerApi.startContainer(hostId, containerId), '已启动')}>
+          <button
+            className="btn"
+            onClick={() =>
+              action(
+                () => window.dockerApi.startContainer(hostId, containerId),
+                '已启动',
+                '正在启动…'
+              )
+            }
+          >
             <Play size={13} /> 启动
           </button>
         )}
         {acts?.canStop && (
-          <button className="btn" onClick={() => action(() => window.dockerApi.stopContainer(hostId, containerId), '已停止')}>
+          <button
+            className="btn"
+            onClick={() =>
+              action(
+                () => window.dockerApi.stopContainer(hostId, containerId),
+                '已停止',
+                '正在停止…'
+              )
+            }
+          >
             <Square size={13} /> 停止
           </button>
         )}
         {acts?.canRestart && (
-          <button className="btn" onClick={() => action(() => window.dockerApi.restartContainer(hostId, containerId), '已重启')}>
+          <button
+            className="btn"
+            onClick={() =>
+              action(
+                () => window.dockerApi.restartContainer(hostId, containerId),
+                '已重启',
+                '正在重启…'
+              )
+            }
+          >
             <RotateCw size={13} /> 重启
           </button>
         )}
         {acts?.canKill && (
-          <button className="btn" onClick={() => action(() => window.dockerApi.killContainer(hostId, containerId), '已强制终止')}>
+          <button
+            className="btn"
+            onClick={() =>
+              action(
+                () => window.dockerApi.killContainer(hostId, containerId),
+                '已强制终止',
+                '正在强杀…'
+              )
+            }
+          >
             <Skull size={13} /> 强杀
           </button>
         )}

@@ -372,6 +372,7 @@ declare global {
         projectName: string
       ): Promise<{ ok: boolean; output: string; exitCode: number | null }>;
       selectFile(filters?: { name: string; extensions: string[] }[]): Promise<string | null>;
+      readTextFile(filePath: string): Promise<string>;
 
       openStats(hostId: string, containerId: string): Promise<boolean>;
       closeStats(hostId: string, containerId: string): Promise<boolean>;
