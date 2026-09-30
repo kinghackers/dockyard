@@ -17,7 +17,9 @@
     "typecheck": "tsc --noEmit && tsc -p tsconfig.node.json --noEmit",
     "check:ipc": "node scripts/check-ipc.mjs",
     "check:logic": "node scripts/check-logic.mjs",
+    "check:dist": "node scripts/check-dist.mjs",
     "verify": "npm run typecheck && npm run check:ipc && npm run check:logic",
+    "verify:dist": "npm run build && npm run verify && npm run check:dist",
     "preview": "vite preview"
   },
   "dependencies": {
