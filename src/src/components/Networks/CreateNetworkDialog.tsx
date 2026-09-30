@@ -57,16 +57,16 @@ export function CreateNetworkDialog({ hostId, onClose, onCreated }: Props) {
           <div className="form-grid">
             <div className="form-row">
               <label>名称 *</label>
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="my-network" autoFocus />
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="如 my-network" autoFocus />
             </div>
             <div className="form-row">
               <label>驱动</label>
               <select value={driver} onChange={(e) => setDriver(e.target.value)}>
-                <option value="bridge">bridge</option>
-                <option value="host">host</option>
-                <option value="overlay">overlay</option>
+                <option value="bridge">桥接（bridge）</option>
+                <option value="host">主机（host）</option>
+                <option value="overlay">覆盖（overlay）</option>
                 <option value="macvlan">macvlan</option>
-                <option value="none">none</option>
+                <option value="none">无（none）</option>
               </select>
             </div>
           </div>

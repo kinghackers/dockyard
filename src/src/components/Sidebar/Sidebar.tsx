@@ -146,7 +146,7 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
           <RefreshCw size={14} />
         </button>
         <div style={{ flex: 1 }} />
-        <span style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: 0.5 }}>DOCKER EXPLORER</span>
+        <span style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: 0.5 }}>DOCKER 资源管理</span>
       </div>
 
       <div className="sidebar-body">
@@ -442,7 +442,7 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
         }}
       >
         <span style={{ fontSize: 10, color: 'var(--text-muted)', lineHeight: '22px' }}>
-          IDEA Docker Manager
+          IDEA Docker 管理器
         </span>
       </div>
       {confirmDialog}

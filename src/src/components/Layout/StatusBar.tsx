@@ -11,7 +11,7 @@ export function StatusBar() {
       </span>
       {refreshing && <span className="spinner" style={{ width: 10, height: 10 }} />}
       <div style={{ flex: 1 }} />
-      <span>IDEA Docker Manager</span>
+      <span>IDEA Docker 管理器</span>
     </div>
   );
 }

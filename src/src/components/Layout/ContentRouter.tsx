@@ -19,7 +19,7 @@ export function ContentRouter() {
     return (
       <div className="content">
         <div className="empty-state">
-          <h3>IDEA Docker Manager</h3>
+          <h3>IDEA Docker 管理器</h3>
           <p>从左侧选择一个 Docker 主机或资源开始管理</p>
         </div>
       </div>

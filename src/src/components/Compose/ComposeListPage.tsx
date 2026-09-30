@@ -3,6 +3,7 @@ import { RefreshCw, Layers, Play, Square, ChevronRight } from 'lucide-react';
 import type { ComposeProject } from '../../types/docker';
 import { useAppStore } from '../../stores/appStore';
 import { reportError } from '../../utils/connection';
+import { localizeStatusChip, localizeContainerStatus, localizeContainerState } from '../../utils/localize';
 
 export function ComposeListPage({ hostId }: { hostId: string }) {
   const { toast, openTab, containersVersion } = useAppStore();
@@ -158,7 +159,9 @@ export function ComposeListPage({ hostId }: { hostId: string }) {
                       <td>
                         <span className={`chip ${s.state || ''}`}>
                           <span className="dot" />
-                          {s.status || s.state || '-'}
+                          {s.state
+                            ? localizeStatusChip(s.status || '', s.state)
+                            : localizeContainerStatus(s.status || '') || '-'}
                         </span>
                       </td>
                       <td>{s.replicas || 1}</td>

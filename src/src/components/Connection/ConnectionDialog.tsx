@@ -128,9 +128,9 @@ export function ConnectionDialog({ initial, onClose, onSaved }: Props) {
             <div className="form-row">
               <label>连接方式</label>
               <select value={kind} onChange={(e) => setKind(e.target.value as ConnectionKind)}>
-                <option value="tcp">TCP (http/https)</option>
+                <option value="tcp">TCP（HTTP/HTTPS）</option>
                 <option value="ssh">SSH 隧道</option>
-                <option value="unix">Unix Socket</option>
+                <option value="unix">Unix 套接字</option>
               </select>
             </div>
           </div>
@@ -180,15 +180,15 @@ export function ConnectionDialog({ initial, onClose, onSaved }: Props) {
                   <details style={{ fontSize: 12 }}>
                     <summary style={{ cursor: 'pointer', color: 'var(--text-dim)' }}>或粘贴 PEM 内容</summary>
                     <div className="form-row" style={{ marginTop: 8 }}>
-                      <label>CA</label>
+                      <label>CA 证书内容</label>
                       <textarea rows={3} value={ca} onChange={(e) => setCa(e.target.value)} />
                     </div>
                     <div className="form-row">
-                      <label>Cert</label>
+                      <label>客户端证书内容</label>
                       <textarea rows={3} value={cert} onChange={(e) => setCert(e.target.value)} />
                     </div>
                     <div className="form-row">
-                      <label>Key</label>
+                      <label>客户端密钥内容</label>
                       <textarea rows={3} value={key} onChange={(e) => setKey(e.target.value)} />
                     </div>
                   </details>

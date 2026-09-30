@@ -4,6 +4,7 @@ import type { VolumeSummary } from '../../types/docker';
 import { useAppStore } from '../../stores/appStore';
 import { reportError } from '../../utils/connection';
 import { useConfirm } from '../../utils/useConfirm';
+import { localizeVolumeDriver, localizeScope } from '../../utils/localize';
 import { CreateVolumeDialog } from './CreateVolumeDialog';
 
 export function VolumeListPage({ hostId }: { hostId: string }) {
@@ -124,14 +125,18 @@ export function VolumeListPage({ hostId }: { hostId: string }) {
                   </td>
                   <td style={{ color: 'var(--text-bright)' }}>{v.name}</td>
                   <td>
-                    <span className="chip" style={{ background: 'rgba(224,108,117,0.15)', color: 'var(--volume)' }}>
-                      {v.driver}
+                    <span
+                      className="chip"
+                      style={{ background: 'rgba(224,108,117,0.15)', color: 'var(--volume)' }}
+                      title={v.driver}
+                    >
+                      {localizeVolumeDriver(v.driver)}
                     </span>
                   </td>
                   <td className="mono" style={{ color: 'var(--text-dim)', fontSize: 11 }}>
                     {v.mountpoint}
                   </td>
-                  <td>{v.scope}</td>
+                  <td>{localizeScope(v.scope)}</td>
                   <td style={{ color: 'var(--text-muted)', fontSize: 11 }}>
                     {v.created ? new Date(v.created).toLocaleString() : '-'}
                   </td>

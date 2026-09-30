@@ -15,6 +15,7 @@ import type { ContainerDetail, ContainerStatsSample } from '../../types/docker';
 import { useAppStore } from '../../stores/appStore';
 import { reportError } from '../../utils/connection';
 import { useConfirm } from '../../utils/useConfirm';
+import { localizeContainerStatus, localizeContainerState } from '../../utils/localize';
 
 function fmtBytes(n: number | undefined): string {
   if (!n || n < 0) return '0 B';
@@ -137,7 +138,7 @@ export function ContainerDetailPage({ hostId, containerId }: { hostId: string; c
         <div className="page-title">
           <span className={`chip ${detail?.state || ''}`}>
             <span className="dot" />
-            {detail?.state || 'unknown'}
+            {localizeContainerState(detail?.state || '')}
           </span>
           {detail?.name || containerId.slice(0, 12)}
         </div>
@@ -258,7 +259,7 @@ export function ContainerDetailPage({ hostId, containerId }: { hostId: string; c
             <dd>{detail.command || '-'}</dd>
             <dt>状态</dt>
             <dd>
-              {detail.status} · 退出码 {detail.exitCode ?? '-'}
+              {localizeContainerStatus(detail.status)} · 退出码 {detail.exitCode ?? '-'}
               {detail.oomKilled ? ' · OOM' : ''}
             </dd>
             <dt>启动时间</dt>

@@ -183,7 +183,7 @@ export class DockerConnectionManager {
 
   async connect(id: string): Promise<ConnectionStatus> {
     const cfg = this.loadConfigs().find((c) => c.id === id);
-    if (!cfg) throw new Error(`Connection not found: ${id}`);
+    if (!cfg) throw new Error(`未找到连接配置: ${id}`);
 
     await this.disconnect(id);
 
@@ -243,7 +243,7 @@ export class DockerConnectionManager {
   private dockerOf(id: string): Docker {
     const m = this.connections.get(id);
     if (!m || !m.status.connected || !m.docker) {
-      throw new Error(`Not connected: ${id}`);
+      throw new Error(`未连接到主机: ${id}`);
     }
     return m.docker;
   }
@@ -316,7 +316,7 @@ export class DockerConnectionManager {
     let blockWrite = 0;
     try {
       const stats = await new Promise<Docker.ContainerStats>((resolve, reject) => {
-        const t = setTimeout(() => reject(new Error('stats timeout')), 4000);
+        const t = setTimeout(() => reject(new Error('获取资源统计超时')), 4000);
         docker
           .getContainer(id)
           .stats({ stream: false }, (err, s) => {
@@ -527,7 +527,7 @@ export class DockerConnectionManager {
   async containerStats(hostId: string, id: string): Promise<ContainerStatsSample> {
     const docker = this.dockerOf(hostId);
     const stats = await new Promise<Docker.ContainerStats>((resolve, reject) => {
-      const t = setTimeout(() => reject(new Error('stats timeout')), 5000);
+      const t = setTimeout(() => reject(new Error('获取资源统计超时')), 5000);
       docker
         .getContainer(id)
         .stats({ stream: false }, (err, s) => {
@@ -558,7 +558,7 @@ export class DockerConnectionManager {
       .stats({ stream: true }, (err: Error | null, s?: NodeJS.ReadableStream) => {
         if (closed) return;
         if (err || !s) {
-          onError?.(err || new Error('stats stream unavailable'));
+          onError?.(err || new Error('资源统计流不可用'));
           return;
         }
         stream = s;
@@ -607,7 +607,7 @@ export class DockerConnectionManager {
       docker.getEvents({}, (err: Error | null, s?: NodeJS.ReadableStream) => {
         if (aborted) return;
         if (err || !s) {
-          onError?.(err || new Error('events stream unavailable'));
+          onError?.(err || new Error('事件流不可用'));
           return;
         }
         stream = s;
@@ -690,7 +690,7 @@ export class DockerConnectionManager {
       // Callback form: (err, stream) when follow=true, (err, buffer) when follow=false
       docker.getContainer(id).logs(logOpts as never, (err: Error | null, result?: Buffer | NodeJS.ReadableStream) => {
         if (err) return reject(err);
-        if (!result) return reject(new Error('docker logs returned empty result'));
+        if (!result) return reject(new Error('Docker 日志流为空'));
         if (typeof (result as NodeJS.ReadableStream).on === 'function') {
           resolve(result as NodeJS.ReadableStream);
           return;
@@ -723,7 +723,7 @@ export class DockerConnectionManager {
       exec.start({ hijack: true, stdin: true, Tty: true }, (err: Error | null, stream?: NodeJS.ReadWriteStream) => {
         if (err) return reject(err);
         if (!stream || typeof stream.on !== 'function') {
-          return reject(new Error('docker exec did not return a stream'));
+          return reject(new Error('Docker exec 未返回终端流'));
         }
         resolve(stream);
       });
@@ -758,7 +758,7 @@ export class DockerConnectionManager {
     const docker = this.dockerOf(hostId);
     return new Promise((resolve, reject) => {
       docker.pull(name, (err: Error | null, stream?: NodeJS.ReadableStream) => {
-        if (err || !stream) return reject(err || new Error('pull failed'));
+        if (err || !stream) return reject(err || new Error('拉取镜像失败'));
         docker.modem.followProgress(
           stream,
           (e: Error | null) => (e ? reject(e) : resolve()),
@@ -894,7 +894,7 @@ export class DockerConnectionManager {
       if (c.State !== 'running') continue;
       try {
         const stats = await new Promise<Docker.ContainerStats>((resolve, reject) => {
-          const t = setTimeout(() => reject(new Error('timeout')), 3000);
+          const t = setTimeout(() => reject(new Error('操作超时')), 3000);
           docker
             .getContainer(c.Id)
             .stats({ stream: false }, (err, s) => {

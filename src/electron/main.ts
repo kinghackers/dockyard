@@ -16,7 +16,7 @@ function createWindow() {
     minHeight: 600,
     show: false,
     backgroundColor: '#2B2B2B',
-    title: 'IDEA Docker Manager',
+    title: 'IDEA Docker 管理器',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,

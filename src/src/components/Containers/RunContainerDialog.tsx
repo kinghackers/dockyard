@@ -168,10 +168,10 @@ export function RunContainerDialog({ hostId, initialImage, onClose, onCreated }:
             <div className="form-row">
               <label>网络</label>
               <select value={network} onChange={(e) => setNetwork(e.target.value)}>
-                <option value="">默认 (bridge)</option>
+                <option value="">默认（桥接）</option>
                 {networks.map((n) => (
                   <option key={n.id} value={n.name}>
-                    {n.name} ({n.driver})
+                    {n.name}（{n.driver}）
                   </option>
                 ))}
               </select>
@@ -379,7 +379,7 @@ export function RunContainerDialog({ hostId, initialImage, onClose, onCreated }:
                     next[i] = { ...e, key: ev.target.value };
                     setEnv(next);
                   }}
-                  placeholder="KEY"
+                  placeholder="变量名"
                 />
                 <input
                   value={e.value}
@@ -388,7 +388,7 @@ export function RunContainerDialog({ hostId, initialImage, onClose, onCreated }:
                     next[i] = { ...e, value: ev.target.value };
                     setEnv(next);
                   }}
-                  placeholder="value"
+                  placeholder="变量值"
                 />
                 <button
                   className="btn ghost icon-btn"

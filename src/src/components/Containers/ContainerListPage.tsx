@@ -16,6 +16,7 @@ import type { ContainerSummary } from '../../types/docker';
 import { useAppStore } from '../../stores/appStore';
 import { reportError } from '../../utils/connection';
 import { useConfirm } from '../../utils/useConfirm';
+import { localizeStatusChip, localizeContainerStatus } from '../../utils/localize';
 import { RunContainerDialog } from './RunContainerDialog';
 
 export function ContainerListPage({ hostId }: { hostId: string }) {
@@ -254,7 +255,9 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
                   <td>
                     <span className={`chip ${c.state}`}>
                       <span className="dot" />
-                      {c.status}
+                      <span title={localizeContainerStatus(c.status)}>
+                        {localizeStatusChip(c.status, c.state)}
+                      </span>
                     </span>
                   </td>
                   <td className="mono" style={{ color: 'var(--text-dim)', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis' }}>

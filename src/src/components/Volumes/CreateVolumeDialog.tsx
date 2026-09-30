@@ -48,13 +48,13 @@ export function CreateVolumeDialog({ hostId, onClose, onCreated }: Props) {
         <div className="modal-body">
           <div className="form-row">
             <label>名称 *</label>
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="my-volume" autoFocus />
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="如 my-volume" autoFocus />
           </div>
           <div className="form-row">
             <label>驱动</label>
             <select value={driver} onChange={(e) => setDriver(e.target.value)}>
-              <option value="local">local</option>
-              <option value="nfs">nfs</option>
+              <option value="local">本地（local）</option>
+              <option value="nfs">NFS</option>
             </select>
           </div>
 

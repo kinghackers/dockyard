@@ -11,6 +11,7 @@ import {
 import type { ContainerSummary, ComposeProject } from '../../types/docker';
 import { useAppStore } from '../../stores/appStore';
 import { reportError } from '../../utils/connection';
+import { localizeStatusChip, localizeContainerStatus } from '../../utils/localize';
 
 export function ComposeProjectPage({ hostId, projectName }: { hostId: string; projectName: string }) {
   const { toast, openTab, containersVersion } = useAppStore();
@@ -200,7 +201,9 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
                   <td>
                     <span className={`chip ${c.state}`}>
                       <span className="dot" />
-                      {c.status}
+                      <span title={localizeContainerStatus(c.status)}>
+                        {localizeStatusChip(c.status, c.state)}
+                      </span>
                     </span>
                   </td>
                   <td className="mono" style={{ color: 'var(--text-dim)', fontSize: 11, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>

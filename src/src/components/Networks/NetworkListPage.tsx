@@ -4,6 +4,7 @@ import type { NetworkSummary } from '../../types/docker';
 import { useAppStore } from '../../stores/appStore';
 import { reportError } from '../../utils/connection';
 import { useConfirm } from '../../utils/useConfirm';
+import { localizeNetworkDriver, localizeScope } from '../../utils/localize';
 import { CreateNetworkDialog } from './CreateNetworkDialog';
 
 export function NetworkListPage({ hostId }: { hostId: string }) {
@@ -130,11 +131,15 @@ export function NetworkListPage({ hostId }: { hostId: string }) {
                       {n.id.slice(0, 12)}
                     </td>
                     <td>
-                      <span className="chip" style={{ background: 'rgba(198,120,221,0.15)', color: 'var(--network)' }}>
-                        {n.driver}
+                      <span
+                        className="chip"
+                        style={{ background: 'rgba(198,120,221,0.15)', color: 'var(--network)' }}
+                        title={n.driver}
+                      >
+                        {localizeNetworkDriver(n.driver)}
                       </span>
                     </td>
-                    <td>{n.scope}</td>
+                    <td>{localizeScope(n.scope)}</td>
                     <td className="mono">{n.subnet || '-'}</td>
                     <td>
                       <button

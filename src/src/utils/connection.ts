@@ -19,7 +19,7 @@ export function connectOnce(hostId: string): Promise<import('../types/docker').C
 
 export function isNotConnectedError(e: unknown): boolean {
   const msg = e instanceof Error ? e.message : String(e);
-  return /Not connected|not connected/i.test(msg);
+  return /Not connected|not connected|未连接/i.test(msg);
 }
 
 /**
