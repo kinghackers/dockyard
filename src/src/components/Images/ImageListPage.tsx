@@ -1,8 +1,9 @@
 import { useEffect, useState, useCallback } from 'react';
-import { RefreshCw, Trash2, Download, Search } from 'lucide-react';
+import { RefreshCw, Trash2, Download, Search, Play } from 'lucide-react';
 import type { ImageSummary } from '../../types/docker';
 import { useAppStore } from '../../stores/appStore';
 import { reportError } from '../../utils/connection';
+import { RunContainerDialog } from '../Containers/RunContainerDialog';
 
 function fmtBytes(n: number): string {
   if (!n || n < 0) return '0 B';
@@ -17,13 +18,14 @@ function fmtBytes(n: number): string {
 }
 
 export function ImageListPage({ hostId }: { hostId: string }) {
-  const { toast } = useAppStore();
+  const { toast, containersVersion } = useAppStore();
   const [list, setList] = useState<ImageSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState('');
   const [selected, setSelected] = useState<string | null>(null);
   const [pullName, setPullName] = useState('');
   const [pulling, setPulling] = useState(false);
+  const [runImage, setRunImage] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -41,6 +43,11 @@ export function ImageListPage({ hostId }: { hostId: string }) {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    if (containersVersion > 0) void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [containersVersion]);
+
   const filtered = list.filter((img) => {
     if (!filter) return true;
     const q = filter.toLowerCase();
@@ -55,6 +62,17 @@ export function ImageListPage({ hostId }: { hostId: string }) {
       <div className="content-toolbar">
         <button className="btn" onClick={load} disabled={loading}>
           <RefreshCw size={14} className={loading ? 'spinner' : ''} /> 刷新
+        </button>
+        <button
+          className="btn primary"
+          disabled={!selected}
+          onClick={() => {
+            if (!selected) return;
+            const img = list.find((i) => i.id === selected);
+            setRunImage(img?.repoTags[0] || img?.id.slice(0, 12) || selected);
+          }}
+        >
+          <Play size={13} /> 运行
         </button>
         <button
           className="btn danger"
@@ -169,6 +187,18 @@ export function ImageListPage({ hostId }: { hostId: string }) {
           </table>
         )}
       </div>
+
+      {runImage && (
+        <RunContainerDialog
+          hostId={hostId}
+          initialImage={runImage}
+          onClose={() => setRunImage(null)}
+          onCreated={async () => {
+            setRunImage(null);
+            toast('容器已创建并启动', 'success');
+          }}
+        />
+      )}
     </div>
   );
 }

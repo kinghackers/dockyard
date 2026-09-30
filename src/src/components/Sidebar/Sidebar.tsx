@@ -42,6 +42,7 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
     openTab,
     setContainers,
     containersByHost,
+    containersVersion,
   } = useAppStore();
 
   const [hostProjects, setHostProjects] = useState<Record<string, ComposeProject[]>>({});
@@ -76,6 +77,17 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [connections.map((c) => statuses[c.id]?.connected).join(',')]);
+
+  // auto-refresh expanded host trees when docker events fire
+  useEffect(() => {
+    if (containersVersion <= 0) return;
+    for (const c of connections) {
+      if (statuses[c.id]?.connected && expandedHosts[c.id]) {
+        void refreshHostTree(c.id);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [containersVersion]);
 
   const handleToggleHost = async (id: string) => {
     toggleHost(id);

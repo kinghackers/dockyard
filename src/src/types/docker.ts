@@ -151,6 +151,79 @@ export interface SystemStats {
   networks: number;
 }
 
+export interface PortMapping {
+  privatePort: number;
+  publicPort?: number;
+  type: string;
+  hostIp?: string;
+}
+
+export interface VolumeMountSpec {
+  source: string;
+  destination: string;
+  readOnly?: boolean;
+  type?: 'bind' | 'volume';
+}
+
+export interface CreateContainerOptions {
+  image: string;
+  name?: string;
+  cmd?: string[];
+  env?: string[];
+  entrypoint?: string[];
+  workingDir?: string;
+  user?: string;
+  ports?: PortMapping[];
+  volumes?: VolumeMountSpec[];
+  network?: string;
+  restartPolicy?: 'no' | 'always' | 'on-failure' | 'unless-stopped';
+  labels?: Record<string, string>;
+  autoRemove?: boolean;
+  privileged?: boolean;
+  tty?: boolean;
+  stdinOpen?: boolean;
+  hostname?: string;
+}
+
+export interface CreateNetworkOptions {
+  name: string;
+  driver?: string;
+  internal?: boolean;
+  attachable?: boolean;
+  subnet?: string;
+  gateway?: string;
+  labels?: Record<string, string>;
+}
+
+export interface CreateVolumeOptions {
+  name: string;
+  driver?: string;
+  labels?: Record<string, string>;
+}
+
+export interface ContainerStatsSample {
+  cpuPercent: number;
+  memUsage: number;
+  memLimit: number;
+  memPercent: number;
+  netRx: number;
+  netTx: number;
+  blockRead: number;
+  blockWrite: number;
+  ts: number;
+}
+
+export interface DockerEvent {
+  hostId: string;
+  type: string;
+  action: string;
+  id?: string;
+  name?: string;
+  image?: string;
+  attributes: Record<string, string>;
+  time: number;
+}
+
 export type ViewKind =
   | 'dashboard'
   | 'containers'
@@ -223,6 +296,23 @@ declare global {
       listUnclassified(hostId: string): Promise<ContainerSummary[]>;
       systemStats(hostId: string): Promise<SystemStats>;
       systemInfo(hostId: string): Promise<DockerInfoLite | undefined>;
+
+      createContainer(hostId: string, opts: CreateContainerOptions, start?: boolean): Promise<string>;
+      createNetwork(hostId: string, opts: CreateNetworkOptions): Promise<string>;
+      createVolume(hostId: string, opts: CreateVolumeOptions): Promise<string>;
+
+      openStats(hostId: string, containerId: string): Promise<boolean>;
+      closeStats(hostId: string, containerId: string): Promise<boolean>;
+      onStatsData(
+        cb: (p: { key: string; hostId: string; containerId: string; sample: ContainerStatsSample }) => void
+      ): () => void;
+      onStatsError(cb: (p: { key: string; error: string }) => void): () => void;
+
+      openEvents(hostId: string): Promise<boolean>;
+      closeEvents(hostId: string): Promise<boolean>;
+      onDockerEvent(cb: (p: DockerEvent) => void): () => void;
+      onEventError(cb: (p: { hostId: string; error: string }) => void): () => void;
+
       cleanupAll(): Promise<boolean>;
     };
   }

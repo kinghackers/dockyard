@@ -1,9 +1,11 @@
 import { ipcMain, BrowserWindow, IpcMainInvokeEvent } from 'electron';
 import { DockerConnectionManager } from './connectionManager';
-import { DockerConnectionConfig } from './types';
+import { CreateContainerOptions, CreateNetworkOptions, CreateVolumeOptions, DockerConnectionConfig } from './types';
 
 const logStreams = new Map<string, { abort: () => void }>();
 const execSessions = new Map<string, { write: (chunk: string) => void; resize: (h: number, w: number) => void; kill: () => void }>();
+const eventStreams = new Map<string, { abort: () => void }>();
+const statsStreams = new Map<string, { abort: () => void }>();
 
 export function registerIpc(manager: DockerConnectionManager, getWindows: () => BrowserWindow[]) {
   // ---- connection config ----
@@ -63,6 +65,17 @@ export function registerIpc(manager: DockerConnectionManager, getWindows: () => 
   ipcMain.handle('docker:unpauseContainer', async (_e, hostId: string, id: string) => {
     await manager.unpauseContainer(hostId, id);
     return true;
+  });
+
+  // ---- create ----
+  ipcMain.handle('docker:createContainer', async (_e, hostId: string, opts: CreateContainerOptions, start?: boolean) => {
+    return manager.createContainer(hostId, opts, start ?? true);
+  });
+  ipcMain.handle('docker:createNetwork', async (_e, hostId: string, opts: CreateNetworkOptions) => {
+    return manager.createNetwork(hostId, opts);
+  });
+  ipcMain.handle('docker:createVolume', async (_e, hostId: string, opts: CreateVolumeOptions) => {
+    return manager.createVolume(hostId, opts);
   });
 
   // ---- logs (streaming via events) ----
@@ -238,12 +251,70 @@ export function registerIpc(manager: DockerConnectionManager, getWindows: () => 
     return s?.info;
   });
 
+  // ---- live container stats (streaming via events) ----
+  ipcMain.handle(
+    'docker:openStats',
+    async (e: IpcMainInvokeEvent, hostId: string, containerId: string) => {
+      const key = `${hostId}:${containerId}`;
+      statsStreams.get(key)?.abort();
+      const win = BrowserWindow.fromWebContents(e.sender);
+
+      const abort = manager.streamContainerStats(
+        hostId,
+        containerId,
+        (sample) => {
+          win?.webContents.send('docker:statsData', { key, hostId, containerId, sample });
+        },
+        (err) => {
+          win?.webContents.send('docker:statsError', { key, error: err.message });
+        }
+      );
+      statsStreams.set(key, { abort });
+      return true;
+    }
+  );
+
+  ipcMain.handle('docker:closeStats', (_e, hostId: string, containerId: string) => {
+    const key = `${hostId}:${containerId}`;
+    statsStreams.get(key)?.abort();
+    statsStreams.delete(key);
+    return true;
+  });
+
+  // ---- docker events (auto-refresh) ----
+  ipcMain.handle('docker:openEvents', async (e: IpcMainInvokeEvent, hostId: string) => {
+    eventStreams.get(hostId)?.abort();
+    const win = BrowserWindow.fromWebContents(e.sender);
+
+    const abort = manager.streamEvents(
+      hostId,
+      (event) => {
+        win?.webContents.send('docker:event', event);
+      },
+      (err) => {
+        win?.webContents.send('docker:eventError', { hostId, error: err.message });
+      }
+    );
+    eventStreams.set(hostId, { abort });
+    return true;
+  });
+
+  ipcMain.handle('docker:closeEvents', (_e, hostId: string) => {
+    eventStreams.get(hostId)?.abort();
+    eventStreams.delete(hostId);
+    return true;
+  });
+
   // cleanup all streams
   ipcMain.handle('docker:cleanupAll', async () => {
     for (const { abort } of logStreams.values()) abort();
     logStreams.clear();
     for (const s of execSessions.values()) s.kill();
     execSessions.clear();
+    for (const { abort } of eventStreams.values()) abort();
+    eventStreams.clear();
+    for (const { abort } of statsStreams.values()) abort();
+    statsStreams.clear();
     await manager.disconnectAll();
     return true;
   });

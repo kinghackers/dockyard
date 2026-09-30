@@ -10,17 +10,20 @@ import {
   Search,
   Pause,
   PlayCircle,
+  Plus,
 } from 'lucide-react';
 import type { ContainerSummary } from '../../types/docker';
 import { useAppStore } from '../../stores/appStore';
 import { reportError } from '../../utils/connection';
+import { RunContainerDialog } from './RunContainerDialog';
 
 export function ContainerListPage({ hostId }: { hostId: string }) {
-  const { openTab, toast, setContainers, containersByHost } = useAppStore();
+  const { openTab, toast, setContainers, containersByHost, containersVersion } = useAppStore();
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState('');
   const [stateFilter, setStateFilter] = useState<'all' | 'running' | 'exited' | 'paused'>('all');
   const [selected, setSelected] = useState<string | null>(null);
+  const [runOpen, setRunOpen] = useState(false);
   const list = containersByHost[hostId] || [];
 
   const load = useCallback(async () => {
@@ -38,6 +41,12 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // auto-refresh when docker events fire
+  useEffect(() => {
+    if (containersVersion > 0) void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [containersVersion]);
 
   const filtered = useMemo(() => {
     return list.filter((c) => {
@@ -66,6 +75,9 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div className="content-toolbar">
+        <button className="btn primary" onClick={() => setRunOpen(true)}>
+          <Plus size={13} /> 创建容器
+        </button>
         <button className="btn" onClick={load} disabled={loading}>
           <RefreshCw size={14} className={loading ? 'spinner' : ''} /> 刷新
         </button>
@@ -254,6 +266,19 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
           </table>
         )}
       </div>
+
+      {runOpen && (
+        <RunContainerDialog
+          hostId={hostId}
+          onClose={() => setRunOpen(false)}
+          onCreated={async (id) => {
+            setRunOpen(false);
+            toast('容器已创建', 'success');
+            await load();
+            setSelected(id);
+          }}
+        />
+      )}
     </div>
   );
 }

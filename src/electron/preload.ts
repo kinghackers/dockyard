@@ -47,6 +47,21 @@ export interface DockerApi {
   listUnclassified(hostId: string): Promise<unknown[]>;
   systemStats(hostId: string): Promise<unknown>;
   systemInfo(hostId: string): Promise<unknown>;
+
+  createContainer(hostId: string, opts: unknown, start?: boolean): Promise<string>;
+  createNetwork(hostId: string, opts: unknown): Promise<string>;
+  createVolume(hostId: string, opts: unknown): Promise<string>;
+
+  openStats(hostId: string, containerId: string): Promise<boolean>;
+  closeStats(hostId: string, containerId: string): Promise<boolean>;
+  onStatsData(cb: (p: { key: string; hostId: string; containerId: string; sample: unknown }) => void): () => void;
+  onStatsError(cb: (p: { key: string; error: string }) => void): () => void;
+
+  openEvents(hostId: string): Promise<boolean>;
+  closeEvents(hostId: string): Promise<boolean>;
+  onDockerEvent(cb: (p: unknown) => void): () => void;
+  onEventError(cb: (p: { hostId: string; error: string }) => void): () => void;
+
   cleanupAll(): Promise<boolean>;
 }
 
@@ -103,6 +118,21 @@ const api: DockerApi = {
   listUnclassified: (hostId) => ipcRenderer.invoke('docker:listUnclassified', hostId),
   systemStats: (hostId) => ipcRenderer.invoke('docker:systemStats', hostId),
   systemInfo: (hostId) => ipcRenderer.invoke('docker:systemInfo', hostId),
+
+  createContainer: (hostId, opts, start) => ipcRenderer.invoke('docker:createContainer', hostId, opts, start),
+  createNetwork: (hostId, opts) => ipcRenderer.invoke('docker:createNetwork', hostId, opts),
+  createVolume: (hostId, opts) => ipcRenderer.invoke('docker:createVolume', hostId, opts),
+
+  openStats: (hostId, containerId) => ipcRenderer.invoke('docker:openStats', hostId, containerId),
+  closeStats: (hostId, containerId) => ipcRenderer.invoke('docker:closeStats', hostId, containerId),
+  onStatsData: (cb) => subscribe('docker:statsData', cb),
+  onStatsError: (cb) => subscribe('docker:statsError', cb),
+
+  openEvents: (hostId) => ipcRenderer.invoke('docker:openEvents', hostId),
+  closeEvents: (hostId) => ipcRenderer.invoke('docker:closeEvents', hostId),
+  onDockerEvent: (cb) => subscribe('docker:event', cb),
+  onEventError: (cb) => subscribe('docker:eventError', cb),
+
   cleanupAll: () => ipcRenderer.invoke('docker:cleanupAll'),
 };
 

@@ -6,6 +6,7 @@ import { StatusBar } from './components/Layout/StatusBar';
 import { ConnectionDialog } from './components/Connection/ConnectionDialog';
 import { Toasts } from './components/common/Toasts';
 import { useAppStore } from './stores/appStore';
+import { useDockerEvents } from './utils/useDockerEvents';
 import type { DockerConnectionConfig, OpenTab } from './types/docker';
 
 export default function App() {
@@ -20,6 +21,9 @@ export default function App() {
 
   const [connDialogOpen, setConnDialogOpen] = useState(false);
   const [editingConn, setEditingConn] = useState<DockerConnectionConfig | null>(null);
+
+  // live auto-refresh via docker events
+  useDockerEvents();
 
   const loadConnections = useCallback(async () => {
     try {

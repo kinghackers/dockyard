@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   RefreshCw,
   Play,
@@ -11,7 +11,7 @@ import {
   HardDrive,
   Network,
 } from 'lucide-react';
-import type { ContainerDetail } from '../../types/docker';
+import type { ContainerDetail, ContainerStatsSample } from '../../types/docker';
 import { useAppStore } from '../../stores/appStore';
 import { reportError } from '../../utils/connection';
 
@@ -28,10 +28,12 @@ function fmtBytes(n: number | undefined): string {
 }
 
 export function ContainerDetailPage({ hostId, containerId }: { hostId: string; containerId: string }) {
-  const { toast, openTab, closeTab } = useAppStore();
+  const { toast, openTab, closeTab, containersVersion } = useAppStore();
   const [detail, setDetail] = useState<ContainerDetail | null>(null);
+  const [live, setLive] = useState<ContainerStatsSample | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const liveSupported = useRef(true);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -48,9 +50,60 @@ export function ContainerDetailPage({ hostId, containerId }: { hostId: string; c
 
   useEffect(() => {
     void load();
-    const t = setInterval(() => void load(), 8000);
+    // slow fallback poll for static fields (state, exit code, mounts…)
+    const t = setInterval(() => void load(), 15000);
     return () => clearInterval(t);
   }, [load]);
+
+  // reload when docker events indicate the container changed
+  useEffect(() => {
+    if (containersVersion > 0) void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [containersVersion]);
+
+  // live CPU / memory / net / block I/O stream while running
+  const isRunning = detail?.state === 'running';
+  useEffect(() => {
+    if (!isRunning || !liveSupported.current) {
+      setLive(null);
+      return;
+    }
+    let cancelled = false;
+    let close: (() => void) | null = null;
+    let offData: (() => void) | null = null;
+    let offErr: (() => void) | null = null;
+
+    void (async () => {
+      try {
+        await window.dockerApi.openStats(hostId, containerId);
+        if (cancelled) return;
+        offData = window.dockerApi.onStatsData((p) => {
+          if (p.hostId === hostId && p.containerId === containerId) {
+            setLive(p.sample);
+          }
+        });
+        offErr = window.dockerApi.onStatsError((p) => {
+          if (p.key === `${hostId}:${containerId}`) {
+            // stats may be unsupported (e.g. windows containers) — fall back silently
+            liveSupported.current = false;
+          }
+        });
+        close = () => {
+          void window.dockerApi.closeStats(hostId, containerId);
+        };
+      } catch {
+        liveSupported.current = false;
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      offData?.();
+      offErr?.();
+      close?.();
+      setLive(null);
+    };
+  }, [hostId, containerId, isRunning]);
 
   const action = async (fn: () => Promise<unknown>, msg: string) => {
     try {
@@ -61,6 +114,15 @@ export function ContainerDetailPage({ hostId, containerId }: { hostId: string; c
       reportError(e, toast);
     }
   };
+
+  const cpu = live?.cpuPercent ?? detail?.cpuPercent ?? 0;
+  const memUsage = live?.memUsage ?? detail?.memUsage ?? 0;
+  const memLimit = live?.memLimit ?? detail?.memLimit ?? 0;
+  const memPercent = live?.memPercent ?? (memLimit > 0 ? (memUsage / memLimit) * 100 : 0);
+  const netRx = live?.netRx ?? detail?.netRx ?? 0;
+  const netTx = live?.netTx ?? detail?.netTx ?? 0;
+  const blockRead = live?.blockRead ?? detail?.blockRead ?? 0;
+  const blockWrite = live?.blockWrite ?? detail?.blockWrite ?? 0;
 
   return (
     <div className="page">
@@ -137,32 +199,37 @@ export function ContainerDetailPage({ hostId, containerId }: { hostId: string; c
         <>
           <div className="stat-grid">
             <div className="stat-card">
-              <div className="stat-label">CPU</div>
-              <div className="stat-value">{(detail.cpuPercent || 0).toFixed(1)}%</div>
+              <div className="stat-label">
+                CPU
+                {isRunning && live && (
+                  <span style={{ color: 'var(--success)', fontSize: 10, marginLeft: 6, textTransform: 'none' }}>
+                    ● 实时
+                  </span>
+                )}
+              </div>
+              <div className="stat-value">{cpu.toFixed(1)}%</div>
             </div>
             <div className="stat-card">
               <div className="stat-label">内存</div>
-              <div className="stat-value">{fmtBytes(detail.memUsage)}</div>
+              <div className="stat-value">{fmtBytes(memUsage)}</div>
               <div className="stat-sub">
-                限额 {detail.memLimit ? fmtBytes(detail.memLimit) : '无限制'}
-                {detail.memLimit
-                  ? ` · ${(((detail.memUsage || 0) / detail.memLimit) * 100).toFixed(1)}%`
-                  : ''}
+                限额 {memLimit ? fmtBytes(memLimit) : '无限制'}
+                {memLimit ? ` · ${memPercent.toFixed(1)}%` : ''}
               </div>
             </div>
             <div className="stat-card">
               <div className="stat-label">网络</div>
               <div className="stat-value" style={{ fontSize: 15 }}>
-                ↓ {fmtBytes(detail.netRx)}
+                ↓ {fmtBytes(netRx)}
               </div>
-              <div className="stat-sub">↑ {fmtBytes(detail.netTx)}</div>
+              <div className="stat-sub">↑ {fmtBytes(netTx)}</div>
             </div>
             <div className="stat-card">
               <div className="stat-label">块 I/O</div>
               <div className="stat-value" style={{ fontSize: 15 }}>
-                读 {fmtBytes(detail.blockRead)}
+                读 {fmtBytes(blockRead)}
               </div>
-              <div className="stat-sub">写 {fmtBytes(detail.blockWrite)}</div>
+              <div className="stat-sub">写 {fmtBytes(blockWrite)}</div>
             </div>
           </div>
 

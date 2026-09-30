@@ -44,6 +44,13 @@ interface AppState {
 
   setContainers: (hostId: string, list: ContainerSummary[]) => void;
   setRefreshing: (v: boolean) => void;
+
+  /** bumped whenever a docker event suggests lists should re-fetch */
+  containersVersion: number;
+  bumpContainers: () => void;
+  /** per-host last event action, useful for subtle live badges */
+  lastEventByHost: Record<string, string>;
+  noteEvent: (hostId: string, action: string) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -134,4 +141,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ containersByHost: { ...get().containersByHost, [hostId]: list } }),
 
   setRefreshing: (v) => set({ refreshing: v }),
+
+  containersVersion: 0,
+  bumpContainers: () => set({ containersVersion: get().containersVersion + 1 }),
+  lastEventByHost: {},
+  noteEvent: (hostId, action) =>
+    set({ lastEventByHost: { ...get().lastEventByHost, [hostId]: action } }),
 }));

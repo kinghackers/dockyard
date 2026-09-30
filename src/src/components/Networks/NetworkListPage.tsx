@@ -1,16 +1,18 @@
 import { Fragment, useEffect, useState, useCallback } from 'react';
-import { RefreshCw, Trash2, Search } from 'lucide-react';
+import { RefreshCw, Trash2, Search, Plus } from 'lucide-react';
 import type { NetworkSummary } from '../../types/docker';
 import { useAppStore } from '../../stores/appStore';
 import { reportError } from '../../utils/connection';
+import { CreateNetworkDialog } from './CreateNetworkDialog';
 
 export function NetworkListPage({ hostId }: { hostId: string }) {
-  const { toast } = useAppStore();
+  const { toast, containersVersion } = useAppStore();
   const [list, setList] = useState<NetworkSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState('');
   const [selected, setSelected] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -28,6 +30,11 @@ export function NetworkListPage({ hostId }: { hostId: string }) {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    if (containersVersion > 0) void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [containersVersion]);
+
   const filtered = list.filter((n) => {
     if (!filter) return true;
     const q = filter.toLowerCase();
@@ -37,6 +44,9 @@ export function NetworkListPage({ hostId }: { hostId: string }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div className="content-toolbar">
+        <button className="btn primary" onClick={() => setCreateOpen(true)}>
+          <Plus size={13} /> 创建网络
+        </button>
         <button className="btn" onClick={load} disabled={loading}>
           <RefreshCw size={14} className={loading ? 'spinner' : ''} /> 刷新
         </button>
@@ -167,6 +177,18 @@ export function NetworkListPage({ hostId }: { hostId: string }) {
           </table>
         )}
       </div>
+
+      {createOpen && (
+        <CreateNetworkDialog
+          hostId={hostId}
+          onClose={() => setCreateOpen(false)}
+          onCreated={async () => {
+            setCreateOpen(false);
+            toast('网络已创建', 'success');
+            await load();
+          }}
+        />
+      )}
     </div>
   );
 }

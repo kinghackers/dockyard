@@ -157,3 +157,86 @@ export interface SystemStats {
   volumes: number;
   networks: number;
 }
+
+export interface PortMapping {
+  /** container port, e.g. 80 */
+  privatePort: number;
+  /** host port; empty = ephemeral */
+  publicPort?: number;
+  /** tcp | udp | sctp */
+  type: string;
+  /** host bind IP, default 0.0.0.0 */
+  hostIp?: string;
+}
+
+export interface VolumeMountSpec {
+  /** host path or volume name */
+  source: string;
+  /** container path */
+  destination: string;
+  readOnly?: boolean;
+  /** bind | volume — inferred if omitted */
+  type?: 'bind' | 'volume';
+}
+
+export interface CreateContainerOptions {
+  image: string;
+  name?: string;
+  /** command args; empty = image default */
+  cmd?: string[];
+  /** KEY=value */
+  env?: string[];
+  entrypoint?: string[];
+  workingDir?: string;
+  user?: string;
+  ports?: PortMapping[];
+  volumes?: VolumeMountSpec[];
+  network?: string;
+  restartPolicy?: 'no' | 'always' | 'on-failure' | 'unless-stopped';
+  labels?: Record<string, string>;
+  autoRemove?: boolean;
+  privileged?: boolean;
+  tty?: boolean;
+  stdinOpen?: boolean;
+  hostname?: string;
+}
+
+export interface CreateNetworkOptions {
+  name: string;
+  driver?: string;
+  internal?: boolean;
+  attachable?: boolean;
+  subnet?: string;
+  gateway?: string;
+  labels?: Record<string, string>;
+}
+
+export interface CreateVolumeOptions {
+  name: string;
+  driver?: string;
+  labels?: Record<string, string>;
+}
+
+export interface ContainerStatsSample {
+  cpuPercent: number;
+  memUsage: number;
+  memLimit: number;
+  memPercent: number;
+  netRx: number;
+  netTx: number;
+  blockRead: number;
+  blockWrite: number;
+  /** unix ms */
+  ts: number;
+}
+
+export interface DockerEvent {
+  hostId: string;
+  type: string;
+  action: string;
+  id?: string;
+  name?: string;
+  image?: string;
+  attributes: Record<string, string>;
+  time: number;
+}

@@ -7,8 +7,13 @@ import {
   ComposeService,
   ConnectionStatus,
   ContainerDetail,
+  ContainerStatsSample,
   ContainerSummary,
+  CreateContainerOptions,
+  CreateNetworkOptions,
+  CreateVolumeOptions,
   DockerConnectionConfig,
+  DockerEvent,
   DockerInfoLite,
   ImageSummary,
   NetworkSummary,
@@ -51,6 +56,44 @@ function toSummary(c: Docker.ContainerInfo): ContainerSummary {
     composeProject: labels['com.docker.compose.project'],
     composeService: labels['com.docker.compose.service'],
     networkMode: c.HostConfig?.NetworkMode,
+  };
+}
+
+function parseStatsSample(stats: Docker.ContainerStats): ContainerStatsSample {
+  const cpuDelta =
+    (stats.cpu_stats?.cpu_usage?.total_usage || 0) - (stats.precpu_stats?.cpu_usage?.total_usage || 0);
+  const systemDelta =
+    (stats.cpu_stats?.system_cpu_usage || 0) - (stats.precpu_stats?.system_cpu_usage || 0);
+  const cpuCount =
+    stats.cpu_stats?.online_cpus || stats.cpu_stats?.cpu_usage?.percpu_usage?.length || 1;
+  const cpuPercent = systemDelta > 0 ? (cpuDelta / systemDelta) * cpuCount * 100 : 0;
+
+  let netRx = 0;
+  let netTx = 0;
+  for (const n of Object.values(stats.networks || {})) {
+    netRx += n.rx_bytes || 0;
+    netTx += n.tx_bytes || 0;
+  }
+
+  let blockRead = 0;
+  let blockWrite = 0;
+  for (const b of stats.blkio_stats?.io_service_bytes_recursive || []) {
+    if (b.op?.toLowerCase() === 'read') blockRead += b.value || 0;
+    if (b.op?.toLowerCase() === 'write') blockWrite += b.value || 0;
+  }
+
+  const memUsage = stats.memory_stats?.usage || 0;
+  const memLimit = stats.memory_stats?.limit || 0;
+  return {
+    cpuPercent: Math.max(0, Math.min(cpuPercent, 100 * cpuCount)),
+    memUsage,
+    memLimit,
+    memPercent: memLimit > 0 ? (memUsage / memLimit) * 100 : 0,
+    netRx,
+    netTx,
+    blockRead,
+    blockWrite,
+    ts: Date.now(),
   };
 }
 
@@ -365,6 +408,262 @@ export class DockerConnectionManager {
 
   async unpauseContainer(hostId: string, id: string) {
     await this.dockerOf(hostId).getContainer(id).unpause();
+  }
+
+  /** Create (and optionally start) a container. Returns the new container id. */
+  async createContainer(hostId: string, opts: CreateContainerOptions, start = true): Promise<string> {
+    const docker = this.dockerOf(hostId);
+    const image = opts.image?.trim();
+    if (!image) throw new Error('镜像名称不能为空');
+
+    const exposedPorts: Record<string, Record<string, never>> = {};
+    const portBindings: Record<string, { HostIp?: string; HostPort: string }[]> = {};
+    for (const p of opts.ports || []) {
+      const key = `${p.privatePort}/${p.type || 'tcp'}`;
+      exposedPorts[key] = {};
+      if (p.publicPort && p.publicPort > 0) {
+        portBindings[key] = [
+          {
+            HostIp: p.hostIp && p.hostIp !== '0.0.0.0' ? p.hostIp : undefined,
+            HostPort: String(p.publicPort),
+          },
+        ];
+      }
+    }
+
+    const binds: string[] = [];
+    for (const v of opts.volumes || []) {
+      const src = v.source?.trim();
+      const dst = v.destination?.trim();
+      if (!src || !dst) continue;
+      binds.push(v.readOnly ? `${src}:${dst}:ro` : `${src}:${dst}`);
+    }
+
+    const labels: Record<string, string> = {};
+    for (const [k, v] of Object.entries(opts.labels || {})) {
+      if (k) labels[k] = v ?? '';
+    }
+
+    const createOpts: Docker.ContainerCreateOptions = {
+      Image: image,
+      name: opts.name?.trim() || undefined,
+      Cmd: opts.cmd && opts.cmd.length > 0 ? opts.cmd : undefined,
+      Entrypoint: opts.entrypoint && opts.entrypoint.length > 0 ? opts.entrypoint : undefined,
+      Env: opts.env && opts.env.length > 0 ? opts.env : undefined,
+      WorkingDir: opts.workingDir?.trim() || undefined,
+      User: opts.user?.trim() || undefined,
+      Hostname: opts.hostname?.trim() || undefined,
+      Labels: Object.keys(labels).length ? labels : undefined,
+      Tty: opts.tty ?? true,
+      OpenStdin: opts.stdinOpen ?? true,
+      ExposedPorts: Object.keys(exposedPorts).length ? exposedPorts : undefined,
+      HostConfig: {
+        PortBindings: Object.keys(portBindings).length ? portBindings : undefined,
+        Binds: binds.length ? binds : undefined,
+        NetworkMode: opts.network?.trim() || undefined,
+        RestartPolicy: opts.restartPolicy
+          ? { Name: opts.restartPolicy, MaximumRetryCount: opts.restartPolicy === 'on-failure' ? 3 : 0 }
+          : undefined,
+        AutoRemove: opts.autoRemove ?? false,
+        Privileged: opts.privileged ?? false,
+      },
+    };
+
+    const container = await docker.createContainer(createOpts);
+    if (start) await container.start();
+    return container.id;
+  }
+
+  async createNetwork(hostId: string, opts: CreateNetworkOptions): Promise<string> {
+    const docker = this.dockerOf(hostId);
+    const name = opts.name?.trim();
+    if (!name) throw new Error('网络名称不能为空');
+
+    const labels: Record<string, string> = {};
+    for (const [k, v] of Object.entries(opts.labels || {})) {
+      if (k) labels[k] = v ?? '';
+    }
+
+    const createOpts: Docker.NetworkCreateOptions = {
+      Name: name,
+      Driver: opts.driver?.trim() || 'bridge',
+      Internal: opts.internal ?? false,
+      Attachable: opts.attachable ?? false,
+      Labels: Object.keys(labels).length ? labels : undefined,
+    };
+
+    const subnet = opts.subnet?.trim();
+    const gateway = opts.gateway?.trim();
+    if (subnet) {
+      createOpts.IPAM = {
+        Driver: 'default',
+        Config: [{ Subnet: subnet, Gateway: gateway || undefined }],
+      };
+    }
+
+    const res = await docker.createNetwork(createOpts);
+    return res.id;
+  }
+
+  async createVolume(hostId: string, opts: CreateVolumeOptions): Promise<string> {
+    const docker = this.dockerOf(hostId);
+    const name = opts.name?.trim();
+    if (!name) throw new Error('数据卷名称不能为空');
+
+    const labels: Record<string, string> = {};
+    for (const [k, v] of Object.entries(opts.labels || {})) {
+      if (k) labels[k] = v ?? '';
+    }
+
+    const vol = await docker.createVolume({
+      Name: name,
+      Driver: opts.driver?.trim() || 'local',
+      Labels: Object.keys(labels).length ? labels : undefined,
+    });
+    return vol.Name || name;
+  }
+
+  /** One-shot container stats (CPU / mem / net / block I/O). */
+  async containerStats(hostId: string, id: string): Promise<ContainerStatsSample> {
+    const docker = this.dockerOf(hostId);
+    const stats = await new Promise<Docker.ContainerStats>((resolve, reject) => {
+      const t = setTimeout(() => reject(new Error('stats timeout')), 5000);
+      docker
+        .getContainer(id)
+        .stats({ stream: false }, (err, s) => {
+          clearTimeout(t);
+          if (err) reject(err);
+          else resolve(s as Docker.ContainerStats);
+        });
+    });
+    return parseStatsSample(stats);
+  }
+
+  /**
+   * Stream container stats. Returns an abort function.
+   * Samples are delivered via `onSample`; parse errors are ignored.
+   */
+  streamContainerStats(
+    hostId: string,
+    id: string,
+    onSample: (s: ContainerStatsSample) => void,
+    onError?: (e: Error) => void
+  ): () => void {
+    const docker = this.dockerOf(hostId);
+    let stream: NodeJS.ReadableStream | null = null;
+    let closed = false;
+
+    docker
+      .getContainer(id)
+      .stats({ stream: true }, (err: Error | null, s?: NodeJS.ReadableStream) => {
+        if (closed) return;
+        if (err || !s) {
+          onError?.(err || new Error('stats stream unavailable'));
+          return;
+        }
+        stream = s;
+        s.on('data', (buf: Buffer) => {
+          // dockerode may deliver one JSON object per chunk (or several)
+          const text = buf.toString('utf8');
+          for (const line of text.split('\n')) {
+            const trimmed = line.trim();
+            if (!trimmed) continue;
+            try {
+              const parsed = JSON.parse(trimmed) as Docker.ContainerStats;
+              onSample(parseStatsSample(parsed));
+            } catch {
+              /* partial chunk — ignore */
+            }
+          }
+        });
+        s.on('error', (e: Error) => {
+          if (!closed) onError?.(e);
+        });
+      });
+
+    return () => {
+      closed = true;
+      try {
+        (stream as { destroy?: () => void } | null)?.destroy?.();
+        stream?.removeAllListeners?.();
+      } catch {
+        /* ignore */
+      }
+    };
+  }
+
+  /**
+   * Subscribe to Docker events for this host. Returns an abort function.
+   * Reconnects once on stream end so long-lived apps stay live.
+   */
+  streamEvents(hostId: string, onEvent: (e: DockerEvent) => void, onError?: (e: Error) => void): () => void {
+    const docker = this.dockerOf(hostId);
+    let aborted = false;
+    let stream: NodeJS.ReadableStream | null = null;
+    let reconnectTimer: NodeJS.Timeout | null = null;
+
+    const attach = () => {
+      if (aborted) return;
+      docker.getEvents({}, (err: Error | null, s?: NodeJS.ReadableStream) => {
+        if (aborted) return;
+        if (err || !s) {
+          onError?.(err || new Error('events stream unavailable'));
+          return;
+        }
+        stream = s;
+        s.on('data', (buf: Buffer) => {
+          const text = buf.toString('utf8');
+          for (const line of text.split('\n')) {
+            const trimmed = line.trim();
+            if (!trimmed) continue;
+            try {
+              const raw = JSON.parse(trimmed) as {
+                Type?: string;
+                Action?: string;
+                id?: string;
+                Actor?: { ID?: string; Attributes?: Record<string, string> };
+                time?: number;
+                timeNano?: number;
+              };
+              const attrs = raw.Actor?.Attributes || {};
+              onEvent({
+                hostId,
+                type: raw.Type || 'unknown',
+                action: raw.Action || 'unknown',
+                id: raw.id || raw.Actor?.ID,
+                name: attrs.name,
+                image: attrs.image,
+                attributes: attrs,
+                time: raw.time || Math.floor((raw.timeNano || Date.now() * 1e6) / 1e9),
+              });
+            } catch {
+              /* ignore partial */
+            }
+          }
+        });
+        s.on('error', (e: Error) => {
+          if (!aborted) onError?.(e);
+        });
+        s.on('end', () => {
+          if (aborted) return;
+          // brief backoff then re-attach
+          reconnectTimer = setTimeout(attach, 1500);
+        });
+      });
+    };
+
+    attach();
+
+    return () => {
+      aborted = true;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      try {
+        (stream as { destroy?: () => void } | null)?.destroy?.();
+        stream?.removeAllListeners?.();
+      } catch {
+        /* ignore */
+      }
+    };
   }
 
   /**

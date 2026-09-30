@@ -22,7 +22,7 @@ function meterClass(pct: number) {
 }
 
 export function DashboardPage({ hostId }: { hostId?: string }) {
-  const { connections, statuses, setRefreshing } = useAppStore();
+  const { connections, statuses, setRefreshing, containersVersion } = useAppStore();
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [info, setInfo] = useState<DockerInfoLite | undefined>(undefined);
   const [loading, setLoading] = useState(false);
@@ -55,6 +55,12 @@ export function DashboardPage({ hostId }: { hostId?: string }) {
     const t = setInterval(() => void load(), 10000);
     return () => clearInterval(t);
   }, [load]);
+
+  // refresh sooner when docker events indicate activity
+  useEffect(() => {
+    if (containersVersion > 0) void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [containersVersion]);
 
   if (!targetHost) {
     return (
