@@ -66,6 +66,8 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
     { mode: 'create' } | { mode: 'rename'; id: string; name: string } | null
   >(null);
   const [backupOpen, setBackupOpen] = useState(false);
+  /** group id or '__root__' highlighted as drop target */
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
   const ctx = useContextMenu();
 
   const refreshHostTree = useCallback(
@@ -180,6 +182,27 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
     }
   };
 
+  const moveToGroup = async (c: DockerConnectionConfig, groupId: string | undefined) => {
+    if (c.groupId === groupId) return;
+    try {
+      const next = { ...c, groupId };
+      if (!groupId) delete (next as { groupId?: string }).groupId;
+      await window.dockerApi.upsertConnection(next);
+      useAppStore.getState().upsertConnection(next);
+      useAppStore.getState().toast(
+        groupId
+          ? `已移动到「${groups.find((g) => g.id === groupId)?.name || groupId}」`
+          : '已移到根目录',
+        'success'
+      );
+    } catch (err) {
+      useAppStore.getState().toast(err instanceof Error ? err.message : String(err), 'error');
+    }
+  };
+
+  const dropTargetClass = (id: string) =>
+    dragOverId === id ? { outline: '1px dashed var(--accent)', outlineOffset: -1 } : undefined;
+
   /** One Docker host node + its expanded resource tree. */
   const renderHost = (conn: DockerConnectionConfig, indent: number) => {
     const st = statuses[conn.id];
@@ -199,26 +222,6 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
       try {
         await window.dockerApi.removeConnection(conn.id);
         useAppStore.getState().removeConnectionLocal(conn.id);
-      } catch (err) {
-        useAppStore.getState().toast(
-          err instanceof Error ? err.message : String(err),
-          'error'
-        );
-      }
-    };
-
-    const moveToGroup = async (c: DockerConnectionConfig, groupId: string | undefined) => {
-      try {
-        const next = { ...c, groupId };
-        if (!groupId) delete (next as { groupId?: string }).groupId;
-        await window.dockerApi.upsertConnection(next);
-        useAppStore.getState().upsertConnection(next);
-        useAppStore.getState().toast(
-          groupId
-            ? `已移动到「${groups.find((g) => g.id === groupId)?.name || groupId}」`
-            : '已移到根目录',
-          'success'
-        );
       } catch (err) {
         useAppStore.getState().toast(
           err instanceof Error ? err.message : String(err),
@@ -306,6 +309,11 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
         <div
           className={`tree-row ${selected ? 'selected' : ''}`}
           style={{ paddingLeft: indent, fontWeight: 500 }}
+          draggable
+          onDragStart={(e) => {
+            e.dataTransfer.setData('application/x-docker-conn', conn.id);
+            e.dataTransfer.effectAllowed = 'move';
+          }}
           onClick={() => {
             selectTree(`host:${conn.id}`, conn.id);
             openTab({
@@ -588,7 +596,24 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
         </button>
       </div>
 
-      <div className="sidebar-body">
+      <div
+        className="sidebar-body"
+        onDragOver={(e) => {
+          if (e.dataTransfer.types.includes('application/x-docker-conn')) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            setDragOverId('__root__');
+          }
+        }}
+        onDragLeave={() => setDragOverId((v) => (v === '__root__' ? null : v))}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragOverId(null);
+          const id = e.dataTransfer.getData('application/x-docker-conn');
+          const c = connections.find((x) => x.id === id);
+          if (c) void moveToGroup(c, undefined);
+        }}
+      >
         {connections.length === 0 && groups.length === 0 && (
           <div className="empty-state" style={{ padding: '32px 16px' }}>
             <Server size={32} strokeWidth={1.2} color="var(--text-muted)" />
@@ -635,9 +660,26 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
             <div key={group.id}>
               <div
                 className={`tree-row ${selectedTreeKey === gKey ? 'selected' : ''}`}
-                style={{ paddingLeft: 6, fontWeight: 500, marginTop: 4 }}
+                style={{ paddingLeft: 6, fontWeight: 500, marginTop: 4, ...dropTargetClass(group.id) }}
                 onClick={() => toggleGroup(group.id)}
                 onContextMenu={(e) => ctx.open(e, groupMenu())}
+                onDragOver={(e) => {
+                  if (e.dataTransfer.types.includes('application/x-docker-conn')) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.dataTransfer.dropEffect = 'move';
+                    setDragOverId(group.id);
+                  }
+                }}
+                onDragLeave={() => setDragOverId((v) => (v === group.id ? null : v))}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setDragOverId(null);
+                  const id = e.dataTransfer.getData('application/x-docker-conn');
+                  const c = connections.find((x) => x.id === id);
+                  if (c) void moveToGroup(c, group.id);
+                }}
               >
                 <span
                   className="twisty"
