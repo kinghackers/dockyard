@@ -12,6 +12,7 @@ import type { DockerConnectionConfig } from './types/docker';
 export default function App() {
   const {
     setConnections,
+    setGroups,
     setAllStatuses,
     setMainView,
     toast,
@@ -29,12 +30,14 @@ export default function App() {
     try {
       const list = await window.dockerApi.listConnections();
       setConnections(list);
+      const groups = await window.dockerApi.listGroups();
+      setGroups(groups);
       const st = await window.dockerApi.listStatuses();
       setAllStatuses(st);
     } catch (e) {
       console.error(e);
     }
-  }, [setConnections, setAllStatuses]);
+  }, [setConnections, setGroups, setAllStatuses]);
 
   useEffect(() => {
     void loadConnections();

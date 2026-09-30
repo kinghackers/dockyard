@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type {
+  ConnectionGroup,
   ConnectionStatus,
   ContainerSummary,
   DockerConnectionConfig,
@@ -24,8 +25,10 @@ const defaultMainView: OpenTab = {
 
 interface AppState {
   connections: DockerConnectionConfig[];
+  groups: ConnectionGroup[];
   statuses: Record<string, ConnectionStatus>;
   expandedHosts: Record<string, boolean>;
+  expandedGroups: Record<string, boolean>;
   expandedCompose: Record<string, boolean>;
   selectedTreeKey: string | null;
   selectedHostId: string | null;
@@ -41,10 +44,14 @@ interface AppState {
   setConnections: (list: DockerConnectionConfig[]) => void;
   upsertConnection: (cfg: DockerConnectionConfig) => void;
   removeConnectionLocal: (id: string) => void;
+  setGroups: (list: ConnectionGroup[]) => void;
+  upsertGroupLocal: (group: ConnectionGroup) => void;
+  removeGroupLocal: (id: string) => void;
   setStatus: (status: ConnectionStatus) => void;
   setAllStatuses: (list: ConnectionStatus[]) => void;
 
   toggleHost: (id: string) => void;
+  toggleGroup: (id: string) => void;
   toggleCompose: (key: string) => void;
   selectTree: (key: string | null, hostId?: string | null) => void;
 
@@ -71,8 +78,10 @@ interface AppState {
 
 export const useAppStore = create<AppState>((set, get) => ({
   connections: [],
+  groups: [],
   statuses: {},
   expandedHosts: {},
+  expandedGroups: {},
   expandedCompose: {},
   selectedTreeKey: null,
   selectedHostId: null,
@@ -99,6 +108,23 @@ export const useAppStore = create<AppState>((set, get) => ({
     });
   },
 
+  setGroups: (list) => set({ groups: list }),
+
+  upsertGroupLocal: (group) => {
+    const list = get().groups.filter((g) => g.id !== group.id);
+    set({ groups: [...list, group] });
+  },
+
+  removeGroupLocal: (id) => {
+    set({
+      groups: get().groups.filter((g) => g.id !== id),
+      // connections fall back to root
+      connections: get().connections.map((c) =>
+        c.groupId === id ? { ...c, groupId: undefined } : c
+      ),
+    });
+  },
+
   setStatus: (status) =>
     set({ statuses: { ...get().statuses, [status.id]: status } }),
 
@@ -110,6 +136,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   toggleHost: (id) =>
     set({ expandedHosts: { ...get().expandedHosts, [id]: !get().expandedHosts[id] } }),
+
+  toggleGroup: (id) =>
+    set({ expandedGroups: { ...get().expandedGroups, [id]: !get().expandedGroups[id] } }),
 
   toggleCompose: (key) =>
     set({ expandedCompose: { ...get().expandedCompose, [key]: !get().expandedCompose[key] } }),

@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
-import type { ConnectionKind, DockerConnectionConfig } from '../../types/docker';
+import type { ConnectionGroup, ConnectionKind, DockerConnectionConfig } from '../../types/docker';
 
 interface Props {
   initial: DockerConnectionConfig | null;
@@ -15,6 +15,8 @@ function newId() {
 export function ConnectionDialog({ initial, onClose, onSaved }: Props) {
   const [kind, setKind] = useState<ConnectionKind>(initial?.kind || 'tcp');
   const [name, setName] = useState(initial?.name || '');
+  const [groupId, setGroupId] = useState(initial?.groupId || '');
+  const [groups, setGroups] = useState<ConnectionGroup[]>([]);
   const [host, setHost] = useState(initial?.host || '127.0.0.1');
   const [port, setPort] = useState(initial?.port || 2375);
   const [tls, setTls] = useState(initial?.tls ?? false);
@@ -41,10 +43,18 @@ export function ConnectionDialog({ initial, onClose, onSaved }: Props) {
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [saving, setSaving] = useState(false);
 
+  useEffect(() => {
+    void window.dockerApi
+      .listGroups()
+      .then((list) => setGroups(list))
+      .catch(() => setGroups([]));
+  }, []);
+
   const buildConfig = (): DockerConnectionConfig => ({
     id: initial?.id || newId(),
     name: name.trim() || `${kind}-${host || socketPath}`,
     kind,
+    groupId: groupId || undefined,
     host,
     port: Number(port) || undefined,
     tls,
@@ -131,6 +141,17 @@ export function ConnectionDialog({ initial, onClose, onSaved }: Props) {
                 <option value="tcp">TCP（HTTP/HTTPS）</option>
                 <option value="ssh">SSH 隧道</option>
                 <option value="unix">Unix 套接字</option>
+              </select>
+            </div>
+            <div className="form-row">
+              <label>所属目录</label>
+              <select value={groupId} onChange={(e) => setGroupId(e.target.value)}>
+                <option value="">（根目录）</option>
+                {groups.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.name}
+                  </option>
+                ))}
               </select>
             </div>
           </div>

@@ -4,6 +4,9 @@ export interface DockerApi {
   listConnections(): Promise<unknown[]>;
   upsertConnection(cfg: unknown): Promise<unknown>;
   removeConnection(id: string): Promise<boolean>;
+  listGroups(): Promise<unknown[]>;
+  upsertGroup(group: unknown): Promise<unknown>;
+  removeGroup(id: string): Promise<boolean>;
   testConnection(cfg: unknown): Promise<unknown>;
   connect(id: string): Promise<unknown>;
   disconnect(id: string): Promise<boolean>;
@@ -82,6 +85,9 @@ const api: DockerApi = {
   listConnections: () => ipcRenderer.invoke('docker:listConnections'),
   upsertConnection: (cfg) => ipcRenderer.invoke('docker:upsertConnection', cfg),
   removeConnection: (id) => ipcRenderer.invoke('docker:removeConnection', id),
+  listGroups: () => ipcRenderer.invoke('docker:listGroups'),
+  upsertGroup: (group) => ipcRenderer.invoke('docker:upsertGroup', group),
+  removeGroup: (id) => ipcRenderer.invoke('docker:removeGroup', id),
   testConnection: (cfg) => ipcRenderer.invoke('docker:testConnection', cfg),
   connect: (id) => ipcRenderer.invoke('docker:connect', id),
   disconnect: (id) => ipcRenderer.invoke('docker:disconnect', id),

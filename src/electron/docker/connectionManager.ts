@@ -5,6 +5,7 @@ import Docker = require('dockerode');
 import {
   ComposeProject,
   ComposeService,
+  ConnectionGroup,
   ConnectionStatus,
   ContainerDetail,
   ContainerStatsSample,
@@ -100,9 +101,11 @@ function parseStatsSample(stats: Docker.ContainerStats): ContainerStatsSample {
 export class DockerConnectionManager {
   private connections = new Map<string, ManagedConnection>();
   private configPath: string;
+  private groupsPath: string;
 
   constructor(userDataDir: string) {
     this.configPath = path.join(userDataDir, 'docker-connections.json');
+    this.groupsPath = path.join(userDataDir, 'docker-groups.json');
     fs.mkdirSync(userDataDir, { recursive: true });
   }
 
@@ -138,6 +141,48 @@ export class DockerConnectionManager {
     const list = this.loadConfigs().filter((c) => c.id !== id);
     this.saveConfigs(list);
     void this.disconnect(id);
+  }
+
+  // ---------- sidebar groups ----------
+  loadGroups(): ConnectionGroup[] {
+    try {
+      if (!fs.existsSync(this.groupsPath)) return [];
+      const raw = JSON.parse(fs.readFileSync(this.groupsPath, 'utf8'));
+      return Array.isArray(raw) ? raw : [];
+    } catch {
+      return [];
+    }
+  }
+
+  private saveGroups(list: ConnectionGroup[]) {
+    fs.writeFileSync(this.groupsPath, JSON.stringify(list, null, 2), 'utf8');
+  }
+
+  listGroups(): ConnectionGroup[] {
+    return this.loadGroups();
+  }
+
+  upsertGroup(group: ConnectionGroup): ConnectionGroup {
+    const list = this.loadGroups();
+    const idx = list.findIndex((g) => g.id === group.id);
+    if (idx >= 0) list[idx] = group;
+    else list.push(group);
+    this.saveGroups(list);
+    return group;
+  }
+
+  /** Remove a folder; its connections fall back to root (groupId cleared). */
+  removeGroup(id: string) {
+    this.saveGroups(this.loadGroups().filter((g) => g.id !== id));
+    const list = this.loadConfigs();
+    let changed = false;
+    for (const c of list) {
+      if (c.groupId === id) {
+        delete c.groupId;
+        changed = true;
+      }
+    }
+    if (changed) this.saveConfigs(list);
   }
 
   // ---------- runtime ----------

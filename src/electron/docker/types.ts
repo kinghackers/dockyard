@@ -1,9 +1,17 @@
 export type ConnectionKind = 'tcp' | 'unix' | 'ssh';
 
+/** Sidebar folder that groups Docker connections. */
+export interface ConnectionGroup {
+  id: string;
+  name: string;
+}
+
 export interface DockerConnectionConfig {
   id: string;
   name: string;
   kind: ConnectionKind;
+  /** sidebar folder id; omitted = root */
+  groupId?: string;
   /** tcp */
   host?: string;
   port?: number;

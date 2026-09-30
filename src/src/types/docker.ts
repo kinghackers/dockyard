@@ -1,9 +1,17 @@
 export type ConnectionKind = 'tcp' | 'unix' | 'ssh';
 
+/** Sidebar folder that groups Docker connections. */
+export interface ConnectionGroup {
+  id: string;
+  name: string;
+}
+
 export interface DockerConnectionConfig {
   id: string;
   name: string;
   kind: ConnectionKind;
+  /** sidebar folder id; omitted = root */
+  groupId?: string;
   host?: string;
   port?: number;
   tls?: boolean;
@@ -254,6 +262,9 @@ declare global {
       listConnections(): Promise<DockerConnectionConfig[]>;
       upsertConnection(cfg: DockerConnectionConfig): Promise<DockerConnectionConfig>;
       removeConnection(id: string): Promise<boolean>;
+      listGroups(): Promise<ConnectionGroup[]>;
+      upsertGroup(group: ConnectionGroup): Promise<ConnectionGroup>;
+      removeGroup(id: string): Promise<boolean>;
       testConnection(cfg: DockerConnectionConfig): Promise<{ ok: boolean; info?: DockerInfoLite; error?: string }>;
       connect(id: string): Promise<ConnectionStatus>;
       disconnect(id: string): Promise<boolean>;

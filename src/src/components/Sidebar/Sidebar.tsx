@@ -15,12 +15,13 @@ import {
   Network,
   Database,
   Container,
-  Terminal as TerminalIcon,
-  FileText,
+  Folder,
+  FolderPlus,
 } from 'lucide-react';
 import { useAppStore } from '../../stores/appStore';
 import { useConfirm } from '../../utils/useConfirm';
 import type { ComposeProject, ContainerSummary, DockerConnectionConfig } from '../../types/docker';
+import { GroupNameDialog } from './GroupNameDialog';
 
 interface Props {
   onAddConnection: () => void;
@@ -29,14 +30,21 @@ interface Props {
   onDisconnect: (id: string) => void;
 }
 
+function newGroupId() {
+  return `grp-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
 export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDisconnect }: Props) {
   const {
     connections,
+    groups,
     statuses,
     expandedHosts,
+    expandedGroups,
     expandedCompose,
     selectedTreeKey,
     toggleHost,
+    toggleGroup,
     toggleCompose,
     selectTree,
     openTab,
@@ -48,6 +56,9 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
   const [hostProjects, setHostProjects] = useState<Record<string, ComposeProject[]>>({});
   const [hostLoose, setHostLoose] = useState<Record<string, ContainerSummary[]>>({});
   const [confirmDialog, confirm] = useConfirm();
+  const [groupDialog, setGroupDialog] = useState<
+    { mode: 'create' } | { mode: 'rename'; id: string; name: string } | null
+  >(null);
 
   const refreshHostTree = useCallback(
     async (hostId: string) => {
@@ -128,11 +139,327 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
     });
   };
 
+  const submitGroup = async (name: string) => {
+    if (!groupDialog) return;
+    try {
+      if (groupDialog.mode === 'create') {
+        const g = await window.dockerApi.upsertGroup({ id: newGroupId(), name });
+        useAppStore.getState().upsertGroupLocal(g);
+        useAppStore.getState().toggleGroup(g.id); // expand so user can drop connections in
+      } else {
+        const g = await window.dockerApi.upsertGroup({ id: groupDialog.id, name });
+        useAppStore.getState().upsertGroupLocal(g);
+      }
+      setGroupDialog(null);
+    } catch (e) {
+      useAppStore.getState().toast(e instanceof Error ? e.message : String(e), 'error');
+    }
+  };
+
+  const removeGroup = async (id: string, name: string) => {
+    const ok = await confirm({
+      title: '删除目录',
+      message: `确认删除目录「${name}」？目录下的连接会回到根目录，连接本身不会被删除。`,
+      confirmLabel: '删除',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await window.dockerApi.removeGroup(id);
+      useAppStore.getState().removeGroupLocal(id);
+    } catch (err) {
+      useAppStore.getState().toast(err instanceof Error ? err.message : String(err), 'error');
+    }
+  };
+
+  /** One Docker host node + its expanded resource tree. */
+  const renderHost = (conn: DockerConnectionConfig, indent: number) => {
+    const st = statuses[conn.id];
+    const isExpanded = !!expandedHosts[conn.id];
+    const selected = selectedTreeKey === `host:${conn.id}`;
+    const projects = hostProjects[conn.id] || [];
+    const loose = hostLoose[conn.id] || [];
+
+    return (
+      <div key={conn.id}>
+        <div
+          className={`tree-row ${selected ? 'selected' : ''}`}
+          style={{ paddingLeft: indent, fontWeight: 500 }}
+          onClick={() => {
+            selectTree(`host:${conn.id}`, conn.id);
+            openTab({
+              id: `dashboard:${conn.id}`,
+              title: `仪表板 · ${conn.name}`,
+              kind: 'dashboard',
+              hostId: conn.id,
+            });
+          }}
+        >
+          <span
+            className="twisty"
+            onClick={(e) => {
+              e.stopPropagation();
+              void handleToggleHost(conn.id);
+            }}
+          >
+            {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          </span>
+          <span className="icon">
+            <Server size={15} color="var(--host)" />
+          </span>
+          <span className="label">{conn.name}</span>
+          <span
+            className={`host-status-dot ${st?.connected ? 'online' : 'offline'}`}
+            title={st?.connected ? '已连接' : st?.error || '未连接'}
+          />
+          <button
+            className="btn ghost icon-btn"
+            style={{ width: 22, height: 22 }}
+            title={st?.connected ? '断开' : '连接'}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (st?.connected) void onDisconnect(conn.id);
+              else void onConnect(conn.id);
+            }}
+          >
+            {st?.connected ? <PlugZap size={13} color="var(--success)" /> : <Plug size={13} />}
+          </button>
+          <button
+            className="btn ghost icon-btn"
+            style={{ width: 22, height: 22 }}
+            title="编辑"
+            onClick={(e) => {
+              e.stopPropagation();
+              onEditConnection(conn);
+            }}
+          >
+            <Pencil size={12} />
+          </button>
+          <button
+            className="btn ghost icon-btn"
+            style={{ width: 22, height: 22 }}
+            title="删除"
+            onClick={async (e) => {
+              e.stopPropagation();
+              const ok = await confirm({
+                title: '删除连接',
+                message: `确认删除连接「${conn.name}」？仅移除配置，不影响远程 Docker 资源。`,
+                confirmLabel: '删除',
+                danger: true,
+              });
+              if (!ok) return;
+              try {
+                await window.dockerApi.removeConnection(conn.id);
+                useAppStore.getState().removeConnectionLocal(conn.id);
+              } catch (err) {
+                useAppStore.getState().toast(
+                  err instanceof Error ? err.message : String(err),
+                  'error'
+                );
+              }
+            }}
+          >
+            <Trash2 size={12} color="var(--error)" />
+          </button>
+        </div>
+
+        {isExpanded && (
+          <div>
+            {projects.map((p) => {
+              const pKey = `compose:${conn.id}:${p.name}`;
+              const pExpanded = !!expandedCompose[pKey];
+              return (
+                <div key={pKey}>
+                  <div
+                    className={`tree-row ${selectedTreeKey === pKey ? 'selected' : ''}`}
+                    style={{ paddingLeft: indent + 16 }}
+                    onClick={() => {
+                      selectTree(pKey, conn.id);
+                      openTab({
+                        id: `composeProject:${conn.id}:${p.name}`,
+                        title: `Docker-compose: ${p.name}`,
+                        kind: 'composeProject',
+                        hostId: conn.id,
+                        projectName: p.name,
+                      });
+                    }}
+                  >
+                    <span
+                      className="twisty"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleCompose(pKey);
+                      }}
+                    >
+                      {pExpanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                    </span>
+                    <span className="icon">
+                      <Layers size={14} color="var(--compose)" />
+                    </span>
+                    <span className="label">Docker-compose: {p.name}</span>
+                    <span className="badge">
+                      {p.running}/{p.total}
+                    </span>
+                  </div>
+                  {pExpanded && (
+                    <div>
+                      {p.services.map((s) => {
+                        const sKey = `svc:${conn.id}:${p.name}:${s.name}`;
+                        return (
+                          <div
+                            key={sKey}
+                            className={`tree-row ${selectedTreeKey === sKey ? 'selected' : ''}`}
+                            style={{ paddingLeft: indent + 42 }}
+                            onClick={() => {
+                              selectTree(sKey, conn.id);
+                              if (s.containerId) {
+                                openTab({
+                                  id: `containerDetail:${conn.id}:${s.containerId}`,
+                                  title: `容器: ${s.containerName || s.name}`,
+                                  kind: 'containerDetail',
+                                  hostId: conn.id,
+                                  containerId: s.containerId,
+                                });
+                              }
+                            }}
+                          >
+                            <span className="twisty" />
+                            <span className="icon">
+                              <Container size={13} color="var(--container)" />
+                            </span>
+                            <span className="label">
+                              {s.name}
+                              {s.replicas && s.replicas > 1 ? ` (×${s.replicas})` : ''}
+                            </span>
+                            <span
+                              className={`chip ${s.state || ''}`}
+                              style={{ marginRight: 6 }}
+                            >
+                              <span className="dot" />
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {loose.map((c) => {
+              const cKey = `c:${conn.id}:${c.id}`;
+              return (
+                <div
+                  key={cKey}
+                  className={`tree-row ${selectedTreeKey === cKey ? 'selected' : ''}`}
+                  style={{ paddingLeft: indent + 16 }}
+                  onClick={() => {
+                    selectTree(cKey, conn.id);
+                    openTab({
+                      id: `containerDetail:${conn.id}:${c.id}`,
+                      title: `容器: ${c.name}`,
+                      kind: 'containerDetail',
+                      hostId: conn.id,
+                      containerId: c.id,
+                    });
+                  }}
+                >
+                  <span className="twisty" />
+                  <span className="icon">
+                    <Container size={13} color="var(--container)" />
+                  </span>
+                  <span className="label">{c.name}</span>
+                  <span className={`chip ${c.state}`} style={{ marginRight: 6 }}>
+                    <span className="dot" />
+                  </span>
+                </div>
+              );
+            })}
+
+            <div
+              className={`tree-row ${selectedTreeKey === `containers:${conn.id}` ? 'selected' : ''}`}
+              style={{ paddingLeft: indent + 16 }}
+              onClick={() => {
+                selectTree(`containers:${conn.id}`, conn.id);
+                openView(conn.id, 'containers');
+              }}
+            >
+              <span className="twisty" />
+              <span className="icon">
+                <Box size={14} color="var(--container)" />
+              </span>
+              <span className="label">容器</span>
+              <span className="badge">{containersByHost[conn.id]?.length ?? 0}</span>
+            </div>
+
+            <div
+              className={`tree-row ${selectedTreeKey === `images:${conn.id}` ? 'selected' : ''}`}
+              style={{ paddingLeft: indent + 16 }}
+              onClick={() => {
+                selectTree(`images:${conn.id}`, conn.id);
+                openView(conn.id, 'images');
+              }}
+            >
+              <span className="twisty" />
+              <span className="icon">
+                <ImageIcon size={14} color="var(--image)" />
+              </span>
+              <span className="label">镜像</span>
+            </div>
+
+            <div
+              className={`tree-row ${selectedTreeKey === `networks:${conn.id}` ? 'selected' : ''}`}
+              style={{ paddingLeft: indent + 16 }}
+              onClick={() => {
+                selectTree(`networks:${conn.id}`, conn.id);
+                openView(conn.id, 'networks');
+              }}
+            >
+              <span className="twisty" />
+              <span className="icon">
+                <Network size={14} color="var(--network)" />
+              </span>
+              <span className="label">网络</span>
+            </div>
+
+            <div
+              className={`tree-row ${selectedTreeKey === `volumes:${conn.id}` ? 'selected' : ''}`}
+              style={{ paddingLeft: indent + 16 }}
+              onClick={() => {
+                selectTree(`volumes:${conn.id}`, conn.id);
+                openView(conn.id, 'volumes');
+              }}
+            >
+              <span className="twisty" />
+              <span className="icon">
+                <Database size={14} color="var(--volume)" />
+              </span>
+              <span className="label">卷</span>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const rootConnections = connections.filter((c) => !c.groupId);
+  const grouped = groups.map((g) => ({
+    group: g,
+    items: connections.filter((c) => c.groupId === g.id),
+  }));
+
   return (
     <div className="sidebar">
       <div className="sidebar-toolbar">
         <button className="btn ghost icon-btn" title="添加连接" onClick={onAddConnection}>
           <Plus size={15} />
+        </button>
+        <button
+          className="btn ghost icon-btn"
+          title="新建目录"
+          onClick={() => setGroupDialog({ mode: 'create' })}
+        >
+          <FolderPlus size={15} />
         </button>
         <button
           className="btn ghost icon-btn"
@@ -150,7 +477,7 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
       </div>
 
       <div className="sidebar-body">
-        {connections.length === 0 && (
+        {connections.length === 0 && groups.length === 0 && (
           <div className="empty-state" style={{ padding: '32px 16px' }}>
             <Server size={32} strokeWidth={1.2} color="var(--text-muted)" />
             <div style={{ fontSize: 12 }}>还没有 Docker 连接</div>
@@ -160,64 +487,39 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
           </div>
         )}
 
-        {connections.map((conn) => {
-          const st = statuses[conn.id];
-          const isExpanded = !!expandedHosts[conn.id];
-          const selected = selectedTreeKey === `host:${conn.id}`;
-          const projects = hostProjects[conn.id] || [];
-          const loose = hostLoose[conn.id] || [];
+        {rootConnections.map((conn) => renderHost(conn, 6))}
 
+        {grouped.map(({ group, items }) => {
+          const gKey = `group:${group.id}`;
+          const gExpanded = !!expandedGroups[group.id];
           return (
-            <div key={conn.id}>
+            <div key={group.id}>
               <div
-                className={`tree-row ${selected ? 'selected' : ''}`}
-                style={{ paddingLeft: 6, fontWeight: 500 }}
-                onClick={() => {
-                  selectTree(`host:${conn.id}`, conn.id);
-                  openTab({
-                    id: `dashboard:${conn.id}`,
-                    title: `仪表板 · ${conn.name}`,
-                    kind: 'dashboard',
-                    hostId: conn.id,
-                  });
-                }}
+                className={`tree-row ${selectedTreeKey === gKey ? 'selected' : ''}`}
+                style={{ paddingLeft: 6, fontWeight: 500, marginTop: 4 }}
+                onClick={() => toggleGroup(group.id)}
               >
                 <span
                   className="twisty"
                   onClick={(e) => {
                     e.stopPropagation();
-                    void handleToggleHost(conn.id);
+                    toggleGroup(group.id);
                   }}
                 >
-                  {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                  {gExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                 </span>
                 <span className="icon">
-                  <Server size={15} color="var(--host)" />
+                  <Folder size={15} color="var(--warning)" />
                 </span>
-                <span className="label">{conn.name}</span>
-                <span
-                  className={`host-status-dot ${st?.connected ? 'online' : 'offline'}`}
-                  title={st?.connected ? '已连接' : st?.error || '未连接'}
-                />
+                <span className="label">{group.name}</span>
+                <span className="badge">{items.length}</span>
                 <button
                   className="btn ghost icon-btn"
                   style={{ width: 22, height: 22 }}
-                  title={st?.connected ? '断开' : '连接'}
+                  title="重命名"
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (st?.connected) void onDisconnect(conn.id);
-                    else void onConnect(conn.id);
-                  }}
-                >
-                  {st?.connected ? <PlugZap size={13} color="var(--success)" /> : <Plug size={13} />}
-                </button>
-                <button
-                  className="btn ghost icon-btn"
-                  style={{ width: 22, height: 22 }}
-                  title="编辑"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onEditConnection(conn);
+                    setGroupDialog({ mode: 'rename', id: group.id, name: group.name });
                   }}
                 >
                   <Pencil size={12} />
@@ -225,204 +527,19 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
                 <button
                   className="btn ghost icon-btn"
                   style={{ width: 22, height: 22 }}
-                  title="删除"
-                  onClick={async (e) => {
+                  title="删除目录"
+                  onClick={(e) => {
                     e.stopPropagation();
-                    const ok = await confirm({
-                      title: '删除连接',
-                      message: `确认删除连接「${conn.name}」？仅移除配置，不影响远程 Docker 资源。`,
-                      confirmLabel: '删除',
-                      danger: true,
-                    });
-                    if (!ok) return;
-                    try {
-                      await window.dockerApi.removeConnection(conn.id);
-                      useAppStore.getState().removeConnectionLocal(conn.id);
-                    } catch (err) {
-                      useAppStore.getState().toast(
-                        err instanceof Error ? err.message : String(err),
-                        'error'
-                      );
-                    }
+                    void removeGroup(group.id, group.name);
                   }}
                 >
                   <Trash2 size={12} color="var(--error)" />
                 </button>
               </div>
-
-              {isExpanded && (
-                <div>
-                  {projects.map((p) => {
-                    const pKey = `compose:${conn.id}:${p.name}`;
-                    const pExpanded = !!expandedCompose[pKey];
-                    return (
-                      <div key={pKey}>
-                        <div
-                          className={`tree-row ${selectedTreeKey === pKey ? 'selected' : ''}`}
-                          style={{ paddingLeft: 22 }}
-                          onClick={() => {
-                            selectTree(pKey, conn.id);
-                            openTab({
-                              id: `composeProject:${conn.id}:${p.name}`,
-                              title: `Docker-compose: ${p.name}`,
-                              kind: 'composeProject',
-                              hostId: conn.id,
-                              projectName: p.name,
-                            });
-                          }}
-                        >
-                          <span
-                            className="twisty"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleCompose(pKey);
-                            }}
-                          >
-                            {pExpanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
-                          </span>
-                          <span className="icon">
-                            <Layers size={14} color="var(--compose)" />
-                          </span>
-                          <span className="label">Docker-compose: {p.name}</span>
-                          <span className="badge">
-                            {p.running}/{p.total}
-                          </span>
-                        </div>
-                        {pExpanded && (
-                          <div>
-                            {p.services.map((s) => {
-                              const sKey = `svc:${conn.id}:${p.name}:${s.name}`;
-                              return (
-                                <div
-                                  key={sKey}
-                                  className={`tree-row ${selectedTreeKey === sKey ? 'selected' : ''}`}
-                                  style={{ paddingLeft: 48 }}
-                                  onClick={() => {
-                                    selectTree(sKey, conn.id);
-                                    if (s.containerId) {
-                                      openTab({
-                                        id: `containerDetail:${conn.id}:${s.containerId}`,
-                                        title: `容器: ${s.containerName || s.name}`,
-                                        kind: 'containerDetail',
-                                        hostId: conn.id,
-                                        containerId: s.containerId,
-                                      });
-                                    }
-                                  }}
-                                >
-                                  <span className="twisty" />
-                                  <span className="icon">
-                                    <Container size={13} color="var(--container)" />
-                                  </span>
-                                  <span className="label">
-                                    {s.name}
-                                    {s.replicas && s.replicas > 1 ? ` (×${s.replicas})` : ''}
-                                  </span>
-                                  <span
-                                    className={`chip ${s.state || ''}`}
-                                    style={{ marginRight: 6 }}
-                                  >
-                                    <span className="dot" />
-                                  </span>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-
-                  {loose.map((c) => {
-                    const cKey = `c:${conn.id}:${c.id}`;
-                    return (
-                      <div
-                        key={cKey}
-                        className={`tree-row ${selectedTreeKey === cKey ? 'selected' : ''}`}
-                        style={{ paddingLeft: 22 }}
-                        onClick={() => {
-                          selectTree(cKey, conn.id);
-                          openTab({
-                            id: `containerDetail:${conn.id}:${c.id}`,
-                            title: `容器: ${c.name}`,
-                            kind: 'containerDetail',
-                            hostId: conn.id,
-                            containerId: c.id,
-                          });
-                        }}
-                      >
-                        <span className="twisty" />
-                        <span className="icon">
-                          <Container size={13} color="var(--container)" />
-                        </span>
-                        <span className="label">{c.name}</span>
-                        <span className={`chip ${c.state}`} style={{ marginRight: 6 }}>
-                          <span className="dot" />
-                        </span>
-                      </div>
-                    );
-                  })}
-
-                  <div
-                    className={`tree-row ${selectedTreeKey === `containers:${conn.id}` ? 'selected' : ''}`}
-                    style={{ paddingLeft: 22 }}
-                    onClick={() => {
-                      selectTree(`containers:${conn.id}`, conn.id);
-                      openView(conn.id, 'containers');
-                    }}
-                  >
-                    <span className="twisty" />
-                    <span className="icon">
-                      <Box size={14} color="var(--container)" />
-                    </span>
-                    <span className="label">容器</span>
-                    <span className="badge">{containersByHost[conn.id]?.length ?? 0}</span>
-                  </div>
-
-                  <div
-                    className={`tree-row ${selectedTreeKey === `images:${conn.id}` ? 'selected' : ''}`}
-                    style={{ paddingLeft: 22 }}
-                    onClick={() => {
-                      selectTree(`images:${conn.id}`, conn.id);
-                      openView(conn.id, 'images');
-                    }}
-                  >
-                    <span className="twisty" />
-                    <span className="icon">
-                      <ImageIcon size={14} color="var(--image)" />
-                    </span>
-                    <span className="label">镜像</span>
-                  </div>
-
-                  <div
-                    className={`tree-row ${selectedTreeKey === `networks:${conn.id}` ? 'selected' : ''}`}
-                    style={{ paddingLeft: 22 }}
-                    onClick={() => {
-                      selectTree(`networks:${conn.id}`, conn.id);
-                      openView(conn.id, 'networks');
-                    }}
-                  >
-                    <span className="twisty" />
-                    <span className="icon">
-                      <Network size={14} color="var(--network)" />
-                    </span>
-                    <span className="label">网络</span>
-                  </div>
-
-                  <div
-                    className={`tree-row ${selectedTreeKey === `volumes:${conn.id}` ? 'selected' : ''}`}
-                    style={{ paddingLeft: 22 }}
-                    onClick={() => {
-                      selectTree(`volumes:${conn.id}`, conn.id);
-                      openView(conn.id, 'volumes');
-                    }}
-                  >
-                    <span className="twisty" />
-                    <span className="icon">
-                      <Database size={14} color="var(--volume)" />
-                    </span>
-                    <span className="label">卷</span>
-                  </div>
+              {gExpanded && items.map((conn) => renderHost(conn, 22))}
+              {gExpanded && items.length === 0 && (
+                <div style={{ padding: '4px 0 4px 38px', fontSize: 11, color: 'var(--text-muted)' }}>
+                  空目录 · 编辑连接可移入
                 </div>
               )}
             </div>
@@ -446,6 +563,14 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
         </span>
       </div>
       {confirmDialog}
+      {groupDialog && (
+        <GroupNameDialog
+          title={groupDialog.mode === 'create' ? '新建目录' : '重命名目录'}
+          initialName={groupDialog.mode === 'rename' ? groupDialog.name : ''}
+          onClose={() => setGroupDialog(null)}
+          onSubmit={submitGroup}
+        />
+      )}
     </div>
   );
 }

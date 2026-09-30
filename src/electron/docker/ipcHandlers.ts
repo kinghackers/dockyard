@@ -1,6 +1,12 @@
 import { ipcMain, BrowserWindow, IpcMainInvokeEvent } from 'electron';
 import { DockerConnectionManager } from './connectionManager';
-import { CreateContainerOptions, CreateNetworkOptions, CreateVolumeOptions, DockerConnectionConfig } from './types';
+import {
+  ConnectionGroup,
+  CreateContainerOptions,
+  CreateNetworkOptions,
+  CreateVolumeOptions,
+  DockerConnectionConfig,
+} from './types';
 
 const logStreams = new Map<string, { abort: () => void }>();
 const execSessions = new Map<string, { write: (chunk: string) => void; resize: (h: number, w: number) => void; kill: () => void }>();
@@ -17,6 +23,14 @@ export function registerIpc(manager: DockerConnectionManager, getWindows: () => 
 
   ipcMain.handle('docker:removeConnection', async (_e, id: string) => {
     manager.removeConfig(id);
+    return true;
+  });
+
+  // ---- sidebar groups ----
+  ipcMain.handle('docker:listGroups', () => manager.listGroups());
+  ipcMain.handle('docker:upsertGroup', (_e, group: ConnectionGroup) => manager.upsertGroup(group));
+  ipcMain.handle('docker:removeGroup', async (_e, id: string) => {
+    manager.removeGroup(id);
     return true;
   });
 
