@@ -95,17 +95,41 @@ export function registerIpc(manager: DockerConnectionManager, getWindows: () => 
       // Docker multiplexed frames: [type(1),0,0,0,size(4,BE)] + payload.
       // Frames can span chunks, so keep a residual buffer.
       let residual = Buffer.alloc(0);
+      // Once we decide this is a raw (TTY) stream, stop frame-parsing entirely.
+      let rawMode = false;
 
       const onData = (chunk: Buffer) => {
         residual = Buffer.concat([residual, chunk]);
         let text = '';
         let offset = 0;
+
+        if (rawMode) {
+          text = residual.toString('utf8');
+          residual = Buffer.alloc(0);
+          if (text) win?.webContents.send('docker:logData', { key, data: text });
+          return;
+        }
+
         while (offset < residual.length) {
           // If less than 8 bytes remain, wait for more
           if (residual.length - offset < 8) break;
           const type = residual[offset];
-          if (type === 0 || type === 1 || type === 2 || type === 3) {
+          const b1 = residual[offset + 1];
+          const b2 = residual[offset + 2];
+          const b3 = residual[offset + 3];
+          // header reserved bytes must be 0 for a real frame
+          const looksLikeFrame =
+            (type === 0 || type === 1 || type === 2 || type === 3) && b1 === 0 && b2 === 0 && b3 === 0;
+
+          if (looksLikeFrame) {
             const size = residual.readUInt32BE(offset + 4);
+            // absurd size → almost certainly raw TTY data, switch mode
+            if (size > 64 * 1024 * 1024) {
+              rawMode = true;
+              text += residual.slice(offset).toString('utf8');
+              offset = residual.length;
+              break;
+            }
             const frameStart = offset + 8;
             const frameEnd = frameStart + size;
             // Incomplete payload — wait for more data
@@ -116,6 +140,7 @@ export function registerIpc(manager: DockerConnectionManager, getWindows: () => 
             offset = frameEnd;
           } else {
             // Not a valid frame header (e.g. TTY raw output) — emit the rest as-is
+            rawMode = true;
             text += residual.slice(offset).toString('utf8');
             offset = residual.length;
           }
@@ -127,6 +152,8 @@ export function registerIpc(manager: DockerConnectionManager, getWindows: () => 
       };
 
       destroyable.on('data', onData);
+      // ensure flowing mode even if the underlying stream was paused
+      destroyable.resume?.();
       destroyable.on('error', (err: Error) => {
         win?.webContents.send('docker:logError', { key, error: err.message });
       });
@@ -142,8 +169,9 @@ export function registerIpc(manager: DockerConnectionManager, getWindows: () => 
 
       const abort = () => {
         try {
-          destroyable.destroy?.();
+          // drop listeners BEFORE destroy so a sync 'end' cannot notify the UI
           destroyable.removeAllListeners();
+          destroyable.destroy?.();
         } catch {
           /* ignore */
         }
