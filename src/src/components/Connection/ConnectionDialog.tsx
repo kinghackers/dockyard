@@ -4,6 +4,7 @@ import type { ConnectionGroup, ConnectionKind, DockerConnectionConfig } from '..
 
 interface Props {
   initial: DockerConnectionConfig | null;
+  defaultGroupId?: string;
   onClose: () => void;
   onSaved: () => void | Promise<void>;
 }
@@ -12,10 +13,10 @@ function newId() {
   return `conn-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
-export function ConnectionDialog({ initial, onClose, onSaved }: Props) {
+export function ConnectionDialog({ initial, defaultGroupId, onClose, onSaved }: Props) {
   const [kind, setKind] = useState<ConnectionKind>(initial?.kind || 'tcp');
   const [name, setName] = useState(initial?.name || '');
-  const [groupId, setGroupId] = useState(initial?.groupId || '');
+  const [groupId, setGroupId] = useState(initial?.groupId || defaultGroupId || '');
   const [groups, setGroups] = useState<ConnectionGroup[]>([]);
   const [host, setHost] = useState(initial?.host || '127.0.0.1');
   const [port, setPort] = useState(initial?.port || 2375);

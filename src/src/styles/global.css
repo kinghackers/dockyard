@@ -435,6 +435,92 @@ textarea:focus {
   font-size: 11px;
 }
 
+.table th.sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.table th.sortable:hover {
+  color: var(--text);
+}
+
+.table th .sort-ind {
+  margin-left: 4px;
+  color: var(--accent);
+  font-size: 10px;
+}
+
+.table tbody tr.checked {
+  background: rgba(75, 110, 175, 0.12);
+}
+
+.table tbody tr.selected.checked {
+  background: var(--bg-selected);
+}
+
+/* ---------- context menu ---------- */
+.context-menu {
+  position: fixed;
+  z-index: 1000;
+  min-width: 160px;
+  padding: 4px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+}
+
+.context-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: none;
+  background: transparent;
+  color: var(--text-bright);
+  font-size: 12px;
+  text-align: left;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.context-menu-item:hover:not(:disabled) {
+  background: var(--bg-selected-soft);
+}
+
+.context-menu-item:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.context-menu-item.danger {
+  color: var(--error);
+}
+
+.context-menu-item.danger:hover:not(:disabled) {
+  background: rgba(207, 91, 86, 0.15);
+}
+
+.context-menu-icon {
+  display: inline-flex;
+  width: 14px;
+  justify-content: center;
+  color: var(--text-dim);
+}
+
+.context-menu-item.danger .context-menu-icon {
+  color: var(--error);
+}
+
+.context-menu-sep {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--border);
+}
+
 /* ---------- status chips ---------- */
 .chip {
   display: inline-flex;

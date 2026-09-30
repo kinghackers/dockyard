@@ -17,14 +17,16 @@ import {
   Container,
   Folder,
   FolderPlus,
+  FolderOpen,
 } from 'lucide-react';
 import { useAppStore } from '../../stores/appStore';
 import { useConfirm } from '../../utils/useConfirm';
 import type { ComposeProject, ContainerSummary, DockerConnectionConfig } from '../../types/docker';
 import { GroupNameDialog } from './GroupNameDialog';
+import { ContextMenu, useContextMenu, type ContextMenuItem } from '../common/ContextMenu';
 
 interface Props {
-  onAddConnection: () => void;
+  onAddConnection: (groupId?: string) => void;
   onEditConnection: (cfg: DockerConnectionConfig) => void;
   onConnect: (id: string) => void;
   onDisconnect: (id: string) => void;
@@ -59,6 +61,7 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
   const [groupDialog, setGroupDialog] = useState<
     { mode: 'create' } | { mode: 'rename'; id: string; name: string } | null
   >(null);
+  const ctx = useContextMenu();
 
   const refreshHostTree = useCallback(
     async (hostId: string) => {
@@ -180,6 +183,78 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
     const projects = hostProjects[conn.id] || [];
     const loose = hostLoose[conn.id] || [];
 
+    const deleteConnection = async () => {
+      const ok = await confirm({
+        title: '删除连接',
+        message: `确认删除连接「${conn.name}」？仅移除配置，不影响远程 Docker 资源。`,
+        confirmLabel: '删除',
+        danger: true,
+      });
+      if (!ok) return;
+      try {
+        await window.dockerApi.removeConnection(conn.id);
+        useAppStore.getState().removeConnectionLocal(conn.id);
+      } catch (err) {
+        useAppStore.getState().toast(
+          err instanceof Error ? err.message : String(err),
+          'error'
+        );
+      }
+    };
+
+    const hostMenu = (): ContextMenuItem[] => {
+      const items: ContextMenuItem[] = [
+        {
+          key: 'toggle',
+          label: isExpanded ? '折叠' : '展开',
+          onSelect: () => void handleToggleHost(conn.id),
+        },
+        {
+          key: 'conn',
+          label: st?.connected ? '断开连接' : '连接',
+          icon: st?.connected ? <PlugZap size={13} /> : <Plug size={13} />,
+          onSelect: () => {
+            if (st?.connected) void onDisconnect(conn.id);
+            else void onConnect(conn.id);
+          },
+        },
+        { key: 'sep1', label: '', separator: true, onSelect: () => {} },
+        {
+          key: 'dashboard',
+          label: '打开仪表板',
+          onSelect: () => {
+            selectTree(`host:${conn.id}`, conn.id);
+            openTab({
+              id: `dashboard:${conn.id}`,
+              title: `仪表板 · ${conn.name}`,
+              kind: 'dashboard',
+              hostId: conn.id,
+            });
+          },
+        },
+        {
+          key: 'containers',
+          label: '打开容器列表',
+          onSelect: () => openView(conn.id, 'containers'),
+        },
+        { key: 'sep2', label: '', separator: true, onSelect: () => {} },
+        {
+          key: 'edit',
+          label: '编辑连接…',
+          icon: <Pencil size={13} />,
+          onSelect: () => onEditConnection(conn),
+        },
+        {
+          key: 'del',
+          label: '删除连接…',
+          icon: <Trash2 size={13} />,
+          danger: true,
+          onSelect: () => void deleteConnection(),
+        },
+      ];
+      return items;
+    };
+
     return (
       <div key={conn.id}>
         <div
@@ -194,6 +269,7 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
               hostId: conn.id,
             });
           }}
+          onContextMenu={(e) => ctx.open(e, hostMenu())}
         >
           <span
             className="twisty"
@@ -241,22 +317,7 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
             title="删除"
             onClick={async (e) => {
               e.stopPropagation();
-              const ok = await confirm({
-                title: '删除连接',
-                message: `确认删除连接「${conn.name}」？仅移除配置，不影响远程 Docker 资源。`,
-                confirmLabel: '删除',
-                danger: true,
-              });
-              if (!ok) return;
-              try {
-                await window.dockerApi.removeConnection(conn.id);
-                useAppStore.getState().removeConnectionLocal(conn.id);
-              } catch (err) {
-                useAppStore.getState().toast(
-                  err instanceof Error ? err.message : String(err),
-                  'error'
-                );
-              }
+              await deleteConnection();
             }}
           >
             <Trash2 size={12} color="var(--error)" />
@@ -451,7 +512,7 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
   return (
     <div className="sidebar">
       <div className="sidebar-toolbar">
-        <button className="btn ghost icon-btn" title="添加连接" onClick={onAddConnection}>
+        <button className="btn ghost icon-btn" title="添加连接" onClick={() => onAddConnection()}>
           <Plus size={15} />
         </button>
         <button
@@ -481,7 +542,7 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
           <div className="empty-state" style={{ padding: '32px 16px' }}>
             <Server size={32} strokeWidth={1.2} color="var(--text-muted)" />
             <div style={{ fontSize: 12 }}>还没有 Docker 连接</div>
-            <button className="btn primary" onClick={onAddConnection}>
+            <button className="btn primary" onClick={() => onAddConnection()}>
               <Plus size={14} /> 添加连接
             </button>
           </div>
@@ -492,12 +553,40 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
         {grouped.map(({ group, items }) => {
           const gKey = `group:${group.id}`;
           const gExpanded = !!expandedGroups[group.id];
+          const groupMenu = (): ContextMenuItem[] => [
+            {
+              key: 'toggle',
+              label: gExpanded ? '折叠' : '展开',
+              onSelect: () => toggleGroup(group.id),
+            },
+            {
+              key: 'add',
+              label: '在此目录添加连接',
+              icon: <Plus size={13} />,
+              onSelect: () => onAddConnection(group.id),
+            },
+            { key: 'sep', label: '', separator: true, onSelect: () => {} },
+            {
+              key: 'rename',
+              label: '重命名目录…',
+              icon: <Pencil size={13} />,
+              onSelect: () => setGroupDialog({ mode: 'rename', id: group.id, name: group.name }),
+            },
+            {
+              key: 'del',
+              label: '删除目录…',
+              icon: <Trash2 size={13} />,
+              danger: true,
+              onSelect: () => void removeGroup(group.id, group.name),
+            },
+          ];
           return (
             <div key={group.id}>
               <div
                 className={`tree-row ${selectedTreeKey === gKey ? 'selected' : ''}`}
                 style={{ paddingLeft: 6, fontWeight: 500, marginTop: 4 }}
                 onClick={() => toggleGroup(group.id)}
+                onContextMenu={(e) => ctx.open(e, groupMenu())}
               >
                 <span
                   className="twisty"
@@ -509,7 +598,11 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
                   {gExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                 </span>
                 <span className="icon">
-                  <Folder size={15} color="var(--warning)" />
+                  {gExpanded ? (
+                    <FolderOpen size={15} color="var(--warning)" />
+                  ) : (
+                    <Folder size={15} color="var(--warning)" />
+                  )}
                 </span>
                 <span className="label">{group.name}</span>
                 <span className="badge">{items.length}</span>
@@ -571,6 +664,7 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
           onSubmit={submitGroup}
         />
       )}
+      {ctx.menu && <ContextMenu state={ctx.menu} onClose={ctx.close} />}
     </div>
   );
 }

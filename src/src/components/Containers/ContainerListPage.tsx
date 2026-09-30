@@ -12,6 +12,9 @@ import {
   PlayCircle,
   Plus,
   Skull,
+  ArrowUp,
+  ArrowDown,
+  Copy,
 } from 'lucide-react';
 import type { ContainerSummary } from '../../types/docker';
 import { useAppStore } from '../../stores/appStore';
@@ -22,6 +25,9 @@ import { formatPortMappings } from '../../utils/ports';
 import { getContainerActions } from '../../utils/containerActions';
 import { RunContainerDialog } from './RunContainerDialog';
 import { ContainerRowActions } from './ContainerRowActions';
+import { ContextMenu, useContextMenu, type ContextMenuItem } from '../common/ContextMenu';
+
+type SortKey = 'name' | 'state' | 'image' | 'project' | 'created';
 
 export function ContainerListPage({ hostId }: { hostId: string }) {
   const { openTab, toast, setContainers, containersByHost, containersVersion } = useAppStore();
@@ -29,8 +35,13 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
   const [filter, setFilter] = useState('');
   const [stateFilter, setStateFilter] = useState<'all' | 'running' | 'exited' | 'paused'>('all');
   const [selected, setSelected] = useState<string | null>(null);
+  /** multi-select ids (checkbox). `selected` remains the focus row for toolbar actions. */
+  const [checked, setChecked] = useState<Set<string>>(new Set());
+  const [sortKey, setSortKey] = useState<SortKey>('created');
+  const [sortAsc, setSortAsc] = useState(false);
   const [runOpen, setRunOpen] = useState(false);
   const [confirmDialog, confirm] = useConfirm();
+  const ctx = useContextMenu();
   const list = containersByHost[hostId] || [];
 
   const load = useCallback(async () => {
@@ -56,7 +67,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
   }, [containersVersion]);
 
   const filtered = useMemo(() => {
-    return list.filter((c) => {
+    const rows = list.filter((c) => {
       if (stateFilter !== 'all' && c.state !== stateFilter) return false;
       if (!filter) return true;
       const q = filter.toLowerCase();
@@ -67,7 +78,24 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
         (c.composeProject || '').toLowerCase().includes(q)
       );
     });
-  }, [list, filter, stateFilter]);
+    const dir = sortAsc ? 1 : -1;
+    return [...rows].sort((a, b) => {
+      switch (sortKey) {
+        case 'name':
+          return dir * a.name.localeCompare(b.name);
+        case 'state':
+          return dir * a.state.localeCompare(b.state);
+        case 'image':
+          return dir * a.image.localeCompare(b.image);
+        case 'project':
+          return dir * (a.composeProject || '').localeCompare(b.composeProject || '');
+        case 'created':
+          return dir * (a.created - b.created);
+        default:
+          return 0;
+      }
+    });
+  }, [list, filter, stateFilter, sortKey, sortAsc]);
 
   const action = async (fn: () => Promise<unknown>, okMsg: string) => {
     try {
@@ -79,6 +107,11 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
     }
   };
 
+  const runOn = (ids: string[], fn: (id: string) => Promise<unknown>, okMsg: string) =>
+    action(async () => {
+      for (const id of ids) await fn(id);
+    }, okMsg);
+
   const selectedContainer = useMemo(
     () => list.find((c) => c.id === selected) || null,
     [list, selected]
@@ -86,6 +119,87 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
   const selActions = selectedContainer
     ? getContainerActions(selectedContainer.state, selectedContainer.status)
     : null;
+
+  const allChecked = filtered.length > 0 && filtered.every((c) => checked.has(c.id));
+
+  const toggleChecked = (id: string) => {
+    setChecked((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    setChecked(allChecked ? new Set() : new Set(filtered.map((c) => c.id)));
+  };
+
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) setSortAsc(!sortAsc);
+    else {
+      setSortKey(key);
+      setSortAsc(key === 'name' || key === 'image' || key === 'project');
+    }
+  };
+
+  const openLogs = (id: string, name: string) => {
+    openTab({
+      id: `logs:${hostId}:${id}`,
+      title: `日志 · ${name}`,
+      kind: 'logs',
+      hostId,
+      containerId: id,
+    });
+  };
+
+  const openTerminal = (id: string, name: string) => {
+    openTab({
+      id: `terminal:${hostId}:${id}`,
+      title: `终端 · ${name}`,
+      kind: 'terminal',
+      hostId,
+      containerId: id,
+    });
+  };
+
+  const openDetail = (id: string, name: string) => {
+    openTab({
+      id: `containerDetail:${hostId}:${id}`,
+      title: `容器: ${name}`,
+      kind: 'containerDetail',
+      hostId,
+      containerId: id,
+    });
+  };
+
+  const removeOne = async (id: string, name: string) => {
+    const ok = await confirm({
+      title: '删除容器',
+      message: `确认删除容器「${name}」？数据卷将一并移除。`,
+      confirmLabel: '删除',
+      danger: true,
+    });
+    if (!ok) return;
+    await action(() => window.dockerApi.removeContainer(hostId, id, true), '已删除');
+    setChecked((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  };
+
+  const removeMany = async (ids: string[]) => {
+    const ok = await confirm({
+      title: '批量删除容器',
+      message: `确认删除选中的 ${ids.length} 个容器？数据卷将一并移除。`,
+      confirmLabel: '删除',
+      danger: true,
+    });
+    if (!ok) return;
+    await runOn(ids, (id) => window.dockerApi.removeContainer(hostId, id, true), `已删除 ${ids.length} 个容器`);
+    setChecked(new Set());
+  };
 
   const stopRestartLoop = async (id: string, name: string) => {
     try {
@@ -106,8 +220,99 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
     }
   };
 
+  const rowMenu = (c: ContainerSummary): ContextMenuItem[] => {
+    const a = getContainerActions(c.state, c.status);
+    const ids = checked.has(c.id) && checked.size > 1 ? [...checked] : [c.id];
+    const multi = ids.length > 1;
+    const items: ContextMenuItem[] = [];
+
+    if (a.canStart) {
+      items.push({
+        key: 'start',
+        label: multi ? `启动 ${ids.length} 个` : '启动',
+        icon: <Play size={13} />,
+        onSelect: () => void runOn(ids, (id) => window.dockerApi.startContainer(hostId, id), multi ? `已启动 ${ids.length} 个` : '已启动'),
+      });
+    }
+    if (a.canStop) {
+      items.push({
+        key: 'stop',
+        label: multi ? `停止 ${ids.length} 个` : '停止',
+        icon: <Square size={13} />,
+        onSelect: () => void runOn(ids, (id) => window.dockerApi.stopContainer(hostId, id), multi ? `已停止 ${ids.length} 个` : '已停止'),
+      });
+    }
+    if (a.canRestart) {
+      items.push({
+        key: 'restart',
+        label: multi ? `重启 ${ids.length} 个` : '重启',
+        icon: <RotateCw size={13} />,
+        onSelect: () => void runOn(ids, (id) => window.dockerApi.restartContainer(hostId, id), multi ? `已重启 ${ids.length} 个` : '已重启'),
+      });
+    }
+    if (a.canKill && !multi) {
+      items.push({
+        key: 'kill',
+        label: '强制终止',
+        icon: <Skull size={13} />,
+        onSelect: () => void action(() => window.dockerApi.killContainer(hostId, c.id), '已强制终止'),
+      });
+    }
+    if (a.isRestartLoop && !multi) {
+      items.push({
+        key: 'loop',
+        label: '停止重启循环',
+        onSelect: () => void stopRestartLoop(c.id, c.name),
+      });
+    }
+
+    items.push({ key: 'sep1', label: '', separator: true, onSelect: () => {} });
+    items.push({
+      key: 'logs',
+      label: '查看日志',
+      icon: <FileText size={13} />,
+      disabled: multi,
+      onSelect: () => openLogs(c.id, c.name),
+    });
+    items.push({
+      key: 'term',
+      label: '打开终端',
+      icon: <TermIcon size={13} />,
+      disabled: multi || !a.canExec,
+      onSelect: () => openTerminal(c.id, c.name),
+    });
+    items.push({
+      key: 'detail',
+      label: '打开详情',
+      disabled: multi,
+      onSelect: () => openDetail(c.id, c.name),
+    });
+    items.push({
+      key: 'copy',
+      label: '复制容器 ID',
+      icon: <Copy size={13} />,
+      disabled: multi,
+      onSelect: () => {
+        void navigator.clipboard?.writeText(c.id);
+        toast('已复制容器 ID', 'info');
+      },
+    });
+    items.push({ key: 'sep2', label: '', separator: true, onSelect: () => {} });
+    items.push({
+      key: 'del',
+      label: multi ? `删除 ${ids.length} 个…` : '删除…',
+      icon: <Trash2 size={13} />,
+      danger: true,
+      onSelect: () => void (multi ? removeMany(ids) : removeOne(c.id, c.name)),
+    });
+    return items;
+  };
+
+  const sortInd = (key: SortKey) =>
+    sortKey === key ? <span className="sort-ind">{sortAsc ? <ArrowUp size={11} /> : <ArrowDown size={11} />}</span> : null;
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
       <div className="content-toolbar">
         <button className="btn primary" onClick={() => setRunOpen(true)}>
           <Plus size={13} /> 创建容器
@@ -169,13 +374,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
           disabled={!selected}
           onClick={() => {
             if (!selected) return;
-            openTab({
-              id: `logs:${hostId}:${selected}`,
-              title: `日志 · ${list.find((c) => c.id === selected)?.name || ''}`,
-              kind: 'logs',
-              hostId,
-              containerId: selected,
-            });
+            openLogs(selected, list.find((c) => c.id === selected)?.name || '');
           }}
         >
           <FileText size={13} /> 日志
@@ -185,13 +384,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
           disabled={!selected}
           onClick={() => {
             if (!selected) return;
-            openTab({
-              id: `terminal:${hostId}:${selected}`,
-              title: `终端 · ${list.find((c) => c.id === selected)?.name || ''}`,
-              kind: 'terminal',
-              hostId,
-              containerId: selected,
-            });
+            openTerminal(selected, list.find((c) => c.id === selected)?.name || '');
           }}
         >
           <TermIcon size={13} /> 终端
@@ -201,20 +394,50 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
           disabled={!selected || !selActions?.canRemove}
           onClick={() => {
             if (!selected) return;
-            void (async () => {
-              const ok = await confirm({
-                title: '删除容器',
-                message: '确认删除该容器？数据卷将一并移除。',
-                confirmLabel: '删除',
-                danger: true,
-              });
-              if (!ok) return;
-              action(() => window.dockerApi.removeContainer(hostId, selected, true), '已删除');
-            })();
+            void removeOne(selected, selectedContainer?.name || selected);
           }}
         >
           <Trash2 size={13} /> 删除
         </button>
+        {checked.size > 1 && (
+          <>
+            <div style={{ width: 1, height: 18, background: 'var(--border)', margin: '0 4px' }} />
+            <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>已选 {checked.size}</span>
+            <button
+              className="btn"
+              onClick={() =>
+                runOn(
+                  [...checked],
+                  (id) => window.dockerApi.startContainer(hostId, id),
+                  `已启动 ${checked.size} 个`
+                )
+              }
+            >
+              <Play size={13} /> 批量启动
+            </button>
+            <button
+              className="btn"
+              onClick={() =>
+                runOn(
+                  [...checked],
+                  (id) => window.dockerApi.stopContainer(hostId, id),
+                  `已停止 ${checked.size} 个`
+                )
+              }
+            >
+              <Square size={13} /> 批量停止
+            </button>
+            <button
+              className="btn danger"
+              onClick={() => void removeMany([...checked])}
+            >
+              <Trash2 size={13} /> 批量删除
+            </button>
+            <button className="btn ghost" onClick={() => setChecked(new Set())}>
+              清除选择
+            </button>
+          </>
+        )}
         <div style={{ flex: 1 }} />
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <select
@@ -248,7 +471,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
         </div>
       </div>
 
-      <div style={{ flex: 1, overflow: 'auto' }}>
+      <div style={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
         {filtered.length === 0 ? (
           <div className="empty-state">
             <p>{list.length === 0 ? '暂无容器' : '没有匹配的容器'}</p>
@@ -257,13 +480,30 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
           <table className="table">
             <thead>
               <tr>
-                <th style={{ width: 28 }}></th>
-                <th>名称</th>
-                <th>状态</th>
-                <th>镜像</th>
-                <th>项目</th>
+                <th style={{ width: 28 }}>
+                  <input
+                    type="checkbox"
+                    checked={allChecked}
+                    onChange={toggleAll}
+                    style={{ width: 12, height: 12 }}
+                  />
+                </th>
+                <th className="sortable" onClick={() => toggleSort('name')}>
+                  名称{sortInd('name')}
+                </th>
+                <th className="sortable" onClick={() => toggleSort('state')}>
+                  状态{sortInd('state')}
+                </th>
+                <th className="sortable" onClick={() => toggleSort('image')}>
+                  镜像{sortInd('image')}
+                </th>
+                <th className="sortable" onClick={() => toggleSort('project')}>
+                  项目{sortInd('project')}
+                </th>
                 <th>端口</th>
-                <th>创建时间</th>
+                <th className="sortable" onClick={() => toggleSort('created')}>
+                  创建时间{sortInd('created')}
+                </th>
                 <th style={{ width: 140 }}>操作</th>
               </tr>
             </thead>
@@ -271,23 +511,43 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
               {filtered.map((c) => (
                 <tr
                   key={c.id}
-                  className={selected === c.id ? 'selected' : ''}
-                  onClick={() => setSelected(c.id)}
-                  onDoubleClick={() =>
-                    openTab({
-                      id: `containerDetail:${hostId}:${c.id}`,
-                      title: `容器: ${c.name}`,
-                      kind: 'containerDetail',
-                      hostId,
-                      containerId: c.id,
-                    })
-                  }
+                  className={`${selected === c.id ? 'selected' : ''} ${checked.has(c.id) ? 'checked' : ''}`}
+                  onClick={(e) => {
+                    // ctrl/cmd toggles multi-select; shift selects range; plain click focuses
+                    if (e.ctrlKey || e.metaKey) {
+                      toggleChecked(c.id);
+                      setSelected(c.id);
+                      return;
+                    }
+                    if (e.shiftKey && selected) {
+                      const from = filtered.findIndex((x) => x.id === selected);
+                      const to = filtered.findIndex((x) => x.id === c.id);
+                      if (from >= 0 && to >= 0) {
+                        const [a, b] = from < to ? [from, to] : [to, from];
+                        setChecked((prev) => {
+                          const next = new Set(prev);
+                          for (let i = a; i <= b; i++) next.add(filtered[i].id);
+                          return next;
+                        });
+                      }
+                      setSelected(c.id);
+                      return;
+                    }
+                    setSelected(c.id);
+                  }}
+                  onDoubleClick={() => openDetail(c.id, c.name)}
+                  onContextMenu={(e) => {
+                    setSelected(c.id);
+                    if (!checked.has(c.id)) setChecked(new Set([c.id]));
+                    ctx.open(e, rowMenu(c));
+                  }}
                 >
                   <td>
                     <input
-                      type="radio"
-                      checked={selected === c.id}
-                      onChange={() => setSelected(c.id)}
+                      type="checkbox"
+                      checked={checked.has(c.id)}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={() => toggleChecked(c.id)}
                       style={{ width: 12, height: 12 }}
                     />
                   </td>
@@ -327,13 +587,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
                             title="日志"
                             onClick={(e) => {
                               e.stopPropagation();
-                              openTab({
-                                id: `logs:${hostId}:${c.id}`,
-                                title: `日志 · ${c.name}`,
-                                kind: 'logs',
-                                hostId,
-                                containerId: c.id,
-                              });
+                              openLogs(c.id, c.name);
                             }}
                           >
                             <FileText size={12} />
@@ -343,16 +597,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
                             title="删除"
                             onClick={(e) => {
                               e.stopPropagation();
-                              void (async () => {
-                                const ok = await confirm({
-                                  title: '删除容器',
-                                  message: `确认删除容器「${c.name}」？数据卷将一并移除。`,
-                                  confirmLabel: '删除',
-                                  danger: true,
-                                });
-                                if (!ok) return;
-                                void action(() => window.dockerApi.removeContainer(hostId, c.id, true), '已删除');
-                              })();
+                              void removeOne(c.id, c.name);
                             }}
                           >
                             <Trash2 size={12} />
@@ -381,6 +626,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
         />
       )}
       {confirmDialog}
+      {ctx.menu && <ContextMenu state={ctx.menu} onClose={ctx.close} />}
     </div>
   );
 }

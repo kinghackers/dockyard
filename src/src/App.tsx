@@ -22,6 +22,7 @@ export default function App() {
 
   const [connDialogOpen, setConnDialogOpen] = useState(false);
   const [editingConn, setEditingConn] = useState<DockerConnectionConfig | null>(null);
+  const [defaultGroupId, setDefaultGroupId] = useState<string | undefined>(undefined);
 
   // live auto-refresh via docker events
   useDockerEvents();
@@ -46,13 +47,15 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleAddConnection = () => {
+  const handleAddConnection = (groupId?: string) => {
     setEditingConn(null);
+    setDefaultGroupId(groupId);
     setConnDialogOpen(true);
   };
 
   const handleEditConnection = (cfg: DockerConnectionConfig) => {
     setEditingConn(cfg);
+    setDefaultGroupId(undefined);
     setConnDialogOpen(true);
   };
 
@@ -98,6 +101,7 @@ export default function App() {
       {connDialogOpen && (
         <ConnectionDialog
           initial={editingConn}
+          defaultGroupId={defaultGroupId}
           onClose={() => setConnDialogOpen(false)}
           onSaved={async () => {
             setConnDialogOpen(false);
