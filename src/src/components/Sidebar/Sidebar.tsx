@@ -442,7 +442,7 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
         }}
       >
         <span style={{ fontSize: 10, color: 'var(--text-muted)', lineHeight: '22px' }}>
-          IDEA Docker 管理器
+          Docker 管理器
         </span>
       </div>
       {confirmDialog}

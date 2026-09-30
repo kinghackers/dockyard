@@ -65,6 +65,22 @@ export function localizeContainerState(state: string): string {
   }
 }
 
+/** Translate Docker restart policy names. */
+export function localizeRestartPolicy(policy: string | undefined): string {
+  switch (policy) {
+    case 'no':
+      return '不自动重启';
+    case 'always':
+      return '总是重启';
+    case 'on-failure':
+      return '失败时重启';
+    case 'unless-stopped':
+      return '除非手动停止否则重启';
+    default:
+      return policy || '-';
+  }
+}
+
 /** Translate network / volume scope values. */
 export function localizeScope(scope: string): string {
   switch (scope) {

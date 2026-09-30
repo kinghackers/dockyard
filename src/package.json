@@ -1,7 +1,8 @@
 {
-  "name": "idea-docker",
+  "name": "docker-manager",
+  "productName": "Docker 管理器",
   "version": "0.1.0",
-  "description": "Multi-host Docker management client inspired by IntelliJ IDEA Docker view",
+  "description": "多主机 Docker 管理客户端",
   "main": "dist-electron/main.js",
   "private": true,
   "scripts": {

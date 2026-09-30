@@ -11,13 +11,16 @@ import {
   Pause,
   PlayCircle,
   Plus,
+  Skull,
 } from 'lucide-react';
 import type { ContainerSummary } from '../../types/docker';
 import { useAppStore } from '../../stores/appStore';
 import { reportError } from '../../utils/connection';
 import { useConfirm } from '../../utils/useConfirm';
 import { localizeStatusChip, localizeContainerStatus } from '../../utils/localize';
+import { getContainerActions } from '../../utils/containerActions';
 import { RunContainerDialog } from './RunContainerDialog';
+import { ContainerRowActions } from './ContainerRowActions';
 
 export function ContainerListPage({ hostId }: { hostId: string }) {
   const { openTab, toast, setContainers, containersByHost, containersVersion } = useAppStore();
@@ -75,6 +78,33 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
     }
   };
 
+  const selectedContainer = useMemo(
+    () => list.find((c) => c.id === selected) || null,
+    [list, selected]
+  );
+  const selActions = selectedContainer
+    ? getContainerActions(selectedContainer.state, selectedContainer.status)
+    : null;
+
+  const stopRestartLoop = async (id: string, name: string) => {
+    try {
+      const result = await window.dockerApi.stopRestartLoop(hostId, id);
+      toast(
+        `${name}: ${
+          result === 'killed'
+            ? '已强制终止并关闭自动重启'
+            : result === 'stopped'
+              ? '已停止并关闭自动重启'
+              : '已关闭自动重启'
+        }`,
+        'success'
+      );
+      await load();
+    } catch (e) {
+      reportError(e, toast);
+    }
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div className="content-toolbar">
@@ -86,28 +116,28 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
         </button>
         <button
           className="btn"
-          disabled={!selected}
+          disabled={!selected || !selActions?.canStart}
           onClick={() => selected && action(() => window.dockerApi.startContainer(hostId, selected), '已启动')}
         >
           <Play size={13} /> 启动
         </button>
         <button
           className="btn"
-          disabled={!selected}
+          disabled={!selected || !selActions?.canStop}
           onClick={() => selected && action(() => window.dockerApi.stopContainer(hostId, selected), '已停止')}
         >
           <Square size={13} /> 停止
         </button>
         <button
           className="btn"
-          disabled={!selected}
+          disabled={!selected || !selActions?.canRestart}
           onClick={() => selected && action(() => window.dockerApi.restartContainer(hostId, selected), '已重启')}
         >
           <RotateCw size={13} /> 重启
         </button>
         <button
           className="btn"
-          disabled={!selected}
+          disabled={!selected || !selActions?.canPause}
           onClick={() =>
             selected &&
             action(() => window.dockerApi.pauseContainer(hostId, selected), '已暂停')
@@ -117,13 +147,21 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
         </button>
         <button
           className="btn"
-          disabled={!selected}
+          disabled={!selected || !selActions?.canUnpause}
           onClick={() =>
             selected &&
             action(() => window.dockerApi.unpauseContainer(hostId, selected), '已恢复')
           }
         >
           <PlayCircle size={13} /> 恢复
+        </button>
+        <button
+          className="btn"
+          disabled={!selected || !selActions?.canKill}
+          title="强制终止"
+          onClick={() => selected && action(() => window.dockerApi.killContainer(hostId, selected), '已强制终止')}
+        >
+          <Skull size={13} /> 强杀
         </button>
         <button
           className="btn"
@@ -159,7 +197,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
         </button>
         <button
           className="btn danger"
-          disabled={!selected}
+          disabled={!selected || !selActions?.canRemove}
           onClick={() => {
             if (!selected) return;
             void (async () => {
@@ -225,6 +263,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
                 <th>项目</th>
                 <th>端口</th>
                 <th>创建时间</th>
+                <th style={{ width: 140 }}>操作</th>
               </tr>
             </thead>
             <tbody>
@@ -272,6 +311,57 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
                   </td>
                   <td style={{ color: 'var(--text-muted)', fontSize: 11 }}>
                     {new Date(c.created * 1000).toLocaleString()}
+                  </td>
+                  <td>
+                    <ContainerRowActions
+                      container={c}
+                      onStart={() => void action(() => window.dockerApi.startContainer(hostId, c.id), '已启动')}
+                      onStop={() => void action(() => window.dockerApi.stopContainer(hostId, c.id), '已停止')}
+                      onRestart={() => void action(() => window.dockerApi.restartContainer(hostId, c.id), '已重启')}
+                      onPause={() => void action(() => window.dockerApi.pauseContainer(hostId, c.id), '已暂停')}
+                      onUnpause={() => void action(() => window.dockerApi.unpauseContainer(hostId, c.id), '已恢复')}
+                      onKill={() => void action(() => window.dockerApi.killContainer(hostId, c.id), '已强制终止')}
+                      onStopRestartLoop={() => void stopRestartLoop(c.id, c.name)}
+                      extra={
+                        <>
+                          <button
+                            className="btn ghost icon-btn"
+                            title="日志"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openTab({
+                                id: `logs:${hostId}:${c.id}`,
+                                title: `日志 · ${c.name}`,
+                                kind: 'logs',
+                                hostId,
+                                containerId: c.id,
+                              });
+                            }}
+                          >
+                            <FileText size={12} />
+                          </button>
+                          <button
+                            className="btn ghost icon-btn danger-text"
+                            title="删除"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void (async () => {
+                                const ok = await confirm({
+                                  title: '删除容器',
+                                  message: `确认删除容器「${c.name}」？数据卷将一并移除。`,
+                                  confirmLabel: '删除',
+                                  danger: true,
+                                });
+                                if (!ok) return;
+                                void action(() => window.dockerApi.removeContainer(hostId, c.id, true), '已删除');
+                              })();
+                            }}
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </>
+                      }
+                    />
                   </td>
                 </tr>
               ))}

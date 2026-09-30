@@ -72,6 +72,7 @@ export interface ContainerDetail extends ContainerSummary {
   mounts?: { type?: string; source?: string; destination?: string }[];
   networks?: string[];
   restartCount?: number;
+  restartPolicy?: 'no' | 'always' | 'on-failure' | 'unless-stopped';
   startedAt?: string;
   finishedAt?: string;
   exitCode?: number;

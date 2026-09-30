@@ -6,11 +6,21 @@ import type {
   OpenTab,
 } from '../types/docker';
 
+/** Stable id for the single primary content surface driven by the tree. */
+export const MAIN_VIEW_ID = '__main_view__';
+
 interface Toast {
   id: string;
   message: string;
   type: 'info' | 'success' | 'error';
 }
+
+const defaultMainView: OpenTab = {
+  id: MAIN_VIEW_ID,
+  title: '仪表板',
+  kind: 'dashboard',
+  closable: false,
+};
 
 interface AppState {
   connections: DockerConnectionConfig[];
@@ -19,6 +29,9 @@ interface AppState {
   expandedCompose: Record<string, boolean>;
   selectedTreeKey: string | null;
   selectedHostId: string | null;
+  /** Single content surface shown in the main area (driven by tree selection). */
+  mainView: OpenTab;
+  /** Session tabs only: logs / terminal. */
   tabs: OpenTab[];
   activeTabId: string | null;
   toasts: Toast[];
@@ -35,6 +48,9 @@ interface AppState {
   toggleCompose: (key: string) => void;
   selectTree: (key: string | null, hostId?: string | null) => void;
 
+  /** Switch the primary content surface (tree navigation). Does not create tabs. */
+  setMainView: (view: Omit<OpenTab, 'id' | 'closable'>) => void;
+  /** Open a session tab (logs / terminal only). */
   openTab: (tab: OpenTab) => void;
   closeTab: (id: string) => void;
   setActiveTab: (id: string) => void;
@@ -60,8 +76,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   expandedCompose: {},
   selectedTreeKey: null,
   selectedHostId: null,
+  mainView: defaultMainView,
   tabs: [],
-  activeTabId: null,
+  activeTabId: MAIN_VIEW_ID,
   toasts: [],
   containersByHost: {},
   refreshing: false,
@@ -103,7 +120,24 @@ export const useAppStore = create<AppState>((set, get) => ({
       selectedHostId: hostId === undefined ? get().selectedHostId : hostId,
     }),
 
+  setMainView: (view) => {
+    set({
+      mainView: {
+        ...view,
+        id: MAIN_VIEW_ID,
+        closable: false,
+      },
+      // tree navigation always returns to the primary surface
+      activeTabId: MAIN_VIEW_ID,
+    });
+  },
+
   openTab: (tab) => {
+    // session tabs only — list/detail views belong to the main surface
+    if (tab.kind !== 'logs' && tab.kind !== 'terminal') {
+      get().setMainView(tab);
+      return;
+    }
     const tabs = get().tabs;
     const existing = tabs.find((t) => t.id === tab.id);
     if (existing) {
@@ -120,7 +154,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const tabs = get().tabs.filter((t) => t.id !== id);
     let active = get().activeTabId;
     if (active === id) {
-      active = tabs.length ? tabs[tabs.length - 1].id : null;
+      active = tabs.length ? tabs[tabs.length - 1].id : MAIN_VIEW_ID;
     }
     set({ tabs, activeTabId: active });
   },

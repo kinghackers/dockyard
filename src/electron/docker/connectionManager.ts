@@ -365,6 +365,7 @@ export class DockerConnectionManager {
       })),
       networks: Object.keys(c.NetworkSettings?.Networks || {}),
       restartCount: c.RestartCount,
+      restartPolicy: (c.HostConfig?.RestartPolicy?.Name || 'no') as ContainerDetail['restartPolicy'],
       startedAt: c.State?.StartedAt,
       finishedAt: c.State?.FinishedAt,
       exitCode: c.State?.ExitCode,
@@ -396,6 +397,44 @@ export class DockerConnectionManager {
 
   async killContainer(hostId: string, id: string) {
     await this.dockerOf(hostId).getContainer(id).kill();
+  }
+
+  /** Change restart policy without recreating the container. */
+  async updateRestartPolicy(
+    hostId: string,
+    id: string,
+    policy: 'no' | 'always' | 'on-failure' | 'unless-stopped',
+    maximumRetryCount = 0
+  ) {
+    await this.dockerOf(hostId)
+      .getContainer(id)
+      .update({
+        RestartPolicy: {
+          Name: policy,
+          MaximumRetryCount: policy === 'on-failure' ? maximumRetryCount : 0,
+        },
+      });
+  }
+
+  /**
+   * Break a fault-restart loop: disable auto-restart, then stop (kill if stop hangs).
+   * Returns the action taken: 'stopped' | 'killed' | 'already-stopped'.
+   */
+  async stopRestartLoop(hostId: string, id: string): Promise<'stopped' | 'killed' | 'already-stopped'> {
+    const container = this.dockerOf(hostId).getContainer(id);
+    await this.updateRestartPolicy(hostId, id, 'no');
+    const info = await container.inspect();
+    const state = info.State?.Status || '';
+    if (state === 'exited' || state === 'created' || state === 'dead' || state === 'removing') {
+      return 'already-stopped';
+    }
+    try {
+      await container.stop({ t: 3 });
+      return 'stopped';
+    } catch {
+      await container.kill();
+      return 'killed';
+    }
   }
 
   async removeContainer(hostId: string, id: string, force = false) {

@@ -1,6 +1,6 @@
-# IDEA Docker Manager
+# Docker 管理器
 
-参考 IntelliJ IDEA 的 Docker 工具窗口，实现的多远程 Docker 管理客户端（Electron + React）。
+多远程 Docker 管理客户端（Electron + React）。
 
 ## 功能
 

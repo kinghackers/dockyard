@@ -15,6 +15,13 @@ export interface DockerApi {
   stopContainer(hostId: string, id: string): Promise<boolean>;
   restartContainer(hostId: string, id: string): Promise<boolean>;
   killContainer(hostId: string, id: string): Promise<boolean>;
+  updateRestartPolicy(
+    hostId: string,
+    id: string,
+    policy: 'no' | 'always' | 'on-failure' | 'unless-stopped',
+    maximumRetryCount?: number
+  ): Promise<boolean>;
+  stopRestartLoop(hostId: string, id: string): Promise<'stopped' | 'killed' | 'already-stopped'>;
   removeContainer(hostId: string, id: string, force?: boolean): Promise<boolean>;
   pauseContainer(hostId: string, id: string): Promise<boolean>;
   unpauseContainer(hostId: string, id: string): Promise<boolean>;
@@ -86,6 +93,9 @@ const api: DockerApi = {
   stopContainer: (hostId, id) => ipcRenderer.invoke('docker:stopContainer', hostId, id),
   restartContainer: (hostId, id) => ipcRenderer.invoke('docker:restartContainer', hostId, id),
   killContainer: (hostId, id) => ipcRenderer.invoke('docker:killContainer', hostId, id),
+  updateRestartPolicy: (hostId, id, policy, maximumRetryCount) =>
+    ipcRenderer.invoke('docker:updateRestartPolicy', hostId, id, policy, maximumRetryCount),
+  stopRestartLoop: (hostId, id) => ipcRenderer.invoke('docker:stopRestartLoop', hostId, id),
   removeContainer: (hostId, id, force) => ipcRenderer.invoke('docker:removeContainer', hostId, id, force),
   pauseContainer: (hostId, id) => ipcRenderer.invoke('docker:pauseContainer', hostId, id),
   unpauseContainer: (hostId, id) => ipcRenderer.invoke('docker:unpauseContainer', hostId, id),

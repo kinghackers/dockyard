@@ -7,13 +7,13 @@ import { ConnectionDialog } from './components/Connection/ConnectionDialog';
 import { Toasts } from './components/common/Toasts';
 import { useAppStore } from './stores/appStore';
 import { useDockerEvents } from './utils/useDockerEvents';
-import type { DockerConnectionConfig, OpenTab } from './types/docker';
+import type { DockerConnectionConfig } from './types/docker';
 
 export default function App() {
   const {
     setConnections,
     setAllStatuses,
-    openTab,
+    setMainView,
     toast,
     connections,
     statuses,
@@ -38,13 +38,9 @@ export default function App() {
 
   useEffect(() => {
     void loadConnections();
-    // open a default dashboard tab
-    openTab({
-      id: 'dashboard-root',
-      title: '仪表板',
-      kind: 'dashboard',
-      closable: true,
-    } as OpenTab);
+    // default primary surface
+    setMainView({ title: '仪表板', kind: 'dashboard' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleAddConnection = () => {

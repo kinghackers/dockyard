@@ -358,6 +358,14 @@ textarea:focus {
   justify-content: center;
 }
 
+.btn.danger-text {
+  color: var(--error);
+}
+
+.btn.danger-text:hover:not(:disabled) {
+  background: rgba(207, 91, 86, 0.15);
+}
+
 .btn.ghost {
   background: transparent;
   border-color: transparent;
@@ -447,7 +455,11 @@ textarea:focus {
   color: var(--warning);
 }
 
-.chip.restarting,
+.chip.restarting {
+  background: rgba(217, 164, 6, 0.18);
+  color: var(--warning);
+}
+
 .chip.removing {
   background: rgba(88, 157, 246, 0.18);
   color: var(--info);

@@ -66,6 +66,7 @@ export interface ContainerDetail extends ContainerSummary {
   mounts?: { type?: string; source?: string; destination?: string }[];
   networks?: string[];
   restartCount?: number;
+  restartPolicy?: 'no' | 'always' | 'on-failure' | 'unless-stopped';
   startedAt?: string;
   finishedAt?: string;
   exitCode?: number;
@@ -264,6 +265,13 @@ declare global {
       stopContainer(hostId: string, id: string): Promise<boolean>;
       restartContainer(hostId: string, id: string): Promise<boolean>;
       killContainer(hostId: string, id: string): Promise<boolean>;
+      updateRestartPolicy(
+        hostId: string,
+        id: string,
+        policy: 'no' | 'always' | 'on-failure' | 'unless-stopped',
+        maximumRetryCount?: number
+      ): Promise<boolean>;
+      stopRestartLoop(hostId: string, id: string): Promise<'stopped' | 'killed' | 'already-stopped'>;
       removeContainer(hostId: string, id: string, force?: boolean): Promise<boolean>;
       pauseContainer(hostId: string, id: string): Promise<boolean>;
       unpauseContainer(hostId: string, id: string): Promise<boolean>;

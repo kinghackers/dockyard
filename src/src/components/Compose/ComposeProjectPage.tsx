@@ -12,6 +12,7 @@ import type { ContainerSummary, ComposeProject } from '../../types/docker';
 import { useAppStore } from '../../stores/appStore';
 import { reportError } from '../../utils/connection';
 import { localizeStatusChip, localizeContainerStatus } from '../../utils/localize';
+import { ContainerRowActions } from '../Containers/ContainerRowActions';
 
 export function ComposeProjectPage({ hostId, projectName }: { hostId: string; projectName: string }) {
   const { toast, openTab, containersVersion } = useAppStore();
@@ -52,6 +53,25 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
     try {
       await fn();
       toast(msg, 'success');
+      await load();
+    } catch (e) {
+      reportError(e, toast);
+    }
+  };
+
+  const stopRestartLoop = async (id: string, name: string) => {
+    try {
+      const result = await window.dockerApi.stopRestartLoop(hostId, id);
+      toast(
+        `${name}: ${
+          result === 'killed'
+            ? '已强制终止并关闭自动重启'
+            : result === 'stopped'
+              ? '已停止并关闭自动重启'
+              : '已关闭自动重启'
+        }`,
+        'success'
+      );
       await load();
     } catch (e) {
       reportError(e, toast);
@@ -143,15 +163,6 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
         >
           <TermIcon size={13} /> 终端
         </button>
-        <button
-          className="btn"
-          disabled={!selected}
-          onClick={() =>
-            selected && action(() => window.dockerApi.stopContainer(hostId, selected), '已停止')
-          }
-        >
-          <Square size={13} /> 停止选中
-        </button>
       </div>
 
       <div style={{ flex: 1, overflow: 'auto' }}>
@@ -216,38 +227,16 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
                       .join(', ') || '-'}
                   </td>
                   <td>
-                    <div style={{ display: 'flex', gap: 4 }}>
-                      <button
-                        className="btn ghost icon-btn"
-                        title="启动"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          void action(() => window.dockerApi.startContainer(hostId, c.id), '已启动');
-                        }}
-                      >
-                        <Play size={12} />
-                      </button>
-                      <button
-                        className="btn ghost icon-btn"
-                        title="停止"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          void action(() => window.dockerApi.stopContainer(hostId, c.id), '已停止');
-                        }}
-                      >
-                        <Square size={12} />
-                      </button>
-                      <button
-                        className="btn ghost icon-btn"
-                        title="重启"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          void action(() => window.dockerApi.restartContainer(hostId, c.id), '已重启');
-                        }}
-                      >
-                        <RotateCw size={12} />
-                      </button>
-                    </div>
+                    <ContainerRowActions
+                      container={c}
+                      onStart={() => void action(() => window.dockerApi.startContainer(hostId, c.id), '已启动')}
+                      onStop={() => void action(() => window.dockerApi.stopContainer(hostId, c.id), '已停止')}
+                      onRestart={() => void action(() => window.dockerApi.restartContainer(hostId, c.id), '已重启')}
+                      onPause={() => void action(() => window.dockerApi.pauseContainer(hostId, c.id), '已暂停')}
+                      onUnpause={() => void action(() => window.dockerApi.unpauseContainer(hostId, c.id), '已恢复')}
+                      onKill={() => void action(() => window.dockerApi.killContainer(hostId, c.id), '已强制终止')}
+                      onStopRestartLoop={() => void stopRestartLoop(c.id, c.name)}
+                    />
                   </td>
                 </tr>
               ))}

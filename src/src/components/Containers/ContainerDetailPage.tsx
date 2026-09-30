@@ -7,15 +7,16 @@ import {
   Trash2,
   FileText,
   Terminal as TermIcon,
-  Cpu,
-  HardDrive,
-  Network,
+  Skull,
+  AlertTriangle,
+  ShieldOff,
 } from 'lucide-react';
 import type { ContainerDetail, ContainerStatsSample } from '../../types/docker';
 import { useAppStore } from '../../stores/appStore';
 import { reportError } from '../../utils/connection';
 import { useConfirm } from '../../utils/useConfirm';
-import { localizeContainerStatus, localizeContainerState } from '../../utils/localize';
+import { localizeContainerStatus, localizeContainerState, localizeRestartPolicy } from '../../utils/localize';
+import { getContainerActions } from '../../utils/containerActions';
 
 function fmtBytes(n: number | undefined): string {
   if (!n || n < 0) return '0 B';
@@ -30,7 +31,7 @@ function fmtBytes(n: number | undefined): string {
 }
 
 export function ContainerDetailPage({ hostId, containerId }: { hostId: string; containerId: string }) {
-  const { toast, openTab, closeTab, containersVersion } = useAppStore();
+  const { toast, openTab, setMainView, containersVersion } = useAppStore();
   const [detail, setDetail] = useState<ContainerDetail | null>(null);
   const [live, setLive] = useState<ContainerStatsSample | null>(null);
   const [loading, setLoading] = useState(false);
@@ -132,6 +133,27 @@ export function ContainerDetailPage({ hostId, containerId }: { hostId: string; c
   const blockRead = live?.blockRead ?? detail?.blockRead ?? 0;
   const blockWrite = live?.blockWrite ?? detail?.blockWrite ?? 0;
 
+  const acts = detail
+    ? getContainerActions(detail.state, detail.status, detail.restartCount)
+    : null;
+
+  const stopRestartLoop = async () => {
+    try {
+      const result = await window.dockerApi.stopRestartLoop(hostId, containerId);
+      toast(
+        result === 'killed'
+          ? '已强制终止并关闭自动重启'
+          : result === 'stopped'
+            ? '已停止并关闭自动重启'
+            : '已关闭自动重启',
+        'success'
+      );
+      await load();
+    } catch (e) {
+      reportError(e, toast);
+    }
+  };
+
   return (
     <div className="page">
       <div className="page-header">
@@ -146,15 +168,26 @@ export function ContainerDetailPage({ hostId, containerId }: { hostId: string; c
         <button className="btn" onClick={load} disabled={loading}>
           <RefreshCw size={14} className={loading ? 'spinner' : ''} /> 刷新
         </button>
-        <button className="btn" onClick={() => action(() => window.dockerApi.startContainer(hostId, containerId), '已启动')}>
-          <Play size={13} /> 启动
-        </button>
-        <button className="btn" onClick={() => action(() => window.dockerApi.stopContainer(hostId, containerId), '已停止')}>
-          <Square size={13} /> 停止
-        </button>
-        <button className="btn" onClick={() => action(() => window.dockerApi.restartContainer(hostId, containerId), '已重启')}>
-          <RotateCw size={13} /> 重启
-        </button>
+        {acts?.canStart && (
+          <button className="btn" onClick={() => action(() => window.dockerApi.startContainer(hostId, containerId), '已启动')}>
+            <Play size={13} /> 启动
+          </button>
+        )}
+        {acts?.canStop && (
+          <button className="btn" onClick={() => action(() => window.dockerApi.stopContainer(hostId, containerId), '已停止')}>
+            <Square size={13} /> 停止
+          </button>
+        )}
+        {acts?.canRestart && (
+          <button className="btn" onClick={() => action(() => window.dockerApi.restartContainer(hostId, containerId), '已重启')}>
+            <RotateCw size={13} /> 重启
+          </button>
+        )}
+        {acts?.canKill && (
+          <button className="btn" onClick={() => action(() => window.dockerApi.killContainer(hostId, containerId), '已强制终止')}>
+            <Skull size={13} /> 强杀
+          </button>
+        )}
         <button
           className="btn"
           onClick={() =>
@@ -169,22 +202,25 @@ export function ContainerDetailPage({ hostId, containerId }: { hostId: string; c
         >
           <FileText size={13} /> 日志
         </button>
-        <button
-          className="btn"
-          onClick={() =>
-            openTab({
-              id: `terminal:${hostId}:${containerId}`,
-              title: `终端 · ${detail?.name || ''}`,
-              kind: 'terminal',
-              hostId,
-              containerId,
-            })
-          }
-        >
-          <TermIcon size={13} /> 终端
-        </button>
+        {acts?.canExec && (
+          <button
+            className="btn"
+            onClick={() =>
+              openTab({
+                id: `terminal:${hostId}:${containerId}`,
+                title: `终端 · ${detail?.name || ''}`,
+                kind: 'terminal',
+                hostId,
+                containerId,
+              })
+            }
+          >
+            <TermIcon size={13} /> 终端
+          </button>
+        )}
         <button
           className="btn danger"
+          disabled={!acts?.canRemove}
           onClick={() => {
             void (async () => {
               const ok = await confirm({
@@ -196,7 +232,8 @@ export function ContainerDetailPage({ hostId, containerId }: { hostId: string; c
               if (!ok) return;
               void action(async () => {
                 await window.dockerApi.removeContainer(hostId, containerId, true);
-                closeTab(`containerDetail:${hostId}:${containerId}`);
+                // back to the container list on the primary surface
+                setMainView({ title: `容器 · ${detail?.name || hostId}`, kind: 'containers', hostId });
               }, '已删除');
             })();
           }}
@@ -204,6 +241,51 @@ export function ContainerDetailPage({ hostId, containerId }: { hostId: string; c
           <Trash2 size={13} /> 删除
         </button>
       </div>
+
+      {acts?.isRestartLoop && detail && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            padding: '10px 12px',
+            borderRadius: 4,
+            background: 'rgba(217,164,6,0.12)',
+            border: '1px solid rgba(217,164,6,0.35)',
+            color: 'var(--warning)',
+            marginBottom: 14,
+          }}
+        >
+          <AlertTriangle size={16} style={{ flexShrink: 0 }} />
+          <div style={{ flex: 1, fontSize: 12, color: 'var(--text)' }}>
+            <strong style={{ color: 'var(--warning)' }}>检测到频繁自动重启</strong>
+            <span style={{ marginLeft: 8 }}>
+              已重启 {detail.restartCount ?? 0} 次
+              {detail.restartPolicy && detail.restartPolicy !== 'no'
+                ? ` · 重启策略 ${detail.restartPolicy}`
+                : ''}
+              。建议先看日志定位故障原因；若需止住重启循环，可关闭自动重启并停止容器。
+            </span>
+          </div>
+          <button className="btn" onClick={() => void stopRestartLoop()}>
+            <ShieldOff size={13} /> 停止重启循环
+          </button>
+          <button
+            className="btn"
+            onClick={() =>
+              openTab({
+                id: `logs:${hostId}:${containerId}`,
+                title: `日志 · ${detail.name || ''}`,
+                kind: 'logs',
+                hostId,
+                containerId,
+              })
+            }
+          >
+            <FileText size={13} /> 查看日志
+          </button>
+        </div>
+      )}
 
       {error && (
         <div style={{ padding: 12, borderRadius: 4, background: 'rgba(207,91,86,0.12)', color: 'var(--error)', marginBottom: 14 }}>
@@ -267,7 +349,16 @@ export function ContainerDetailPage({ hostId, containerId }: { hostId: string; c
             <dt>结束时间</dt>
             <dd>{detail.finishedAt || '-'}</dd>
             <dt>重启次数</dt>
-            <dd>{detail.restartCount ?? 0}</dd>
+            <dd>
+              {detail.restartCount ?? 0}
+              {(detail.restartCount ?? 0) >= 3 ? (
+                <span style={{ color: 'var(--warning)', marginLeft: 8, fontSize: 11 }}>
+                  频繁重启
+                </span>
+              ) : null}
+            </dd>
+            <dt>重启策略</dt>
+            <dd>{localizeRestartPolicy(detail.restartPolicy)}</dd>
             <dt>主机名</dt>
             <dd>{detail.hostname || '-'}</dd>
             <dt>工作目录</dt>

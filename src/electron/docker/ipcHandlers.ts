@@ -54,6 +54,22 @@ export function registerIpc(manager: DockerConnectionManager, getWindows: () => 
     await manager.killContainer(hostId, id);
     return true;
   });
+  ipcMain.handle(
+    'docker:updateRestartPolicy',
+    async (
+      _e,
+      hostId: string,
+      id: string,
+      policy: 'no' | 'always' | 'on-failure' | 'unless-stopped',
+      maximumRetryCount?: number
+    ) => {
+      await manager.updateRestartPolicy(hostId, id, policy, maximumRetryCount ?? 0);
+      return true;
+    }
+  );
+  ipcMain.handle('docker:stopRestartLoop', (_e, hostId: string, id: string) =>
+    manager.stopRestartLoop(hostId, id)
+  );
   ipcMain.handle('docker:removeContainer', async (_e, hostId: string, id: string, force?: boolean) => {
     await manager.removeContainer(hostId, id, force);
     return true;
