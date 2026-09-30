@@ -339,6 +339,8 @@ declare global {
       tagImage(hostId: string, id: string, repo: string, tag?: string): Promise<boolean>;
       pullImage(hostId: string, name: string): Promise<boolean>;
       onPullProgress(cb: (p: { name: string; message: string }) => void): () => void;
+      pushImage(hostId: string, name: string): Promise<boolean>;
+      onPushProgress(cb: (p: { name: string; message: string }) => void): () => void;
 
       listNetworks(hostId: string): Promise<NetworkSummary[]>;
       removeNetwork(hostId: string, id: string): Promise<boolean>;

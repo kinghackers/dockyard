@@ -49,6 +49,8 @@ export interface DockerApi {
   tagImage(hostId: string, id: string, repo: string, tag?: string): Promise<boolean>;
   pullImage(hostId: string, name: string): Promise<boolean>;
   onPullProgress(cb: (payload: { name: string; message: string }) => void): () => void;
+  pushImage(hostId: string, name: string): Promise<boolean>;
+  onPushProgress(cb: (payload: { name: string; message: string }) => void): () => void;
 
   listNetworks(hostId: string): Promise<unknown[]>;
   removeNetwork(hostId: string, id: string): Promise<boolean>;
@@ -145,6 +147,8 @@ const api: DockerApi = {
   tagImage: (hostId, id, repo, tag) => ipcRenderer.invoke('docker:tagImage', hostId, id, repo, tag),
   pullImage: (hostId, name) => ipcRenderer.invoke('docker:pullImage', hostId, name),
   onPullProgress: (cb) => subscribe('docker:pullProgress', cb),
+  pushImage: (hostId, name) => ipcRenderer.invoke('docker:pushImage', hostId, name),
+  onPushProgress: (cb) => subscribe('docker:pushProgress', cb),
 
   listNetworks: (hostId) => ipcRenderer.invoke('docker:listNetworks', hostId),
   removeNetwork: (hostId, id) => ipcRenderer.invoke('docker:removeNetwork', hostId, id),

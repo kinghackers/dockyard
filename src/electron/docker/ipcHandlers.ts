@@ -323,6 +323,13 @@ export function registerIpc(manager: DockerConnectionManager, getWindows: () => 
     });
     return true;
   });
+  ipcMain.handle('docker:pushImage', async (e, hostId: string, name: string) => {
+    const win = BrowserWindow.fromWebContents(e.sender);
+    await manager.pushImage(hostId, name, (msg) => {
+      win?.webContents.send('docker:pushProgress', { name, message: msg });
+    });
+    return true;
+  });
 
   ipcMain.handle('docker:listNetworks', (_e, hostId: string) => manager.listNetworks(hostId));
   ipcMain.handle('docker:removeNetwork', async (_e, hostId: string, id: string) => {

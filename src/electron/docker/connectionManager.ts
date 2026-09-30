@@ -1121,6 +1121,37 @@ export class DockerConnectionManager {
     });
   }
 
+  /** Push an image tag to its registry (requires prior `docker login` on that host). */
+  async pushImage(hostId: string, name: string, onProgress?: (msg: string) => void): Promise<void> {
+    const docker = this.dockerOf(hostId);
+    return new Promise((resolve, reject) => {
+      const image = docker.getImage(name);
+      image.push({}, (err: Error | null, stream?: NodeJS.ReadableStream) => {
+        if (err || !stream) return reject(err || new Error('推送镜像失败'));
+        docker.modem.followProgress(
+          stream,
+          (e: Error | null) => {
+            if (e) reject(e);
+            else resolve();
+          },
+          (event: {
+            status?: string;
+            progress?: string;
+            id?: string;
+            error?: string;
+            errorDetail?: { message?: string };
+          }) => {
+            if (event.error) {
+              reject(new Error(event.errorDetail?.message || event.error));
+              return;
+            }
+            onProgress?.(`${event.id || ''} ${event.status || ''} ${event.progress || ''}`.trim());
+          }
+        );
+      });
+    });
+  }
+
   // ---------- networks / volumes ----------
   async listNetworks(hostId: string): Promise<NetworkSummary[]> {
     const docker = this.dockerOf(hostId);

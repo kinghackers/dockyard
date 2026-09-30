@@ -10,6 +10,7 @@ import {
   Copy,
   Tag,
   Plus,
+  Upload,
 } from 'lucide-react';
 import type { ImageSummary } from '../../types/docker';
 import { useAppStore } from '../../stores/appStore';
@@ -52,6 +53,8 @@ export function ImageListPage({ hostId }: { hostId: string }) {
   const [pullName, setPullName] = useState('');
   const [pulling, setPulling] = useState(false);
   const [pullMessage, setPullMessage] = useState('');
+  const [pushing, setPushing] = useState<string | null>(null);
+  const [pushMessage, setPushMessage] = useState('');
   const [runImage, setRunImage] = useState<string | null>(null);
   const [tagFor, setTagFor] = useState<ImageSummary | null>(null);
   const [historyFor, setHistoryFor] = useState<ImageSummary | null>(null);
@@ -169,6 +172,31 @@ export function ImageListPage({ hostId }: { hostId: string }) {
     setRunImage(img.repoTags[0] || img.id.slice(0, 12));
   };
 
+  const pushOne = async (img: ImageSummary) => {
+    const name = img.repoTags[0];
+    if (!name) {
+      toast('该镜像没有仓库标签，请先「打标签」再推送', 'error');
+      return;
+    }
+    if (pushing) return;
+    setPushing(name);
+    setPushMessage('');
+    const off = window.dockerApi.onPushProgress((p) => {
+      if (p.name === name) setPushMessage(p.message);
+    });
+    try {
+      await window.dockerApi.pushImage(hostId, name);
+      toast(`已推送 ${name}`, 'success');
+      await load();
+    } catch (e) {
+      reportError(e, toast);
+    } finally {
+      off();
+      setPushing(null);
+      setPushMessage('');
+    }
+  };
+
   const tagOne = (img: ImageSummary) => setTagFor(img);
   const showHistory = (img: ImageSummary) => setHistoryFor(img);
 
@@ -284,6 +312,13 @@ export function ImageListPage({ hostId }: { hostId: string }) {
         onSelect: () => tagOne(img),
       },
       {
+        key: 'push',
+        label: pushing ? '推送中…' : '推送到仓库…',
+        icon: <Upload size={13} />,
+        disabled: multi || !!pushing || img.repoTags.length === 0,
+        onSelect: () => void pushOne(img),
+      },
+      {
         key: 'history',
         label: '查看历史…',
         disabled: multi,
@@ -344,6 +379,14 @@ export function ImageListPage({ hostId }: { hostId: string }) {
           onClick={() => selectedImage && tagOne(selectedImage)}
         >
           <Tag size={13} /> 打标签
+        </button>
+        <button
+          className="btn"
+          disabled={!selectedImage || !!pushing}
+          title="推送到镜像仓库（需先 docker login）"
+          onClick={() => selectedImage && void pushOne(selectedImage)}
+        >
+          <Upload size={13} /> {pushing ? '推送中…' : '推送'}
         </button>
         <button
           className="btn"
@@ -408,7 +451,7 @@ export function ImageListPage({ hostId }: { hostId: string }) {
         </div>
       </div>
 
-      {pulling && pullMessage && (
+      {(pulling && pullMessage) || (pushing && pushMessage) ? (
         <div
           style={{
             padding: '6px 12px',
@@ -422,9 +465,9 @@ export function ImageListPage({ hostId }: { hostId: string }) {
             whiteSpace: 'nowrap',
           }}
         >
-          {pullMessage}
+          {pushing ? `推送 ${pushing} · ${pushMessage}` : pullMessage}
         </div>
-      )}
+      ) : null}
 
       <div style={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
         {filtered.length === 0 ? (
