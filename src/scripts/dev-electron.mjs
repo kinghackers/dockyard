@@ -43,13 +43,28 @@ async function main() {
   });
   await ctx.watch();
 
-  // launch electron once vite is up (retry briefly)
+  // launch electron once vite is actually accepting connections
   const electronBin = path.join(
     root,
     'node_modules',
     '.bin',
     process.platform === 'win32' ? 'electron.cmd' : 'electron'
   );
+
+  const waitForVite = async (timeoutMs = 20000) => {
+    const url = 'http://127.0.0.1:5173';
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      try {
+        const res = await fetch(url, { method: 'GET' });
+        if (res.ok) return true;
+      } catch {
+        /* not up yet */
+      }
+      await new Promise((r) => setTimeout(r, 250));
+    }
+    return false;
+  };
 
   let started = false;
   const tryStart = () => {
@@ -66,8 +81,13 @@ async function main() {
     });
   };
 
-  // wait a bit for vite
-  setTimeout(tryStart, 1500);
+  const up = await waitForVite();
+  if (!up) {
+    console.error(
+      '[dev-electron] Vite 在 http://127.0.0.1:5173 未就绪（端口被占？）。仍尝试启动 Electron…'
+    );
+  }
+  tryStart();
 }
 
 main().catch((e) => {

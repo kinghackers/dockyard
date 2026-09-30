@@ -36,15 +36,33 @@ function createWindow() {
 
   mainWindow.removeMenu();
 
-  mainWindow.once('ready-to-show', () => mainWindow?.show());
+  // Show even if ready-to-show is delayed (e.g. dev server not up yet).
+  let shown = false;
+  const showOnce = () => {
+    if (shown || !mainWindow) return;
+    shown = true;
+    if (!mainWindow.isDestroyed()) mainWindow.show();
+  };
+  mainWindow.once('ready-to-show', showOnce);
+  setTimeout(showOnce, 2000);
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     void shell.openExternal(url);
     return { action: 'deny' };
   });
 
+  mainWindow.webContents.on('did-fail-load', (_e, code, desc, url) => {
+    console.error(`[window] load failed ${code} ${desc} @ ${url}`);
+    showOnce();
+  });
+
   if (isDev) {
-    void mainWindow.loadURL('http://127.0.0.1:5173');
+    void mainWindow
+      .loadURL('http://127.0.0.1:5173')
+      .catch((e) => {
+        console.error('[window] loadURL failed:', e);
+        showOnce();
+      });
     mainWindow.webContents.openDevTools({ mode: 'detach' });
   } else {
     void mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
