@@ -85,6 +85,12 @@ export interface ContainerDetail extends ContainerSummary {
   finishedAt?: string;
   exitCode?: number;
   oomKilled?: boolean;
+  /** Healthcheck result, when the image defines one. */
+  health?: {
+    status?: string;
+    failingStreak?: number;
+    log?: { exitCode?: number; output?: string; start?: string; end?: string }[];
+  };
   platform?: string;
   hostname?: string;
   workingDir?: string;

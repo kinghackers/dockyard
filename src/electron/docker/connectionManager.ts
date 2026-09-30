@@ -22,6 +22,40 @@ import {
   VolumeSummary,
 } from './types';
 import { createSshDockerTunnel, SshTunnel } from './sshTunnel';
+import {
+  decryptSecret,
+  encryptSecret,
+  encryptionAvailable,
+  hasPlaintextSecret,
+} from './secrets';
+
+const SECRET_FIELDS = ['sshPassword', 'sshPassphrase', 'key', 'cert'] as const;
+
+function secretValues(cfg: DockerConnectionConfig): (string | undefined)[] {
+  return SECRET_FIELDS.map((f) => cfg[f]);
+}
+
+/** Decrypt secrets for runtime use. */
+function decryptConfig(cfg: DockerConnectionConfig): DockerConnectionConfig {
+  return {
+    ...cfg,
+    sshPassword: decryptSecret(cfg.sshPassword),
+    sshPassphrase: decryptSecret(cfg.sshPassphrase),
+    key: decryptSecret(cfg.key),
+    cert: decryptSecret(cfg.cert),
+  };
+}
+
+/** Encrypt secrets before writing to disk. */
+function encryptConfig(cfg: DockerConnectionConfig): DockerConnectionConfig {
+  return {
+    ...cfg,
+    sshPassword: encryptSecret(cfg.sshPassword),
+    sshPassphrase: encryptSecret(cfg.sshPassphrase),
+    key: encryptSecret(cfg.key),
+    cert: encryptSecret(cfg.cert),
+  };
+}
 
 interface ManagedConnection {
   config: DockerConnectionConfig;
@@ -129,14 +163,26 @@ export class DockerConnectionManager {
     try {
       if (!fs.existsSync(this.configPath)) return [];
       const raw = JSON.parse(fs.readFileSync(this.configPath, 'utf8'));
-      return Array.isArray(raw) ? raw : [];
+      if (!Array.isArray(raw)) return [];
+      const list = raw.map((c: DockerConnectionConfig) => decryptConfig(c));
+
+      // one-shot upgrade: rewrite legacy plaintext secrets as encrypted blobs
+      if (encryptionAvailable() && raw.some((c: DockerConnectionConfig) => hasPlaintextSecret(secretValues(c)))) {
+        try {
+          this.saveConfigs(list);
+        } catch {
+          /* keep using in-memory plaintext if rewrite fails */
+        }
+      }
+      return list;
     } catch {
       return [];
     }
   }
 
   private saveConfigs(list: DockerConnectionConfig[]) {
-    fs.writeFileSync(this.configPath, JSON.stringify(list, null, 2), 'utf8');
+    const out = list.map(encryptConfig);
+    fs.writeFileSync(this.configPath, JSON.stringify(out, null, 2), 'utf8');
   }
 
   listConfigs(): DockerConnectionConfig[] {
@@ -449,6 +495,18 @@ export class DockerConnectionManager {
       finishedAt: c.State?.FinishedAt,
       exitCode: c.State?.ExitCode,
       oomKilled: c.State?.OOMKilled,
+      health: c.State?.Health
+        ? {
+            status: c.State.Health.Status,
+            failingStreak: c.State.Health.FailingStreak,
+            log: (c.State.Health.Log || []).map((h) => ({
+              exitCode: h.ExitCode,
+              output: h.Output,
+              start: h.Start,
+              end: h.End,
+            })),
+          }
+        : undefined,
       platform: c.Platform,
       hostname: c.Config?.Hostname,
       workingDir: c.Config?.WorkingDir,
