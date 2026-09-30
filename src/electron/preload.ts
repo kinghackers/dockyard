@@ -64,6 +64,20 @@ export interface DockerApi {
   createNetwork(hostId: string, opts: unknown): Promise<string>;
   createVolume(hostId: string, opts: unknown): Promise<string>;
   composeUp(hostId: string, filePath: string): Promise<{ ok: boolean; output: string; exitCode: number | null }>;
+  composeFileDown(
+    hostId: string,
+    filePath: string,
+    volumes?: boolean
+  ): Promise<{ ok: boolean; output: string; exitCode: number | null }>;
+  composeProjectDown(
+    hostId: string,
+    projectName: string,
+    volumes?: boolean
+  ): Promise<{ ok: boolean; output: string; exitCode: number | null }>;
+  composeProjectPull(
+    hostId: string,
+    projectName: string
+  ): Promise<{ ok: boolean; output: string; exitCode: number | null }>;
   selectFile(filters?: { name: string; extensions: string[] }[]): Promise<string | null>;
 
   openStats(hostId: string, containerId: string): Promise<boolean>;
@@ -145,6 +159,12 @@ const api: DockerApi = {
   createNetwork: (hostId, opts) => ipcRenderer.invoke('docker:createNetwork', hostId, opts),
   createVolume: (hostId, opts) => ipcRenderer.invoke('docker:createVolume', hostId, opts),
   composeUp: (hostId, filePath) => ipcRenderer.invoke('docker:composeUp', hostId, filePath),
+  composeFileDown: (hostId, filePath, volumes) =>
+    ipcRenderer.invoke('docker:composeFileDown', hostId, filePath, volumes),
+  composeProjectDown: (hostId, projectName, volumes) =>
+    ipcRenderer.invoke('docker:composeProjectDown', hostId, projectName, volumes),
+  composeProjectPull: (hostId, projectName) =>
+    ipcRenderer.invoke('docker:composeProjectPull', hostId, projectName),
   selectFile: (filters) => ipcRenderer.invoke('docker:selectFile', filters),
 
   openStats: (hostId, containerId) => ipcRenderer.invoke('docker:openStats', hostId, containerId),

@@ -111,6 +111,17 @@ export function registerIpc(manager: DockerConnectionManager, getWindows: () => 
   ipcMain.handle('docker:composeUp', (_e, hostId: string, filePath: string) =>
     manager.composeUp(hostId, filePath)
   );
+  ipcMain.handle('docker:composeFileDown', (_e, hostId: string, filePath: string, volumes?: boolean) =>
+    manager.composeFileDown(hostId, filePath, volumes)
+  );
+  ipcMain.handle(
+    'docker:composeProjectDown',
+    (_e, hostId: string, projectName: string, volumes?: boolean) =>
+      manager.composeProjectDown(hostId, projectName, volumes)
+  );
+  ipcMain.handle('docker:composeProjectPull', (_e, hostId: string, projectName: string) =>
+    manager.composeProjectPull(hostId, projectName)
+  );
 
   ipcMain.handle('docker:selectFile', async (e, filters?: { name: string; extensions: string[] }[]) => {
     const win = BrowserWindow.fromWebContents(e.sender) || undefined;

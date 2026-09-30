@@ -979,18 +979,16 @@ export class DockerConnectionManager {
 
   // ---------- compose CLI ----------
   /**
-   * `docker compose -f <file> up -d` against the selected connection.
+   * Run `docker compose …` against the selected connection.
    * Needs the Docker CLI on PATH. TLS material is staged to a temp dir when inline.
    */
-  async composeUp(
+  async runCompose(
     hostId: string,
-    filePath: string
+    args: string[],
+    opts?: { cwd?: string }
   ): Promise<{ ok: boolean; output: string; exitCode: number | null }> {
     const cfg = this.loadConfigs().find((c) => c.id === hostId);
     if (!cfg) throw new Error(`未找到连接配置: ${hostId}`);
-    if (!filePath || !fs.existsSync(filePath)) {
-      throw new Error(`找不到 compose 文件: ${filePath}`);
-    }
 
     const env: NodeJS.ProcessEnv = { ...process.env };
     const staged: string[] = [];
@@ -1007,25 +1005,22 @@ export class DockerConnectionManager {
         if (cfg.tls) {
           env.DOCKER_TLS_VERIFY = '1';
           fs.mkdirSync(tmpDir, { recursive: true });
-          const write = (name: string, inline?: string, filePath?: string) => {
-            const p = path.join(tmpDir, name);
+          const stage = (name: string, inline?: string, filePath?: string) => {
+            const dest = path.join(tmpDir, name);
             if (inline && inline.trim()) {
-              fs.writeFileSync(p, inline, 'utf8');
-              staged.push(p);
-              return p;
+              fs.writeFileSync(dest, inline, 'utf8');
+              staged.push(dest);
+              return;
             }
-            if (filePath && fs.existsSync(filePath)) return filePath;
-            return undefined;
+            if (filePath && fs.existsSync(filePath) && filePath !== dest) {
+              fs.copyFileSync(filePath, dest);
+              staged.push(dest);
+            }
           };
-          const ca = write('ca.pem', cfg.ca, cfg.caCertPath);
-          const cert = write('cert.pem', cfg.cert, cfg.certPath);
-          const key = write('key.pem', cfg.key, cfg.keyPath);
+          stage('ca.pem', cfg.ca, cfg.caCertPath);
+          stage('cert.pem', cfg.cert, cfg.certPath);
+          stage('key.pem', cfg.key, cfg.keyPath);
           env.DOCKER_CERT_PATH = tmpDir;
-          // docker CLI expects ca.pem / cert.pem / key.pem inside DOCKER_CERT_PATH
-          if (ca && ca !== path.join(tmpDir, 'ca.pem')) fs.copyFileSync(ca, path.join(tmpDir, 'ca.pem'));
-          if (cert && cert !== path.join(tmpDir, 'cert.pem'))
-            fs.copyFileSync(cert, path.join(tmpDir, 'cert.pem'));
-          if (key && key !== path.join(tmpDir, 'key.pem')) fs.copyFileSync(key, path.join(tmpDir, 'key.pem'));
         }
       } else if (cfg.kind === 'ssh') {
         // best-effort: docker CLI can use DOCKER_HOST=ssh:// when keys work
@@ -1034,34 +1029,30 @@ export class DockerConnectionManager {
         env.DOCKER_HOST = `ssh://${user}@${cfg.sshHost}:${port}`;
       }
 
-      const result = await new Promise<{ ok: boolean; output: string; exitCode: number | null }>(
-        (resolve) => {
-          const args = ['compose', '-f', filePath, 'up', '-d'];
-          const child = spawn('docker', args, {
-            env,
-            cwd: path.dirname(filePath),
-            windowsHide: true,
+      return await new Promise<{ ok: boolean; output: string; exitCode: number | null }>((resolve) => {
+        const child = spawn('docker', ['compose', ...args], {
+          env,
+          cwd: opts?.cwd || process.cwd(),
+          windowsHide: true,
+        });
+        let out = '';
+        const cap = (s: string) => {
+          out += s;
+          if (out.length > 200_000) out = out.slice(-150_000);
+        };
+        child.stdout.on('data', (d: Buffer) => cap(d.toString('utf8')));
+        child.stderr.on('data', (d: Buffer) => cap(d.toString('utf8')));
+        child.on('error', (err) => {
+          resolve({
+            ok: false,
+            output: `无法启动 docker CLI：${err.message}\n请确认已安装 Docker 并加入 PATH。`,
+            exitCode: null,
           });
-          let out = '';
-          const cap = (s: string) => {
-            out += s;
-            if (out.length > 200_000) out = out.slice(-150_000);
-          };
-          child.stdout.on('data', (d: Buffer) => cap(d.toString('utf8')));
-          child.stderr.on('data', (d: Buffer) => cap(d.toString('utf8')));
-          child.on('error', (err) => {
-            resolve({
-              ok: false,
-              output: `无法启动 docker CLI：${err.message}\n请确认已安装 Docker 并加入 PATH。`,
-              exitCode: null,
-            });
-          });
-          child.on('close', (code) => {
-            resolve({ ok: code === 0, output: out.trim(), exitCode: code });
-          });
-        }
-      );
-      return result;
+        });
+        child.on('close', (code) => {
+          resolve({ ok: code === 0, output: out.trim(), exitCode: code });
+        });
+      });
     } finally {
       for (const p of staged) {
         try {
@@ -1076,6 +1067,42 @@ export class DockerConnectionManager {
         /* ignore */
       }
     }
+  }
+
+  /** `docker compose -f <file> up -d` */
+  async composeUp(hostId: string, filePath: string) {
+    if (!filePath || !fs.existsSync(filePath)) {
+      throw new Error(`找不到 compose 文件: ${filePath}`);
+    }
+    return this.runCompose(hostId, ['-f', filePath, 'up', '-d'], {
+      cwd: path.dirname(filePath),
+    });
+  }
+
+  /** `docker compose -f <file> down` (optional --volumes) */
+  async composeFileDown(hostId: string, filePath: string, volumes = false) {
+    if (!filePath || !fs.existsSync(filePath)) {
+      throw new Error(`找不到 compose 文件: ${filePath}`);
+    }
+    return this.runCompose(
+      hostId,
+      ['-f', filePath, 'down', ...(volumes ? ['--volumes'] : [])],
+      { cwd: path.dirname(filePath) }
+    );
+  }
+
+  /** `docker compose -p <name> down` — tear down a running project by name. */
+  async composeProjectDown(hostId: string, projectName: string, volumes = false) {
+    const p = projectName.trim();
+    if (!p) throw new Error('项目名不能为空');
+    return this.runCompose(hostId, ['-p', p, 'down', ...(volumes ? ['--volumes'] : [])]);
+  }
+
+  /** `docker compose -p <name> pull` — refresh images for a running project. */
+  async composeProjectPull(hostId: string, projectName: string) {
+    const p = projectName.trim();
+    if (!p) throw new Error('项目名不能为空');
+    return this.runCompose(hostId, ['-p', p, 'pull']);
   }
 
   async pullImage(hostId: string, name: string, onProgress?: (msg: string) => void): Promise<void> {

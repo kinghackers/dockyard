@@ -13,6 +13,7 @@ import {
   Info,
   ArrowUp,
   ArrowDown,
+  Download,
 } from 'lucide-react';
 import type { ContainerSummary, ComposeProject } from '../../types/docker';
 import { useAppStore } from '../../stores/appStore';
@@ -94,6 +95,44 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
     } catch (e) {
       reportError(e, toast);
     }
+  };
+
+  const runCompose = async (
+    fn: () => Promise<{ ok: boolean; output: string; exitCode: number | null }>,
+    okMsg: string
+  ) => {
+    try {
+      const res = await fn();
+      if (res.ok) toast(okMsg, 'success');
+      else {
+        toast(`失败（退出码 ${res.exitCode ?? '-'}）`, 'error');
+        console.error(res.output);
+      }
+      await load();
+    } catch (e) {
+      reportError(e, toast);
+    }
+  };
+
+  const composeDown = async () => {
+    const ok = await confirm({
+      title: '下线 Compose 项目',
+      message: `将执行 docker compose -p ${projectName} down，停止并移除该项目的容器。数据卷默认保留。`,
+      confirmLabel: '下线',
+      danger: true,
+    });
+    if (!ok) return;
+    await runCompose(
+      () => window.dockerApi.composeProjectDown(hostId, projectName, false),
+      '项目已下线'
+    );
+  };
+
+  const composePull = async () => {
+    await runCompose(
+      () => window.dockerApi.composeProjectPull(hostId, projectName),
+      '镜像已更新，请重启项目以生效'
+    );
   };
 
   const running = useMemo(() => containers.filter((c) => c.state === 'running').length, [containers]);
@@ -342,6 +381,12 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
           }
         >
           <RotateCw size={13} /> 重启全部
+        </button>
+        <button className="btn" onClick={() => void composePull()}>
+          <Download size={13} /> 更新镜像
+        </button>
+        <button className="btn danger" onClick={() => void composeDown()}>
+          <Trash2 size={13} /> 项目下线
         </button>
         <button
           className="btn"

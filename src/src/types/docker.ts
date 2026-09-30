@@ -357,6 +357,20 @@ declare global {
         hostId: string,
         filePath: string
       ): Promise<{ ok: boolean; output: string; exitCode: number | null }>;
+      composeFileDown(
+        hostId: string,
+        filePath: string,
+        volumes?: boolean
+      ): Promise<{ ok: boolean; output: string; exitCode: number | null }>;
+      composeProjectDown(
+        hostId: string,
+        projectName: string,
+        volumes?: boolean
+      ): Promise<{ ok: boolean; output: string; exitCode: number | null }>;
+      composeProjectPull(
+        hostId: string,
+        projectName: string
+      ): Promise<{ ok: boolean; output: string; exitCode: number | null }>;
       selectFile(filters?: { name: string; extensions: string[] }[]): Promise<string | null>;
 
       openStats(hostId: string, containerId: string): Promise<boolean>;
