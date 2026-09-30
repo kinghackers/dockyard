@@ -114,6 +114,31 @@ export interface ImageSummary {
   containers?: number;
 }
 
+export interface ImageHistoryEntry {
+  created?: string;
+  createdBy?: string;
+  comment?: string;
+  size?: number;
+  emptyLayer?: boolean;
+}
+
+export interface ImageDetail {
+  id: string;
+  repoTags: string[];
+  repoDigests: string[];
+  created: string;
+  size: number;
+  virtualSize?: number;
+  architecture?: string;
+  os?: string;
+  author?: string;
+  configCmd?: string;
+  configEntrypoint?: string[];
+  env?: string[];
+  labels: Record<string, string>;
+  history: ImageHistoryEntry[];
+}
+
 export interface NetworkSummary {
   id: string;
   name: string;

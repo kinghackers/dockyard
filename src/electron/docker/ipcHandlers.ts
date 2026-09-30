@@ -276,6 +276,9 @@ export function registerIpc(manager: DockerConnectionManager, getWindows: () => 
 
   // ---- images / networks / volumes ----
   ipcMain.handle('docker:listImages', (_e, hostId: string) => manager.listImages(hostId));
+  ipcMain.handle('docker:inspectImage', (_e, hostId: string, id: string) =>
+    manager.inspectImage(hostId, id)
+  );
   ipcMain.handle('docker:removeImage', async (_e, hostId: string, id: string, force?: boolean) => {
     await manager.removeImage(hostId, id, force);
     return true;

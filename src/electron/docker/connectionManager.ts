@@ -16,6 +16,7 @@ import {
   DockerConnectionConfig,
   DockerEvent,
   DockerInfoLite,
+  ImageDetail,
   ImageSummary,
   NetworkSummary,
   SystemStats,
@@ -924,6 +925,42 @@ export class DockerConnectionManager {
       virtualSize: i.VirtualSize,
       labels: i.Labels || {},
     }));
+  }
+
+  /** Image metadata + build history (layer commands). */
+  async inspectImage(hostId: string, id: string): Promise<ImageDetail> {
+    const img = (await this.dockerOf(hostId).getImage(id).inspect()) as Docker.ImageInspectInfo & {
+      History?: {
+        Created?: string;
+        CreatedBy?: string;
+        Comment?: string;
+        Size?: number;
+        emptyLayer?: boolean;
+      }[];
+    };
+    const entry = img.Config?.Entrypoint;
+    return {
+      id: img.Id,
+      repoTags: img.RepoTags || [],
+      repoDigests: img.RepoDigests || [],
+      created: img.Created,
+      size: img.Size || 0,
+      virtualSize: img.VirtualSize,
+      architecture: img.Architecture,
+      os: img.Os,
+      author: img.Author,
+      configCmd: Array.isArray(img.Config?.Cmd) ? img.Config.Cmd.join(' ') : img.Config?.Cmd || '',
+      configEntrypoint: Array.isArray(entry) ? entry : entry ? [entry] : [],
+      env: img.Config?.Env || [],
+      labels: img.Config?.Labels || {},
+      history: (img.History || []).map((h) => ({
+        created: h.Created,
+        createdBy: h.CreatedBy,
+        comment: h.Comment,
+        size: h.Size,
+        emptyLayer: h.emptyLayer,
+      })),
+    };
   }
 
   async removeImage(hostId: string, id: string, force = false) {

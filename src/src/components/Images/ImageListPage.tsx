@@ -20,6 +20,7 @@ import { loadUiPref, saveUiPref } from '../../utils/uiPrefs';
 import { RunContainerDialog } from '../Containers/RunContainerDialog';
 import { ContextMenu, useContextMenu, type ContextMenuItem } from '../common/ContextMenu';
 import { TagImageDialog } from './TagImageDialog';
+import { ImageHistoryDialog } from './ImageHistoryDialog';
 
 type SortKey = 'tags' | 'id' | 'size' | 'created';
 
@@ -53,6 +54,7 @@ export function ImageListPage({ hostId }: { hostId: string }) {
   const [pullMessage, setPullMessage] = useState('');
   const [runImage, setRunImage] = useState<string | null>(null);
   const [tagFor, setTagFor] = useState<ImageSummary | null>(null);
+  const [historyFor, setHistoryFor] = useState<ImageSummary | null>(null);
   const [confirmDialog, confirm] = useConfirm();
   const pullOffRef = useRef<(() => void) | null>(null);
   const filterRef = useRef<HTMLInputElement>(null);
@@ -168,6 +170,7 @@ export function ImageListPage({ hostId }: { hostId: string }) {
   };
 
   const tagOne = (img: ImageSummary) => setTagFor(img);
+  const showHistory = (img: ImageSummary) => setHistoryFor(img);
 
   const applyTag = async (repo: string, tag: string) => {
     if (!tagFor) return;
@@ -281,6 +284,12 @@ export function ImageListPage({ hostId }: { hostId: string }) {
         onSelect: () => tagOne(img),
       },
       {
+        key: 'history',
+        label: '查看历史…',
+        disabled: multi,
+        onSelect: () => showHistory(img),
+      },
+      {
         key: 'copy',
         label: '复制镜像 ID',
         icon: <Copy size={13} />,
@@ -335,6 +344,13 @@ export function ImageListPage({ hostId }: { hostId: string }) {
           onClick={() => selectedImage && tagOne(selectedImage)}
         >
           <Tag size={13} /> 打标签
+        </button>
+        <button
+          className="btn"
+          disabled={!selectedImage}
+          onClick={() => selectedImage && showHistory(selectedImage)}
+        >
+          历史
         </button>
         <button
           className="btn danger"
@@ -528,6 +544,15 @@ export function ImageListPage({ hostId }: { hostId: string }) {
           initialTag={tagFor.repoTags[0]?.includes(':') ? tagFor.repoTags[0].split(':').pop() : 'latest'}
           onClose={() => setTagFor(null)}
           onSubmit={applyTag}
+        />
+      )}
+      {historyFor && (
+        <ImageHistoryDialog
+          hostId={hostId}
+          imageId={historyFor.id}
+          title={tagsLabel(historyFor)}
+          onClose={() => setHistoryFor(null)}
+          toast={toast}
         />
       )}
       {confirmDialog}

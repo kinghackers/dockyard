@@ -107,6 +107,31 @@ export interface ImageSummary {
   labels: Record<string, string>;
 }
 
+export interface ImageHistoryEntry {
+  created?: string;
+  createdBy?: string;
+  comment?: string;
+  size?: number;
+  emptyLayer?: boolean;
+}
+
+export interface ImageDetail {
+  id: string;
+  repoTags: string[];
+  repoDigests: string[];
+  created: string;
+  size: number;
+  virtualSize?: number;
+  architecture?: string;
+  os?: string;
+  author?: string;
+  configCmd?: string;
+  configEntrypoint?: string[];
+  env?: string[];
+  labels: Record<string, string>;
+  history: ImageHistoryEntry[];
+}
+
 export interface NetworkSummary {
   id: string;
   name: string;
@@ -308,6 +333,7 @@ declare global {
       onExecEnd(cb: (p: { sessionId: string }) => void): () => void;
 
       listImages(hostId: string): Promise<ImageSummary[]>;
+      inspectImage(hostId: string, id: string): Promise<ImageDetail>;
       removeImage(hostId: string, id: string, force?: boolean): Promise<boolean>;
       tagImage(hostId: string, id: string, repo: string, tag?: string): Promise<boolean>;
       pullImage(hostId: string, name: string): Promise<boolean>;
