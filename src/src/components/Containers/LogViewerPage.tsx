@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { RefreshCw, Download, Trash2, Radio } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { RefreshCw, Download, Trash2, Radio, Search, X } from 'lucide-react';
 import { useAppStore } from '../../stores/appStore';
+import { useHotkeys } from '../../utils/useHotkeys';
 
 const MAX_LINES = 5000;
 const TAIL_LINES = 500;
@@ -12,7 +13,9 @@ export function LogViewerPage({ hostId, containerId }: { hostId: string; contain
   const [status, setStatus] = useState<'connecting' | 'live' | 'ended' | 'error'>('connecting');
   const [error, setError] = useState<string | null>(null);
   const [buffer, setBuffer] = useState<string[]>([]);
+  const [logFilter, setLogFilter] = useState('');
   const bodyRef = useRef<HTMLDivElement>(null);
+  const filterRef = useRef<HTMLInputElement>(null);
   const pausedRef = useRef(false);
   const key = `${hostId}:${containerId}`;
   /** incomplete trailing line, kept across chunks */
@@ -149,6 +152,24 @@ export function LogViewerPage({ hostId, containerId }: { hostId: string; contain
     URL.revokeObjectURL(url);
   };
 
+  const visibleLines = useMemo(() => {
+    if (!logFilter.trim()) return lines;
+    const q = logFilter.trim().toLowerCase();
+    return lines.filter((l) => l.toLowerCase().includes(q));
+  }, [lines, logFilter]);
+
+  const matchCount = logFilter.trim() ? visibleLines.length : lines.length;
+
+  useHotkeys({
+    'mod+f': () => filterRef.current?.focus(),
+    escape: () => {
+      if (logFilter) {
+        setLogFilter('');
+        return;
+      }
+    },
+  });
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, overflow: 'hidden' }}>
       <div className="content-toolbar">
@@ -171,6 +192,36 @@ export function LogViewerPage({ hostId, containerId }: { hostId: string; contain
         >
           <Trash2 size={13} /> 清空
         </button>
+        <div style={{ position: 'relative', marginLeft: 8 }}>
+          <Search size={13} style={{ position: 'absolute', left: 8, top: 8, color: 'var(--text-muted)' }} />
+          <input
+            ref={filterRef}
+            className="search-input"
+            style={{ paddingLeft: 26, width: 180 }}
+            placeholder="过滤日志（Ctrl+F）"
+            value={logFilter}
+            onChange={(e) => setLogFilter(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                setLogFilter('');
+                filterRef.current?.blur();
+              }
+            }}
+          />
+          {logFilter && (
+            <button
+              className="btn ghost icon-btn"
+              style={{ position: 'absolute', right: 2, top: 2, width: 22, height: 22 }}
+              title="清除过滤"
+              onClick={() => {
+                setLogFilter('');
+                filterRef.current?.focus();
+              }}
+            >
+              <X size={12} />
+            </button>
+          )}
+        </div>
         <div style={{ flex: 1 }} />
         <span
           style={{
@@ -193,7 +244,10 @@ export function LogViewerPage({ hostId, containerId }: { hostId: string; contain
           {status === 'error' && `错误: ${error || '未知'}`}
         </span>
         <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 8 }}>
-          {lines.length} 行{buffer.length > 0 ? ` · 暂停中 +${buffer.length}` : ''}
+          {logFilter.trim()
+            ? `${matchCount}/${lines.length} 行匹配`
+            : `${lines.length} 行`}
+          {buffer.length > 0 ? ` · 暂停中 +${buffer.length}` : ''}
         </span>
       </div>
 
@@ -209,7 +263,10 @@ export function LogViewerPage({ hostId, containerId }: { hostId: string; contain
             {status === 'connecting' ? '正在获取日志…' : '等待日志输出…'}
           </div>
         )}
-        {lines.map((line, i) => {
+        {lines.length > 0 && visibleLines.length === 0 && (
+          <div style={{ color: 'var(--text-muted)', padding: 12 }}>没有匹配的日志行</div>
+        )}
+        {visibleLines.map((line, i) => {
           // docker --timestamps format: 2024-01-01T00:00:00.000000000Z message
           const m = line.match(/^(\S+Z)\s(.*)$/);
           if (m) {

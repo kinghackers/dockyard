@@ -18,6 +18,7 @@ import {
   Folder,
   FolderPlus,
   FolderOpen,
+  FolderInput,
 } from 'lucide-react';
 import { useAppStore } from '../../stores/appStore';
 import { useConfirm } from '../../utils/useConfirm';
@@ -202,6 +203,26 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
       }
     };
 
+    const moveToGroup = async (c: DockerConnectionConfig, groupId: string | undefined) => {
+      try {
+        const next = { ...c, groupId };
+        if (!groupId) delete (next as { groupId?: string }).groupId;
+        await window.dockerApi.upsertConnection(next);
+        useAppStore.getState().upsertConnection(next);
+        useAppStore.getState().toast(
+          groupId
+            ? `已移动到「${groups.find((g) => g.id === groupId)?.name || groupId}」`
+            : '已移到根目录',
+          'success'
+        );
+      } catch (err) {
+        useAppStore.getState().toast(
+          err instanceof Error ? err.message : String(err),
+          'error'
+        );
+      }
+    };
+
     const hostMenu = (): ContextMenuItem[] => {
       const items: ContextMenuItem[] = [
         {
@@ -238,6 +259,27 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
           onSelect: () => openView(conn.id, 'containers'),
         },
         { key: 'sep2', label: '', separator: true, onSelect: () => {} },
+        {
+          key: 'move',
+          label: '移动到目录',
+          icon: <FolderInput size={13} />,
+          disabled: groups.length === 0,
+          onSelect: () => {},
+          children: [
+            {
+              key: 'move-root',
+              label: '根目录',
+              disabled: !conn.groupId,
+              onSelect: () => void moveToGroup(conn, undefined),
+            },
+            ...groups.map((g) => ({
+              key: `move-${g.id}`,
+              label: g.name,
+              disabled: conn.groupId === g.id,
+              onSelect: () => void moveToGroup(conn, g.id),
+            })),
+          ],
+        },
         {
           key: 'edit',
           label: '编辑连接…',

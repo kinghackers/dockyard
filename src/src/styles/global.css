@@ -500,6 +500,30 @@ textarea:focus {
   color: var(--error);
 }
 
+.context-menu-item.has-sub {
+  position: relative;
+  justify-content: flex-start;
+  cursor: default;
+}
+
+.context-menu-item.has-sub:hover {
+  background: var(--bg-selected-soft);
+}
+
+.context-menu-arrow {
+  margin-left: auto;
+  color: var(--text-dim);
+  font-size: 14px;
+  line-height: 1;
+}
+
+.context-menu.sub {
+  position: absolute;
+  left: 100%;
+  top: -4px;
+  min-width: 150px;
+}
+
 .context-menu-item.danger:hover:not(:disabled) {
   background: rgba(207, 91, 86, 0.15);
 }

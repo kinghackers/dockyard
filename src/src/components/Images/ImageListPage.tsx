@@ -15,6 +15,7 @@ import { useAppStore } from '../../stores/appStore';
 import { reportError } from '../../utils/connection';
 import { useConfirm } from '../../utils/useConfirm';
 import { useHotkeys } from '../../utils/useHotkeys';
+import { loadUiPref, saveUiPref } from '../../utils/uiPrefs';
 import { RunContainerDialog } from '../Containers/RunContainerDialog';
 import { ContextMenu, useContextMenu, type ContextMenuItem } from '../common/ContextMenu';
 
@@ -40,11 +41,11 @@ export function ImageListPage({ hostId }: { hostId: string }) {
   const { toast, containersVersion } = useAppStore();
   const [list, setList] = useState<ImageSummary[]>([]);
   const [loading, setLoading] = useState(false);
-  const [filter, setFilter] = useState('');
+  const [filter, setFilter] = useState(() => loadUiPref('images.filter', ''));
   const [selected, setSelected] = useState<string | null>(null);
   const [checked, setChecked] = useState<Set<string>>(new Set());
-  const [sortKey, setSortKey] = useState<SortKey>('created');
-  const [sortAsc, setSortAsc] = useState(false);
+  const [sortKey, setSortKey] = useState<SortKey>(() => loadUiPref('images.sortKey', 'created'));
+  const [sortAsc, setSortAsc] = useState(() => loadUiPref('images.sortAsc', false));
   const [pullName, setPullName] = useState('');
   const [pulling, setPulling] = useState(false);
   const [pullMessage, setPullMessage] = useState('');
@@ -69,6 +70,14 @@ export function ImageListPage({ hostId }: { hostId: string }) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    saveUiPref('images.filter', filter);
+  }, [filter]);
+  useEffect(() => {
+    saveUiPref('images.sortKey', sortKey);
+    saveUiPref('images.sortAsc', sortAsc);
+  }, [sortKey, sortAsc]);
 
   useEffect(() => {
     if (containersVersion > 0) void load();

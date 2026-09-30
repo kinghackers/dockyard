@@ -25,6 +25,7 @@ import { useHotkeys } from '../../utils/useHotkeys';
 import { localizeStatusChip, localizeContainerStatus } from '../../utils/localize';
 import { formatPortMappings } from '../../utils/ports';
 import { getContainerActions } from '../../utils/containerActions';
+import { loadUiPref, saveUiPref } from '../../utils/uiPrefs';
 import { RunContainerDialog } from './RunContainerDialog';
 import { ContainerRowActions } from './ContainerRowActions';
 import { ContextMenu, useContextMenu, type ContextMenuItem } from '../common/ContextMenu';
@@ -34,13 +35,15 @@ type SortKey = 'name' | 'state' | 'image' | 'project' | 'created';
 export function ContainerListPage({ hostId }: { hostId: string }) {
   const { openTab, toast, setContainers, containersByHost, containersVersion } = useAppStore();
   const [loading, setLoading] = useState(false);
-  const [filter, setFilter] = useState('');
-  const [stateFilter, setStateFilter] = useState<'all' | 'running' | 'exited' | 'paused'>('all');
+  const [filter, setFilter] = useState(() => loadUiPref('containers.filter', ''));
+  const [stateFilter, setStateFilter] = useState<'all' | 'running' | 'exited' | 'paused'>(() =>
+    loadUiPref('containers.stateFilter', 'all')
+  );
   const [selected, setSelected] = useState<string | null>(null);
   /** multi-select ids (checkbox). `selected` remains the focus row for toolbar actions. */
   const [checked, setChecked] = useState<Set<string>>(new Set());
-  const [sortKey, setSortKey] = useState<SortKey>('created');
-  const [sortAsc, setSortAsc] = useState(false);
+  const [sortKey, setSortKey] = useState<SortKey>(() => loadUiPref('containers.sortKey', 'created'));
+  const [sortAsc, setSortAsc] = useState(() => loadUiPref('containers.sortAsc', false));
   const [runOpen, setRunOpen] = useState(false);
   const [confirmDialog, confirm] = useConfirm();
   const ctx = useContextMenu();
@@ -62,6 +65,18 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // remember list filter / sort across sessions
+  useEffect(() => {
+    saveUiPref('containers.filter', filter);
+  }, [filter]);
+  useEffect(() => {
+    saveUiPref('containers.stateFilter', stateFilter);
+  }, [stateFilter]);
+  useEffect(() => {
+    saveUiPref('containers.sortKey', sortKey);
+    saveUiPref('containers.sortAsc', sortAsc);
+  }, [sortKey, sortAsc]);
 
   // auto-refresh when docker events fire
   useEffect(() => {
