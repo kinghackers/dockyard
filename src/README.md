@@ -28,6 +28,26 @@ npm run build      # 产出 dist/ 与 dist-electron/
 npm start          # 启动生产模式
 ```
 
+## Windows 打包
+
+```bash
+npm run dist       # 构建 + electron-builder 出 NSIS 安装包
+npm run dist:dir   # 仅产出 release/win-unpacked 免安装目录
+```
+
+产物在 `release/`：
+
+| 文件 | 说明 |
+|------|------|
+| `DockerManager-<版本>-Setup.exe` | NSIS 安装包（可选安装路径） |
+| `win-unpacked/` | 绿色免安装目录，直接运行 `Docker 管理器.exe` |
+
+注意事项：
+
+- `electronDist` 已指向 `node_modules/electron/dist`，打包不再重复下载 Electron
+- 当前配置不签名（`win.sign: null`）；需要签名时再填证书
+- 应用图标在 `build/icon.ico`（由 `build/icon.png` 生成），安装包与可执行文件会使用它
+
 ## 连接配置
 
 左侧工具栏 `+` 可添加连接：

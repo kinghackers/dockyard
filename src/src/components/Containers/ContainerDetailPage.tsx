@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import {
   RefreshCw,
   Play,
@@ -174,6 +174,61 @@ export function ContainerDetailPage({ hostId, containerId }: { hostId: string; c
     }
   };
 
+  const openLogs = () => {
+    openTab({
+      id: `logs:${hostId}:${containerId}`,
+      title: `日志 · ${detail?.name || ''}`,
+      kind: 'logs',
+      hostId,
+      containerId,
+    });
+  };
+
+  /** Actionable fault hints — the first things to look at when something is wrong. */
+  const diagnostics = useMemo(() => {
+    if (!detail) return [];
+    const items: { key: string; level: 'error' | 'warning' | 'info'; text: string }[] = [];
+    const exited = detail.state === 'exited' || detail.state === 'dead';
+    if (detail.oomKilled) {
+      items.push({
+        key: 'oom',
+        level: 'error',
+        text: '因内存不足被杀（OOM）。可调高内存限额，或排查泄漏/缓存暴涨。',
+      });
+    }
+    if (exited && (detail.exitCode ?? 0) !== 0) {
+      items.push({
+        key: 'exit',
+        level: 'error',
+        text: `进程异常退出，退出码 ${detail.exitCode}。请查看日志末尾的报错与堆栈。`,
+      });
+    }
+    if (detail.health?.status === 'unhealthy') {
+      const last = detail.health.log?.[detail.health.log.length - 1];
+      items.push({
+        key: 'unhealthy',
+        level: 'error',
+        text: `健康检查失败${detail.health.failingStreak ? `（连续 ${detail.health.failingStreak} 次）` : ''}${
+          last?.output ? `：${String(last.output).slice(0, 160)}` : ''
+        }`,
+      });
+    } else if (detail.health?.status === 'starting') {
+      items.push({
+        key: 'health-start',
+        level: 'info',
+        text: '健康检查进行中，尚未给出结果。',
+      });
+    }
+    if ((detail.restartCount ?? 0) >= 3 || detail.state === 'restarting') {
+      items.push({
+        key: 'loop',
+        level: 'warning',
+        text: `频繁自动重启（已重启 ${detail.restartCount ?? 0} 次）。可先停止重启循环再排查。`,
+      });
+    }
+    return items;
+  }, [detail]);
+
   return (
     <div className="page">
       <div className="page-header">
@@ -311,6 +366,92 @@ export function ContainerDetailPage({ hostId, containerId }: { hostId: string; c
         </div>
       )}
 
+      {diagnostics.length > 0 && (
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+            marginBottom: 14,
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              fontSize: 12,
+              color: 'var(--text-bright)',
+            }}
+          >
+            <AlertTriangle size={14} color="var(--warning)" />
+            <strong>排障提示</strong>
+            <button className="btn ghost" style={{ marginLeft: 'auto', height: 24 }} onClick={openLogs}>
+              <FileText size={12} /> 查看日志
+            </button>
+            {acts?.canExec && (
+              <button
+                className="btn ghost"
+                style={{ height: 24 }}
+                onClick={() =>
+                  openTab({
+                    id: `terminal:${hostId}:${containerId}`,
+                    title: `终端 · ${detail?.name || ''}`,
+                    kind: 'terminal',
+                    hostId,
+                    containerId,
+                  })
+                }
+              >
+                <TermIcon size={12} /> 终端
+              </button>
+            )}
+          </div>
+          {diagnostics.map((d) => (
+            <div
+              key={d.key}
+              style={{
+                display: 'flex',
+                gap: 8,
+                padding: '8px 12px',
+                borderRadius: 4,
+                fontSize: 12,
+                lineHeight: 1.5,
+                border: `1px solid ${
+                  d.level === 'error'
+                    ? 'rgba(207,91,86,0.35)'
+                    : d.level === 'warning'
+                      ? 'rgba(217,164,6,0.35)'
+                      : 'rgba(88,157,246,0.3)'
+                }`,
+                background:
+                  d.level === 'error'
+                    ? 'rgba(207,91,86,0.12)'
+                    : d.level === 'warning'
+                      ? 'rgba(217,164,6,0.1)'
+                      : 'rgba(88,157,246,0.08)',
+                color: 'var(--text)',
+              }}
+            >
+              <span
+                style={{
+                  width: 6,
+                  borderRadius: 3,
+                  flexShrink: 0,
+                  background:
+                    d.level === 'error'
+                      ? 'var(--error)'
+                      : d.level === 'warning'
+                        ? 'var(--warning)'
+                        : 'var(--info)',
+                }}
+              />
+              {d.text}
+            </div>
+          ))}
+        </div>
+      )}
+
       {error && (
         <div style={{ padding: 12, borderRadius: 4, background: 'rgba(207,91,86,0.12)', color: 'var(--error)', marginBottom: 14 }}>
           {error}
@@ -367,6 +508,7 @@ export function ContainerDetailPage({ hostId, containerId }: { hostId: string; c
             <dd>
               {localizeContainerStatus(detail.status)} · 退出码 {detail.exitCode ?? '-'}
               {detail.oomKilled ? ' · OOM' : ''}
+              {detail.health?.status ? ` · 健康检查 ${detail.health.status}` : ''}
             </dd>
             <dt>启动时间</dt>
             <dd>{detail.startedAt || '-'}</dd>
