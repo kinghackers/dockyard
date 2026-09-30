@@ -59,7 +59,7 @@
     "electronDist": "node_modules/electron/dist",
     "npmRebuild": true,
     "directories": {
-      "output": "release",
+      "output": "out-win",
       "buildResources": "build"
     },
     "files": [
@@ -73,9 +73,15 @@
       "**/node_modules/dockerode/**"
     ],
     "win": {
+      "sign": null,
+      "signAndEditExecutable": false,
       "target": [
         {
           "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "dir",
           "arch": ["x64"]
         }
       ],
