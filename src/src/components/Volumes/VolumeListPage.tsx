@@ -5,6 +5,7 @@ import { useAppStore } from '../../stores/appStore';
 import { reportError } from '../../utils/connection';
 import { useConfirm } from '../../utils/useConfirm';
 import { useHotkeys } from '../../utils/useHotkeys';
+import { loadUiPref, saveUiPref } from '../../utils/uiPrefs';
 import { localizeVolumeDriver, localizeScope } from '../../utils/localize';
 import { CreateVolumeDialog } from './CreateVolumeDialog';
 import { ContextMenu, useContextMenu, type ContextMenuItem } from '../common/ContextMenu';
@@ -15,11 +16,11 @@ export function VolumeListPage({ hostId }: { hostId: string }) {
   const { toast, containersVersion } = useAppStore();
   const [list, setList] = useState<VolumeSummary[]>([]);
   const [loading, setLoading] = useState(false);
-  const [filter, setFilter] = useState('');
+  const [filter, setFilter] = useState(() => loadUiPref('volumes.filter', ''));
   const [selected, setSelected] = useState<string | null>(null);
   const [checked, setChecked] = useState<Set<string>>(new Set());
-  const [sortKey, setSortKey] = useState<SortKey>('name');
-  const [sortAsc, setSortAsc] = useState(true);
+  const [sortKey, setSortKey] = useState<SortKey>(() => loadUiPref('volumes.sortKey', 'name'));
+  const [sortAsc, setSortAsc] = useState(() => loadUiPref('volumes.sortAsc', true));
   const [createOpen, setCreateOpen] = useState(false);
   const [confirmDialog, confirm] = useConfirm();
   const filterRef = useRef<HTMLInputElement>(null);
@@ -40,6 +41,14 @@ export function VolumeListPage({ hostId }: { hostId: string }) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    saveUiPref('volumes.filter', filter);
+  }, [filter]);
+  useEffect(() => {
+    saveUiPref('volumes.sortKey', sortKey);
+    saveUiPref('volumes.sortAsc', sortAsc);
+  }, [sortKey, sortAsc]);
 
   useEffect(() => {
     if (containersVersion > 0) void load();
@@ -148,6 +157,18 @@ export function VolumeListPage({ hostId }: { hostId: string }) {
       setChecked(new Set(filtered.map((v) => v.name)));
     },
     escape: () => setChecked(new Set()),
+    arrowdown: () => {
+      if (filtered.length === 0) return;
+      const idx = selected ? filtered.findIndex((v) => v.name === selected) : -1;
+      const next = filtered[Math.min(idx + 1, filtered.length - 1)] ?? filtered[0];
+      setSelected(next.name);
+    },
+    arrowup: () => {
+      if (filtered.length === 0) return;
+      const idx = selected ? filtered.findIndex((v) => v.name === selected) : filtered.length;
+      const next = filtered[Math.max(idx - 1, 0)] ?? filtered[0];
+      setSelected(next.name);
+    },
     delete: () => {
       const names = checked.size > 0 ? [...checked] : selected ? [selected] : [];
       if (names.length === 0) return;

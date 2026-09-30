@@ -218,6 +218,22 @@ export function ImageListPage({ hostId }: { hostId: string }) {
       setChecked(new Set(filtered.map((i) => i.id)));
     },
     escape: () => setChecked(new Set()),
+    arrowdown: () => {
+      if (filtered.length === 0) return;
+      const idx = selected ? filtered.findIndex((c) => c.id === selected) : -1;
+      const next = filtered[Math.min(idx + 1, filtered.length - 1)] ?? filtered[0];
+      setSelected(next.id);
+    },
+    arrowup: () => {
+      if (filtered.length === 0) return;
+      const idx = selected ? filtered.findIndex((c) => c.id === selected) : filtered.length;
+      const next = filtered[Math.max(idx - 1, 0)] ?? filtered[0];
+      setSelected(next.id);
+    },
+    enter: () => {
+      if (!selectedImage) return;
+      runOne(selectedImage);
+    },
     delete: () => {
       const ids = checked.size > 0 ? [...checked] : selected ? [selected] : [];
       if (ids.length === 0) return;

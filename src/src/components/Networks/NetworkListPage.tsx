@@ -5,6 +5,7 @@ import { useAppStore } from '../../stores/appStore';
 import { reportError } from '../../utils/connection';
 import { useConfirm } from '../../utils/useConfirm';
 import { useHotkeys } from '../../utils/useHotkeys';
+import { loadUiPref, saveUiPref } from '../../utils/uiPrefs';
 import { localizeNetworkDriver, localizeScope } from '../../utils/localize';
 import { CreateNetworkDialog } from './CreateNetworkDialog';
 import { ContextMenu, useContextMenu, type ContextMenuItem } from '../common/ContextMenu';
@@ -15,11 +16,11 @@ export function NetworkListPage({ hostId }: { hostId: string }) {
   const { toast, containersVersion } = useAppStore();
   const [list, setList] = useState<NetworkSummary[]>([]);
   const [loading, setLoading] = useState(false);
-  const [filter, setFilter] = useState('');
+  const [filter, setFilter] = useState(() => loadUiPref('networks.filter', ''));
   const [selected, setSelected] = useState<string | null>(null);
   const [checked, setChecked] = useState<Set<string>>(new Set());
-  const [sortKey, setSortKey] = useState<SortKey>('name');
-  const [sortAsc, setSortAsc] = useState(true);
+  const [sortKey, setSortKey] = useState<SortKey>(() => loadUiPref('networks.sortKey', 'name'));
+  const [sortAsc, setSortAsc] = useState(() => loadUiPref('networks.sortAsc', true));
   const [expanded, setExpanded] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [confirmDialog, confirm] = useConfirm();
@@ -41,6 +42,14 @@ export function NetworkListPage({ hostId }: { hostId: string }) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    saveUiPref('networks.filter', filter);
+  }, [filter]);
+  useEffect(() => {
+    saveUiPref('networks.sortKey', sortKey);
+    saveUiPref('networks.sortAsc', sortAsc);
+  }, [sortKey, sortAsc]);
 
   useEffect(() => {
     if (containersVersion > 0) void load();
@@ -149,6 +158,22 @@ export function NetworkListPage({ hostId }: { hostId: string }) {
       setChecked(new Set(filtered.map((n) => n.id)));
     },
     escape: () => setChecked(new Set()),
+    arrowdown: () => {
+      if (filtered.length === 0) return;
+      const idx = selected ? filtered.findIndex((n) => n.id === selected) : -1;
+      const next = filtered[Math.min(idx + 1, filtered.length - 1)] ?? filtered[0];
+      setSelected(next.id);
+    },
+    arrowup: () => {
+      if (filtered.length === 0) return;
+      const idx = selected ? filtered.findIndex((n) => n.id === selected) : filtered.length;
+      const next = filtered[Math.max(idx - 1, 0)] ?? filtered[0];
+      setSelected(next.id);
+    },
+    enter: () => {
+      if (!selected) return;
+      setExpanded(expanded === selected ? null : selected);
+    },
     delete: () => {
       const ids = checked.size > 0 ? [...checked] : selected ? [selected] : [];
       if (ids.length === 0) return;
