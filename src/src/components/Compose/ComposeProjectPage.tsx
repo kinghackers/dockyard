@@ -11,16 +11,21 @@ import {
   Copy,
   Skull,
   Info,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react';
 import type { ContainerSummary, ComposeProject } from '../../types/docker';
 import { useAppStore } from '../../stores/appStore';
 import { reportError } from '../../utils/connection';
 import { useConfirm } from '../../utils/useConfirm';
+import { useHotkeys } from '../../utils/useHotkeys';
 import { localizeStatusChip, localizeContainerStatus } from '../../utils/localize';
 import { formatPortMappings } from '../../utils/ports';
 import { getContainerActions } from '../../utils/containerActions';
 import { ContainerRowActions } from '../Containers/ContainerRowActions';
 import { ContextMenu, useContextMenu, type ContextMenuItem } from '../common/ContextMenu';
+
+type SortKey = 'service' | 'name' | 'state' | 'image';
 
 export function ComposeProjectPage({ hostId, projectName }: { hostId: string; projectName: string }) {
   const { toast, openTab, containersVersion } = useAppStore();
@@ -28,6 +33,8 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
   const [project, setProject] = useState<ComposeProject | null>(null);
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
+  const [sortKey, setSortKey] = useState<SortKey>('service');
+  const [sortAsc, setSortAsc] = useState(true);
   const [confirmDialog, confirm] = useConfirm();
   const ctx = useContextMenu();
 
@@ -89,6 +96,81 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
   };
 
   const running = useMemo(() => containers.filter((c) => c.state === 'running').length, [containers]);
+
+  const sorted = useMemo(() => {
+    const dir = sortAsc ? 1 : -1;
+    return [...containers].sort((a, b) => {
+      switch (sortKey) {
+        case 'service':
+          return dir * (a.composeService || '').localeCompare(b.composeService || '');
+        case 'name':
+          return dir * a.name.localeCompare(b.name);
+        case 'state':
+          return dir * a.state.localeCompare(b.state);
+        case 'image':
+          return dir * a.image.localeCompare(b.image);
+        default:
+          return 0;
+      }
+    });
+  }, [containers, sortKey, sortAsc]);
+
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) setSortAsc(!sortAsc);
+    else {
+      setSortKey(key);
+      setSortAsc(true);
+    }
+  };
+
+  const sortInd = (key: SortKey) =>
+    sortKey === key ? (
+      <span className="sort-ind">{sortAsc ? <ArrowUp size={11} /> : <ArrowDown size={11} />}</span>
+    ) : null;
+
+  useHotkeys({
+    f5: () => void load(),
+    escape: () => setSelected(null),
+    arrowdown: () => {
+      if (sorted.length === 0) return;
+      const idx = selected ? sorted.findIndex((c) => c.id === selected) : -1;
+      const next = sorted[Math.min(idx + 1, sorted.length - 1)] ?? sorted[0];
+      setSelected(next.id);
+    },
+    arrowup: () => {
+      if (sorted.length === 0) return;
+      const idx = selected ? sorted.findIndex((c) => c.id === selected) : sorted.length;
+      const next = sorted[Math.max(idx - 1, 0)] ?? sorted[0];
+      setSelected(next.id);
+    },
+    enter: () => {
+      if (!selected) return;
+      const c = sorted.find((x) => x.id === selected);
+      if (!c) return;
+      openTab({
+        id: `containerDetail:${hostId}:${c.id}`,
+        title: `容器: ${c.name}`,
+        kind: 'containerDetail',
+        hostId,
+        containerId: c.id,
+      });
+    },
+    delete: () => {
+      if (!selected) return;
+      const c = sorted.find((x) => x.id === selected);
+      if (!c) return;
+      void (async () => {
+        const ok = await confirm({
+          title: '删除容器',
+          message: `确认删除容器「${c.name}」？数据卷将一并移除。`,
+          confirmLabel: '删除',
+          danger: true,
+        });
+        if (!ok) return;
+        void action(() => window.dockerApi.removeContainer(hostId, c.id, true), '已删除');
+      })();
+    },
+  });
 
   const rowMenu = (c: ContainerSummary): ContextMenuItem[] => {
     const a = getContainerActions(c.state, c.status);
@@ -309,16 +391,24 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
             <thead>
               <tr>
                 <th style={{ width: 28 }}></th>
-                <th>服务</th>
-                <th>容器</th>
-                <th>状态</th>
-                <th>镜像</th>
+                <th className="sortable" onClick={() => toggleSort('service')}>
+                  服务{sortInd('service')}
+                </th>
+                <th className="sortable" onClick={() => toggleSort('name')}>
+                  容器{sortInd('name')}
+                </th>
+                <th className="sortable" onClick={() => toggleSort('state')}>
+                  状态{sortInd('state')}
+                </th>
+                <th className="sortable" onClick={() => toggleSort('image')}>
+                  镜像{sortInd('image')}
+                </th>
                 <th>端口</th>
                 <th>操作</th>
               </tr>
             </thead>
             <tbody>
-              {containers.map((c) => (
+              {sorted.map((c) => (
                 <tr
                   key={c.id}
                   className={selected === c.id ? 'selected' : ''}

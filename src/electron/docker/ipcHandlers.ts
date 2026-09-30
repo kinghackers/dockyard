@@ -280,6 +280,10 @@ export function registerIpc(manager: DockerConnectionManager, getWindows: () => 
     await manager.removeImage(hostId, id, force);
     return true;
   });
+  ipcMain.handle('docker:tagImage', async (_e, hostId: string, id: string, repo: string, tag?: string) => {
+    await manager.tagImage(hostId, id, repo, tag);
+    return true;
+  });
   ipcMain.handle('docker:pullImage', async (e, hostId: string, name: string) => {
     const win = BrowserWindow.fromWebContents(e.sender);
     await manager.pullImage(hostId, name, (msg) => {

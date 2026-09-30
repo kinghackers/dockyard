@@ -930,6 +930,15 @@ export class DockerConnectionManager {
     await this.dockerOf(hostId).getImage(id).remove({ force });
   }
 
+  /** Add a repo:tag to an existing image. */
+  async tagImage(hostId: string, id: string, repo: string, tag = 'latest') {
+    const r = repo.trim();
+    if (!r) throw new Error('镜像名称不能为空');
+    await this.dockerOf(hostId)
+      .getImage(id)
+      .tag({ repo: r, tag: (tag || 'latest').trim() });
+  }
+
   async pullImage(hostId: string, name: string, onProgress?: (msg: string) => void): Promise<void> {
     const docker = this.dockerOf(hostId);
     return new Promise((resolve, reject) => {

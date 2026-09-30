@@ -45,6 +45,7 @@ export interface DockerApi {
 
   listImages(hostId: string): Promise<unknown[]>;
   removeImage(hostId: string, id: string, force?: boolean): Promise<boolean>;
+  tagImage(hostId: string, id: string, repo: string, tag?: string): Promise<boolean>;
   pullImage(hostId: string, name: string): Promise<boolean>;
   onPullProgress(cb: (payload: { name: string; message: string }) => void): () => void;
 
@@ -122,6 +123,7 @@ const api: DockerApi = {
 
   listImages: (hostId) => ipcRenderer.invoke('docker:listImages', hostId),
   removeImage: (hostId, id, force) => ipcRenderer.invoke('docker:removeImage', hostId, id, force),
+  tagImage: (hostId, id, repo, tag) => ipcRenderer.invoke('docker:tagImage', hostId, id, repo, tag),
   pullImage: (hostId, name) => ipcRenderer.invoke('docker:pullImage', hostId, name),
   onPullProgress: (cb) => subscribe('docker:pullProgress', cb),
 

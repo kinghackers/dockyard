@@ -309,6 +309,7 @@ declare global {
 
       listImages(hostId: string): Promise<ImageSummary[]>;
       removeImage(hostId: string, id: string, force?: boolean): Promise<boolean>;
+      tagImage(hostId: string, id: string, repo: string, tag?: string): Promise<boolean>;
       pullImage(hostId: string, name: string): Promise<boolean>;
       onPullProgress(cb: (p: { name: string; message: string }) => void): () => void;
 

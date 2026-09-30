@@ -9,6 +9,7 @@ import {
   ArrowDown,
   Copy,
   Tag,
+  Plus,
 } from 'lucide-react';
 import type { ImageSummary } from '../../types/docker';
 import { useAppStore } from '../../stores/appStore';
@@ -18,6 +19,7 @@ import { useHotkeys } from '../../utils/useHotkeys';
 import { loadUiPref, saveUiPref } from '../../utils/uiPrefs';
 import { RunContainerDialog } from '../Containers/RunContainerDialog';
 import { ContextMenu, useContextMenu, type ContextMenuItem } from '../common/ContextMenu';
+import { TagImageDialog } from './TagImageDialog';
 
 type SortKey = 'tags' | 'id' | 'size' | 'created';
 
@@ -50,6 +52,7 @@ export function ImageListPage({ hostId }: { hostId: string }) {
   const [pulling, setPulling] = useState(false);
   const [pullMessage, setPullMessage] = useState('');
   const [runImage, setRunImage] = useState<string | null>(null);
+  const [tagFor, setTagFor] = useState<ImageSummary | null>(null);
   const [confirmDialog, confirm] = useConfirm();
   const pullOffRef = useRef<(() => void) | null>(null);
   const filterRef = useRef<HTMLInputElement>(null);
@@ -164,6 +167,20 @@ export function ImageListPage({ hostId }: { hostId: string }) {
     setRunImage(img.repoTags[0] || img.id.slice(0, 12));
   };
 
+  const tagOne = (img: ImageSummary) => setTagFor(img);
+
+  const applyTag = async (repo: string, tag: string) => {
+    if (!tagFor) return;
+    try {
+      await window.dockerApi.tagImage(hostId, tagFor.id, repo, tag);
+      toast(`已标记 ${repo}:${tag}`, 'success');
+      setTagFor(null);
+      await load();
+    } catch (e) {
+      reportError(e, toast);
+    }
+  };
+
   const removeOne = async (id: string, label: string) => {
     const ok = await confirm({
       title: '删除镜像',
@@ -257,6 +274,13 @@ export function ImageListPage({ hostId }: { hostId: string }) {
         onSelect: () => runOne(img),
       },
       {
+        key: 'tag',
+        label: '打标签…',
+        icon: <Tag size={13} />,
+        disabled: multi,
+        onSelect: () => tagOne(img),
+      },
+      {
         key: 'copy',
         label: '复制镜像 ID',
         icon: <Copy size={13} />,
@@ -304,6 +328,13 @@ export function ImageListPage({ hostId }: { hostId: string }) {
           onClick={() => selectedImage && runOne(selectedImage)}
         >
           <Play size={13} /> 运行
+        </button>
+        <button
+          className="btn"
+          disabled={!selectedImage}
+          onClick={() => selectedImage && tagOne(selectedImage)}
+        >
+          <Tag size={13} /> 打标签
         </button>
         <button
           className="btn danger"
@@ -489,6 +520,14 @@ export function ImageListPage({ hostId }: { hostId: string }) {
             setRunImage(null);
             toast('容器已创建并启动', 'success');
           }}
+        />
+      )}
+      {tagFor && (
+        <TagImageDialog
+          initialRepo={tagFor.repoTags[0]?.split(':')[0] || ''}
+          initialTag={tagFor.repoTags[0]?.includes(':') ? tagFor.repoTags[0].split(':').pop() : 'latest'}
+          onClose={() => setTagFor(null)}
+          onSubmit={applyTag}
         />
       )}
       {confirmDialog}
