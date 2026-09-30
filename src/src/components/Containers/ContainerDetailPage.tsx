@@ -10,6 +10,7 @@ import {
   Skull,
   AlertTriangle,
   ShieldOff,
+  ArrowLeft,
 } from 'lucide-react';
 import type { ContainerDetail, ContainerStatsSample } from '../../types/docker';
 import { useAppStore } from '../../stores/appStore';
@@ -32,7 +33,7 @@ function fmtBytes(n: number | undefined): string {
 }
 
 export function ContainerDetailPage({ hostId, containerId }: { hostId: string; containerId: string }) {
-  const { toast, openTab, setMainView, containersVersion } = useAppStore();
+  const { toast, openTab, setMainView, containersVersion, connections } = useAppStore();
   const [detail, setDetail] = useState<ContainerDetail | null>(null);
   const [live, setLive] = useState<ContainerStatsSample | null>(null);
   const [loading, setLoading] = useState(false);
@@ -155,9 +156,30 @@ export function ContainerDetailPage({ hostId, containerId }: { hostId: string; c
     }
   };
 
+  /** Return to the list we most likely came from. */
+  const goBack = () => {
+    if (detail?.composeProject) {
+      setMainView({
+        title: `Docker-compose: ${detail.composeProject}`,
+        kind: 'composeProject',
+        hostId,
+        projectName: detail.composeProject,
+      });
+    } else {
+      setMainView({
+        title: `容器 · ${connections.find((c) => c.id === hostId)?.name || hostId}`,
+        kind: 'containers',
+        hostId,
+      });
+    }
+  };
+
   return (
     <div className="page">
       <div className="page-header">
+        <button className="btn ghost icon-btn" title="返回列表" onClick={goBack}>
+          <ArrowLeft size={15} />
+        </button>
         <div className="page-title">
           <span className={`chip ${detail?.state || ''}`}>
             <span className="dot" />

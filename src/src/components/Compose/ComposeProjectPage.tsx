@@ -7,13 +7,20 @@ import {
   FileText,
   Terminal as TermIcon,
   Layers,
+  Trash2,
+  Copy,
+  Skull,
+  Info,
 } from 'lucide-react';
 import type { ContainerSummary, ComposeProject } from '../../types/docker';
 import { useAppStore } from '../../stores/appStore';
 import { reportError } from '../../utils/connection';
+import { useConfirm } from '../../utils/useConfirm';
 import { localizeStatusChip, localizeContainerStatus } from '../../utils/localize';
 import { formatPortMappings } from '../../utils/ports';
+import { getContainerActions } from '../../utils/containerActions';
 import { ContainerRowActions } from '../Containers/ContainerRowActions';
+import { ContextMenu, useContextMenu, type ContextMenuItem } from '../common/ContextMenu';
 
 export function ComposeProjectPage({ hostId, projectName }: { hostId: string; projectName: string }) {
   const { toast, openTab, containersVersion } = useAppStore();
@@ -21,6 +28,8 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
   const [project, setProject] = useState<ComposeProject | null>(null);
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
+  const [confirmDialog, confirm] = useConfirm();
+  const ctx = useContextMenu();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -80,6 +89,121 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
   };
 
   const running = useMemo(() => containers.filter((c) => c.state === 'running').length, [containers]);
+
+  const rowMenu = (c: ContainerSummary): ContextMenuItem[] => {
+    const a = getContainerActions(c.state, c.status);
+    const items: ContextMenuItem[] = [];
+    if (a.canStart) {
+      items.push({
+        key: 'start',
+        label: '启动',
+        icon: <Play size={13} />,
+        onSelect: () => void action(() => window.dockerApi.startContainer(hostId, c.id), '已启动'),
+      });
+    }
+    if (a.canStop) {
+      items.push({
+        key: 'stop',
+        label: '停止',
+        icon: <Square size={13} />,
+        onSelect: () => void action(() => window.dockerApi.stopContainer(hostId, c.id), '已停止'),
+      });
+    }
+    if (a.canRestart) {
+      items.push({
+        key: 'restart',
+        label: '重启',
+        icon: <RotateCw size={13} />,
+        onSelect: () => void action(() => window.dockerApi.restartContainer(hostId, c.id), '已重启'),
+      });
+    }
+    if (a.canKill) {
+      items.push({
+        key: 'kill',
+        label: '强制终止',
+        icon: <Skull size={13} />,
+        onSelect: () => void action(() => window.dockerApi.killContainer(hostId, c.id), '已强制终止'),
+      });
+    }
+    if (a.isRestartLoop) {
+      items.push({
+        key: 'loop',
+        label: '停止重启循环',
+        onSelect: () => void stopRestartLoop(c.id, c.name),
+      });
+    }
+    items.push({ key: 'sep1', label: '', separator: true, onSelect: () => {} });
+    items.push({
+      key: 'logs',
+      label: '查看日志',
+      icon: <FileText size={13} />,
+      onSelect: () =>
+        openTab({
+          id: `logs:${hostId}:${c.id}`,
+          title: `日志 · ${c.name}`,
+          kind: 'logs',
+          hostId,
+          containerId: c.id,
+        }),
+    });
+    items.push({
+      key: 'term',
+      label: '打开终端',
+      icon: <TermIcon size={13} />,
+      disabled: !a.canExec,
+      onSelect: () =>
+        openTab({
+          id: `terminal:${hostId}:${c.id}`,
+          title: `终端 · ${c.name}`,
+          kind: 'terminal',
+          hostId,
+          containerId: c.id,
+        }),
+    });
+    items.push({
+      key: 'detail',
+      label: '打开详情',
+      icon: <Info size={13} />,
+      onSelect: () =>
+        openTab({
+          id: `containerDetail:${hostId}:${c.id}`,
+          title: `容器: ${c.name}`,
+          kind: 'containerDetail',
+          hostId,
+          containerId: c.id,
+        }),
+    });
+    items.push({
+      key: 'copy',
+      label: '复制容器 ID',
+      icon: <Copy size={13} />,
+      onSelect: () => {
+        void navigator.clipboard?.writeText(c.id);
+        toast('已复制容器 ID', 'info');
+      },
+    });
+    items.push({ key: 'sep2', label: '', separator: true, onSelect: () => {} });
+    items.push({
+      key: 'del',
+      label: '删除…',
+      icon: <Trash2 size={13} />,
+      danger: true,
+      disabled: !a.canRemove,
+      onSelect: () => {
+        void (async () => {
+          const ok = await confirm({
+            title: '删除容器',
+            message: `确认删除容器「${c.name}」？数据卷将一并移除。`,
+            confirmLabel: '删除',
+            danger: true,
+          });
+          if (!ok) return;
+          void action(() => window.dockerApi.removeContainer(hostId, c.id, true), '已删除');
+        })();
+      },
+    });
+    return items;
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -199,6 +323,10 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
                       containerId: c.id,
                     })
                   }
+                  onContextMenu={(e) => {
+                    setSelected(c.id);
+                    ctx.open(e, rowMenu(c));
+                  }}
                 >
                   <td>
                     <input
@@ -242,6 +370,8 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
           </table>
         )}
       </div>
+      {confirmDialog}
+      {ctx.menu && <ContextMenu state={ctx.menu} onClose={ctx.close} />}
     </div>
   );
 }

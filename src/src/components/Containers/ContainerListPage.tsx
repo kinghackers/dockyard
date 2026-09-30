@@ -15,6 +15,7 @@ import {
   ArrowUp,
   ArrowDown,
   Copy,
+  Info,
 } from 'lucide-react';
 import type { ContainerSummary } from '../../types/docker';
 import { useAppStore } from '../../stores/appStore';
@@ -304,6 +305,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
     items.push({
       key: 'detail',
       label: '打开详情',
+      icon: <Info size={13} />,
       disabled: multi,
       onSelect: () => openDetail(c.id, c.name),
     });
