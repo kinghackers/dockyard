@@ -19,7 +19,8 @@ import { useAppStore } from '../../stores/appStore';
 import { reportError } from '../../utils/connection';
 import { useConfirm } from '../../utils/useConfirm';
 import { useHotkeys } from '../../utils/useHotkeys';
-import { localizeStatusChip, localizeContainerStatus } from '../../utils/localize';
+import { loadUiPref, saveUiPref } from '../../utils/uiPrefs';
+import { localizeStatusChip, localizeContainerStatus, statusChipExtraClass } from '../../utils/localize';
 import { formatPortMappings } from '../../utils/ports';
 import { getContainerActions } from '../../utils/containerActions';
 import { ContainerRowActions } from '../Containers/ContainerRowActions';
@@ -33,8 +34,8 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
   const [project, setProject] = useState<ComposeProject | null>(null);
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
-  const [sortKey, setSortKey] = useState<SortKey>('service');
-  const [sortAsc, setSortAsc] = useState(true);
+  const [sortKey, setSortKey] = useState<SortKey>(() => loadUiPref('compose.sortKey', 'service'));
+  const [sortAsc, setSortAsc] = useState(() => loadUiPref('compose.sortAsc', true));
   const [confirmDialog, confirm] = useConfirm();
   const ctx = useContextMenu();
 
@@ -122,6 +123,11 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
       setSortAsc(true);
     }
   };
+
+  useEffect(() => {
+    saveUiPref('compose.sortKey', sortKey);
+    saveUiPref('compose.sortAsc', sortAsc);
+  }, [sortKey, sortAsc]);
 
   const sortInd = (key: SortKey) =>
     sortKey === key ? (
@@ -452,7 +458,7 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
                   <td style={{ color: 'var(--compose)', fontWeight: 500 }}>{c.composeService || '-'}</td>
                   <td style={{ color: 'var(--text-bright)' }}>{c.name}</td>
                   <td>
-                    <span className={`chip ${c.state}`}>
+                    <span className={`chip ${c.state} ${statusChipExtraClass(c.status, c.state)}`}>
                       <span className="dot" />
                       <span title={localizeContainerStatus(c.status)}>
                         {localizeStatusChip(c.status, c.state)}

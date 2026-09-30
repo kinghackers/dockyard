@@ -167,6 +167,9 @@ export function localizeStatusChip(status: string, state: string): string {
   // Prefer a short Chinese label; fall back to localized full status.
   switch (state) {
     case 'running':
+      if (/\(unhealthy\)/i.test(status)) return '不健康';
+      if (/\(health:\s*starting\)/i.test(status)) return '健康检查中';
+      if (/\(healthy\)/i.test(status)) return '运行中 · 健康';
       return '运行中';
     case 'exited':
       return '已退出';
@@ -183,4 +186,13 @@ export function localizeStatusChip(status: string, state: string): string {
     default:
       return localizeContainerStatus(status) || state;
   }
+}
+
+/**
+ * Extra CSS class when a running container fails its healthcheck,
+ * so lists can paint the chip as an error.
+ */
+export function statusChipExtraClass(status: string, state: string): string {
+  if (state === 'running' && /\(unhealthy\)/i.test(status)) return 'unhealthy';
+  return '';
 }

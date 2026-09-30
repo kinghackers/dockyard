@@ -614,6 +614,11 @@ textarea:focus {
   color: var(--error);
 }
 
+.chip.unhealthy {
+  background: rgba(207, 91, 86, 0.18);
+  color: var(--error);
+}
+
 /* ---------- cards / dashboard ---------- */
 .stat-grid {
   display: grid;

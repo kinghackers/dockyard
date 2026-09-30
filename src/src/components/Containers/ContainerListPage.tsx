@@ -22,7 +22,7 @@ import { useAppStore } from '../../stores/appStore';
 import { reportError } from '../../utils/connection';
 import { useConfirm } from '../../utils/useConfirm';
 import { useHotkeys } from '../../utils/useHotkeys';
-import { localizeStatusChip, localizeContainerStatus } from '../../utils/localize';
+import { localizeStatusChip, localizeContainerStatus, statusChipExtraClass } from '../../utils/localize';
 import { formatPortMappings } from '../../utils/ports';
 import { getContainerActions } from '../../utils/containerActions';
 import { loadUiPref, saveUiPref } from '../../utils/uiPrefs';
@@ -610,7 +610,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
                   </td>
                   <td style={{ color: 'var(--text-bright)' }}>{c.name}</td>
                   <td>
-                    <span className={`chip ${c.state}`}>
+                    <span className={`chip ${c.state} ${statusChipExtraClass(c.status, c.state)}`}>
                       <span className="dot" />
                       <span title={localizeContainerStatus(c.status)}>
                         {localizeStatusChip(c.status, c.state)}

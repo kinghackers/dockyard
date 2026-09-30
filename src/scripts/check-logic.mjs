@@ -172,6 +172,8 @@ try {
     assert.equal(localize.localizeStatusChip('Up 2 hours', 'running'), '运行中');
     assert.equal(localize.localizeStatusChip('Exited (0) 1 hour ago', 'exited'), '已退出');
     assert.equal(localize.localizeStatusChip('Restarting (1) 2 seconds ago', 'restarting'), '重启中');
+    assert.equal(localize.localizeStatusChip('Up 30 seconds (unhealthy)', 'running'), '不健康');
+    assert.equal(localize.localizeStatusChip('Up 5 seconds (health: starting)', 'running'), '健康检查中');
   });
 } finally {
   rmSync(outDir, { recursive: true, force: true });
