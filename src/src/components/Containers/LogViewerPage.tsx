@@ -1,10 +1,50 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, memo, type ReactNode } from 'react';
 import { RefreshCw, Download, Trash2, Radio, Search, X } from 'lucide-react';
 import { useAppStore } from '../../stores/appStore';
 import { useHotkeys } from '../../utils/useHotkeys';
 
 const MAX_LINES = 5000;
 const TAIL_LINES = 500;
+
+/**
+ * Memoized log line: unchanged lines (string identity) skip re-render when
+ * new chunks append or the filter box toggles, which keeps 5000-line views
+ * cheap to update.
+ */
+const LogLine = memo(function LogLine({ line, q }: { line: string; q: string }) {
+  const m = line.match(/^(\S+Z)\s(.*)$/);
+  const text = m ? m[2] : line;
+  const ts = m ? m[1].slice(0, 19) : null;
+
+  let body: ReactNode = text || ' ';
+  if (q) {
+    const lower = text.toLowerCase();
+    const needle = q.toLowerCase();
+    const parts: ReactNode[] = [];
+    let from = 0;
+    let hit = lower.indexOf(needle, from);
+    let key = 0;
+    while (hit >= 0) {
+      if (hit > from) parts.push(text.slice(from, hit));
+      parts.push(
+        <mark key={key++} className="log-hl">
+          {text.slice(hit, hit + q.length)}
+        </mark>
+      );
+      from = hit + q.length;
+      hit = lower.indexOf(needle, from);
+    }
+    if (from < text.length) parts.push(text.slice(from));
+    body = parts;
+  }
+
+  return (
+    <div>
+      {ts && <span className="log-line-ts">{ts} </span>}
+      {body}
+    </div>
+  );
+});
 
 export function LogViewerPage({ hostId, containerId }: { hostId: string; containerId: string }) {
   const toast = useAppStore((s) => s.toast);
@@ -170,42 +210,7 @@ export function LogViewerPage({ hostId, containerId }: { hostId: string; contain
     },
   });
 
-  /** Render a log line, highlighting active filter matches. */
-  const renderLine = (line: string, i: number) => {
-    const q = logFilter.trim();
-    const m = line.match(/^(\S+Z)\s(.*)$/);
-    const text = m ? m[2] : line;
-    const ts = m ? m[1].slice(0, 19) : null;
-
-    let body: ReactNode = text || ' ';
-    if (q) {
-      const lower = text.toLowerCase();
-      const needle = q.toLowerCase();
-      const parts: ReactNode[] = [];
-      let from = 0;
-      let hit = lower.indexOf(needle, from);
-      let key = 0;
-      while (hit >= 0) {
-        if (hit > from) parts.push(text.slice(from, hit));
-        parts.push(
-          <mark key={key++} className="log-hl">
-            {text.slice(hit, hit + q.length)}
-          </mark>
-        );
-        from = hit + q.length;
-        hit = lower.indexOf(needle, from);
-      }
-      if (from < text.length) parts.push(text.slice(from));
-      body = parts;
-    }
-
-    return (
-      <div key={i}>
-        {ts && <span className="log-line-ts">{ts} </span>}
-        {body}
-      </div>
-    );
-  };
+  const highlightQuery = logFilter.trim();
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, overflow: 'hidden' }}>
@@ -303,7 +308,9 @@ export function LogViewerPage({ hostId, containerId }: { hostId: string; contain
         {lines.length > 0 && visibleLines.length === 0 && (
           <div style={{ color: 'var(--text-muted)', padding: 12 }}>没有匹配的日志行</div>
         )}
-        {visibleLines.map((line, i) => renderLine(line, i))}
+        {visibleLines.map((line, i) => (
+          <LogLine key={i} line={line} q={highlightQuery} />
+        ))}
       </div>
     </div>
   );

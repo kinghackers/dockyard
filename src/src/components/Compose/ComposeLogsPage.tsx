@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, memo } from 'react';
 import { RefreshCw, Download, Trash2, Radio, Search, X } from 'lucide-react';
 import type { ContainerSummary } from '../../types/docker';
 import { useAppStore } from '../../stores/appStore';
@@ -18,6 +18,25 @@ type Line = {
 function serviceOf(c: ContainerSummary): string {
   return c.composeService || c.name;
 }
+
+/** Memoized: appending new lines / typing filters skips re-rendering old rows. */
+const ComposeLogLine = memo(function ComposeLogLine({
+  service,
+  ts,
+  text,
+}: {
+  service: string;
+  ts?: string;
+  text: string;
+}) {
+  return (
+    <div>
+      <span className="log-svc">[{service}]</span>
+      {ts && <span className="log-line-ts"> {ts} </span>}
+      <span> {text || ' '}</span>
+    </div>
+  );
+});
 
 /**
  * Aggregated compose-project logs: streams every service container into one
@@ -296,11 +315,7 @@ export function ComposeLogsPage({ hostId, projectName }: { hostId: string; proje
           <div style={{ color: 'var(--text-muted)', padding: 12 }}>没有匹配的日志行</div>
         )}
         {visible.map((l) => (
-          <div key={l.id}>
-            <span className="log-svc">[{l.service}]</span>
-            {l.ts && <span className="log-line-ts"> {l.ts} </span>}
-            <span> {l.text || ' '}</span>
-          </div>
+          <ComposeLogLine key={l.id} service={l.service} ts={l.ts} text={l.text} />
         ))}
       </div>
     </div>

@@ -122,6 +122,45 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
     });
   }, [list, filter, stateFilter, sortKey, sortAsc]);
 
+  // ---- windowed rendering for large hosts ----
+  // rows are fixed-height (single-line cells with ellipsis), so we render a
+  // viewport slice with spacer rows instead of thousands of <tr> at once
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const firstRowRef = useRef<HTMLTableRowElement>(null);
+  const [scrollTop, setScrollTop] = useState(0);
+  const [viewportH, setViewportH] = useState(() => Math.max(900, window.innerHeight));
+  const [rowH, setRowH] = useState(43);
+
+  // correct the row-height estimate once a real row exists
+  useEffect(() => {
+    const h = firstRowRef.current?.getBoundingClientRect().height;
+    if (h && Math.abs(h - rowH) > 0.5) setRowH(h);
+  });
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => setViewportH(el.clientHeight));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const WINDOW_MIN_ROWS = 150;
+  const OVERSCAN = 10;
+  const windowed = filtered.length > WINDOW_MIN_ROWS;
+  const startIdx = windowed
+    ? Math.max(0, Math.floor(scrollTop / rowH) - OVERSCAN)
+    : 0;
+  const endIdx = windowed
+    ? Math.min(filtered.length, Math.ceil((scrollTop + viewportH) / rowH) + OVERSCAN)
+    : filtered.length;
+  const visibleRows = windowed ? filtered.slice(startIdx, endIdx) : filtered;
+
+  const handleListScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    setScrollTop(e.currentTarget.scrollTop);
+    setViewportH(e.currentTarget.clientHeight);
+  };
+
   const action = async (fn: () => Promise<unknown>, okMsg: string, pendingMsg = '处理中…') => {
     await runAction(toast, { pending: pendingMsg, ok: okMsg }, fn);
     await load();
@@ -598,7 +637,11 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
         </div>
       </div>
 
-      <div style={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
+      <div
+        ref={scrollRef}
+        style={{ flex: 1, overflow: 'auto', minHeight: 0 }}
+        onScroll={windowed ? handleListScroll : undefined}
+      >
         {filtered.length === 0 ? (
           <div className="empty-state">
             <p>{list.length === 0 ? '暂无容器' : '没有匹配的容器'}</p>
@@ -635,9 +678,15 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((c) => (
+              {windowed && startIdx > 0 && (
+                <tr aria-hidden style={{ height: startIdx * rowH }}>
+                  <td colSpan={8} style={{ padding: 0, border: 0 }} />
+                </tr>
+              )}
+              {visibleRows.map((c, i) => (
                 <tr
                   key={c.id}
+                  ref={i === 0 ? firstRowRef : undefined}
                   className={`${selected === c.id ? 'selected' : ''} ${checked.has(c.id) ? 'checked' : ''}`}
                   onClick={(e) => {
                     // ctrl/cmd toggles multi-select; shift selects range; plain click focuses
@@ -678,7 +727,18 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
                       style={{ width: 12, height: 12 }}
                     />
                   </td>
-                  <td style={{ color: 'var(--text-bright)' }}>{c.name}</td>
+                  <td
+                    style={{
+                      color: 'var(--text-bright)',
+                      maxWidth: 280,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                    title={c.name}
+                  >
+                    {c.name}
+                  </td>
                   <td>
                     <span className={`chip ${c.state} ${statusChipExtraClass(c.status, c.state)}`}>
                       <span className="dot" />
@@ -687,7 +747,17 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
                       </span>
                     </span>
                   </td>
-                  <td className="mono" style={{ color: 'var(--text-dim)', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <td
+                    className="mono"
+                    title={c.image}
+                    style={{
+                      color: 'var(--text-dim)',
+                      maxWidth: 220,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
                     {c.image}
                   </td>
                   <td style={{ color: 'var(--compose)' }}>{c.composeProject || '-'}</td>
@@ -771,6 +841,11 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
                   </td>
                 </tr>
               ))}
+              {windowed && endIdx < filtered.length && (
+                <tr aria-hidden style={{ height: (filtered.length - endIdx) * rowH }}>
+                  <td colSpan={8} style={{ padding: 0, border: 0 }} />
+                </tr>
+              )}
             </tbody>
           </table>
         )}
