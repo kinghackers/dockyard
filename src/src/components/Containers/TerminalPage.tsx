@@ -9,7 +9,6 @@ function newSessionId() {
 }
 
 export function TerminalPage({ hostId, containerId }: { hostId: string; containerId?: string }) {
-  const [sessionId] = useState(newSessionId);
   const [status, setStatus] = useState<'connecting' | 'open' | 'closed' | 'error'>('connecting');
   const [error, setError] = useState<string | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -29,6 +28,11 @@ export function TerminalPage({ hostId, containerId }: { hostId: string; containe
       termRef.current.dispose();
       termRef.current = null;
     }
+
+    // a fresh id per attempt: dev StrictMode double-mounts (and manual
+    // reconnects) must not reuse the main-process session slot of a
+    // possibly still-live shell
+    const sessionId = newSessionId();
 
     const term = new Terminal({
       fontSize: 13,
@@ -115,7 +119,7 @@ export function TerminalPage({ hostId, containerId }: { hostId: string; containe
       termRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId, hostId, containerId]);
+  }, [hostId, containerId]);
 
   useEffect(() => {
     const onResize = () => {

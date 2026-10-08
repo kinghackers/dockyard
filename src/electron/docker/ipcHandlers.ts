@@ -291,6 +291,8 @@ export function registerIpc(manager: DockerConnectionManager, getWindows: () => 
     'docker:openExec',
     async (e: IpcMainInvokeEvent, hostId: string, containerId: string, sessionId: string) => {
       const win = BrowserWindow.fromWebContents(e.sender);
+      // dev double-mounts reuse ids; kill any stale session first
+      execSessions.get(sessionId)?.kill();
       const exec = await manager.createExec(hostId, containerId, ['/bin/sh', '-c', 'bash || sh || ash']);
       const stream = await manager.startExec(exec.id, hostId);
 
@@ -330,32 +332,55 @@ export function registerIpc(manager: DockerConnectionManager, getWindows: () => 
   // ---- host terminal (SSH shell reusing the exec session channel) ----
   ipcMain.handle('docker:openHostExec', async (e: IpcMainInvokeEvent, sessionId: string, hostId: string) => {
     const win = BrowserWindow.fromWebContents(e.sender);
+    // a stale session with this id (e.g. dev double-mount) must not leak its shell
+    execSessions.get(sessionId)?.kill();
     const stream = await manager.openHostShellStream(hostId);
-    stream.on('data', (buf: Buffer) => {
+
+    // Never write/end a closed channel: stray packets on a closed SSH channel
+    // can make sshd drop the whole connection (taking the docker tunnel down).
+    let closed = false;
+    const safeStream = stream as NodeJS.ReadWriteStream & {
+      setWindow?: (rows: number, cols: number, height: number, width: number) => void;
+    };
+
+    safeStream.on('data', (buf: Buffer) => {
       win?.webContents.send('docker:execData', { sessionId, data: buf.toString('utf8') });
     });
-    stream.on('error', (err: Error) => {
+    safeStream.on('error', (err: Error) => {
       win?.webContents.send('docker:execError', { sessionId, error: err.message });
     });
-    stream.on('close', () => {
+    safeStream.on('close', () => {
+      closed = true;
       win?.webContents.send('docker:execEnd', { sessionId });
       execSessions.delete(sessionId);
     });
+
     execSessions.set(sessionId, {
       write: (chunk: string) => {
-        stream.write(chunk);
+        if (closed) return;
+        try {
+          safeStream.write(chunk);
+        } catch {
+          /* channel already gone */
+        }
       },
       resize: (h: number, w: number) => {
-        (stream as unknown as {
-          setWindow?: (rows: number, cols: number, height: number, width: number) => void;
-        }).setWindow?.(h, w, 480, 640);
-      },
-      kill: () => {
+        if (closed) return;
         try {
-          stream.end();
+          safeStream.setWindow?.(h, w, 480, 640);
         } catch {
           /* ignore */
         }
+      },
+      kill: () => {
+        if (!closed) {
+          try {
+            safeStream.end();
+          } catch {
+            /* ignore */
+          }
+        }
+        closed = true;
         execSessions.delete(sessionId);
       },
     });

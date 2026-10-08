@@ -26,7 +26,16 @@ export interface SshTunnel {
 function shellOpener(conn: Client): SshTunnel['openShell'] {
   return (cols, rows, cb) => {
     conn.shell({ term: 'xterm-256color', cols, rows }, (err, stream) => {
-      cb(err ?? null, stream ? (stream as unknown as NodeJS.ReadWriteStream) : undefined);
+      if (err || !stream) {
+        cb(err ?? null, undefined);
+        return;
+      }
+      // attach before returning so an unhandled channel error can never
+      // crash the main process before the caller adds its own listener
+      stream.on('error', () => {
+        /* channel-level errors are surfaced by the session owner */
+      });
+      cb(null, stream as unknown as NodeJS.ReadWriteStream);
     });
   };
 }
@@ -139,6 +148,11 @@ export async function createSshDockerTunnel(
         settled = true;
         cleanup();
         reject(err);
+      } else {
+        // post-connect failure: tear everything down so callers see clean
+        // ECONNRESETs instead of hanging on a half-dead tunnel
+        console.error(`[sshTunnel] connection error after ready: ${err.message}`);
+        cleanup();
       }
     });
 
@@ -220,6 +234,9 @@ export async function createSshTcpTunnel(
         settled = true;
         cleanup();
         reject(err);
+      } else {
+        console.error(`[sshTunnel] connection error after ready: ${err.message}`);
+        cleanup();
       }
     });
 
