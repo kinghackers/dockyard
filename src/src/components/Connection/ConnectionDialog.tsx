@@ -51,9 +51,11 @@ export function ConnectionDialog({ initial, defaultGroupId, onClose, onSaved }: 
       .catch(() => setGroups([]));
   }, []);
 
+  // 名称留空时按连接目标自动生成（如 tcp-192.168.1.68）
+  const autoNameSource = kind === 'ssh' ? sshHost : kind === 'unix' ? socketPath : host;
   const buildConfig = (): DockerConnectionConfig => ({
     id: initial?.id || newId(),
-    name: name.trim() || `${kind}-${host || socketPath}`,
+    name: name.trim() || `${kind}-${autoNameSource.trim() || 'docker'}`,
     kind,
     groupId: groupId || undefined,
     host,
@@ -96,7 +98,6 @@ export function ConnectionDialog({ initial, defaultGroupId, onClose, onSaved }: 
   };
 
   const validate = (): string | null => {
-    if (!name.trim()) return '请填写连接名称';
     if (kind === 'tcp' && !host.trim()) return '请填写主机地址';
     if (kind === 'ssh' && !sshHost.trim()) return '请填写 SSH 主机地址';
     if (kind === 'unix' && !socketPath.trim()) return '请填写 Unix socket 路径';
@@ -134,7 +135,11 @@ export function ConnectionDialog({ initial, defaultGroupId, onClose, onSaved }: 
           <div className="form-grid">
             <div className="form-row">
               <label>名称</label>
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Docker-168" />
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="可选，留空自动生成（如 ssh-192.168.1.68）"
+              />
             </div>
             <div className="form-row">
               <label>连接方式</label>
@@ -189,15 +194,27 @@ export function ConnectionDialog({ initial, defaultGroupId, onClose, onSaved }: 
                 <>
                   <div className="form-row">
                     <label>CA 证书路径</label>
-                    <input value={caCertPath} onChange={(e) => setCaCertPath(e.target.value)} placeholder="ca.pem" />
+                    <input
+                      value={caCertPath}
+                      onChange={(e) => setCaCertPath(e.target.value)}
+                      placeholder="例：C:\certs\ca.pem"
+                    />
                   </div>
                   <div className="form-row">
                     <label>客户端证书路径</label>
-                    <input value={certPath} onChange={(e) => setCertPath(e.target.value)} placeholder="cert.pem" />
+                    <input
+                      value={certPath}
+                      onChange={(e) => setCertPath(e.target.value)}
+                      placeholder="例：C:\certs\cert.pem"
+                    />
                   </div>
                   <div className="form-row">
                     <label>客户端密钥路径</label>
-                    <input value={keyPath} onChange={(e) => setKeyPath(e.target.value)} placeholder="key.pem" />
+                    <input
+                      value={keyPath}
+                      onChange={(e) => setKeyPath(e.target.value)}
+                      placeholder="例：C:\certs\key.pem"
+                    />
                   </div>
                   <details style={{ fontSize: 12 }}>
                     <summary style={{ cursor: 'pointer', color: 'var(--text-dim)' }}>或粘贴 PEM 内容</summary>
@@ -250,12 +267,12 @@ export function ConnectionDialog({ initial, defaultGroupId, onClose, onSaved }: 
                 </div>
                 <div className="form-row">
                   <label>密码（与密钥二选一）</label>
-                  <input
-                    type="password"
-                    value={sshPassword}
-                    onChange={(e) => setSshPassword(e.target.value)}
-                    placeholder="••••••"
-                  />
+                      <input
+                        type="password"
+                        value={sshPassword}
+                        onChange={(e) => setSshPassword(e.target.value)}
+                        placeholder="输入 SSH 登录密码"
+                      />
                 </div>
               </div>
               <div className="form-grid">
@@ -273,6 +290,7 @@ export function ConnectionDialog({ initial, defaultGroupId, onClose, onSaved }: 
                     type="password"
                     value={sshPassphrase}
                     onChange={(e) => setSshPassphrase(e.target.value)}
+                    placeholder="私钥未加密则留空"
                   />
                 </div>
               </div>
@@ -315,7 +333,7 @@ export function ConnectionDialog({ initial, defaultGroupId, onClose, onSaved }: 
           <button className="btn" onClick={onClose}>
             取消
           </button>
-          <button className="btn primary" onClick={handleSave} disabled={saving || !name.trim()}>
+          <button className="btn primary" onClick={handleSave} disabled={saving}>
             {saving ? <Loader2 size={14} className="spinner" /> : null}
             保存
           </button>

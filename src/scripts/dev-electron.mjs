@@ -70,12 +70,18 @@ async function main() {
   const tryStart = () => {
     if (started) return;
     started = true;
-    const child = spawn(electronBin, [path.join(root, 'dist-electron/main.js')], {
-      cwd: root,
-      stdio: 'inherit',
-      env: { ...process.env, NODE_ENV: 'development' },
-      shell: process.platform === 'win32',
-    });
+  // Drop any Electron-degrading env vars so the app launches in normal GUI mode.
+  // ELECTRON_RUN_AS_NODE=1 makes Electron behave like plain Node, which breaks
+  // `require('electron')` (app/BrowserWindow become undefined) and prevents the
+  // window from ever opening.
+  const childEnv = { ...process.env, NODE_ENV: 'development' };
+  delete childEnv.ELECTRON_RUN_AS_NODE;
+  const child = spawn(electronBin, ['--no-sandbox', '--disable-gpu', path.join(root, 'dist-electron/main.js')], {
+    cwd: root,
+    stdio: 'inherit',
+    env: childEnv,
+    shell: process.platform === 'win32',
+  });
     child.on('exit', (code) => {
       process.exit(code ?? 0);
     });
