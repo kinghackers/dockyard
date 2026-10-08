@@ -10,6 +10,7 @@ import { localizeNetworkDriver, localizeScope } from '../../utils/localize';
 import { CreateNetworkDialog } from './CreateNetworkDialog';
 import { ContextMenu, useContextMenu, type ContextMenuItem } from '../common/ContextMenu';
 import { ListError, ListLoading } from '../common/ListFeedback';
+import { SortableTh } from '../common/SortableTh';
 
 type SortKey = 'name' | 'id' | 'driver' | 'scope' | 'subnet';
 
@@ -294,21 +295,11 @@ export function NetworkListPage({ hostId }: { hostId: string }) {
                     style={{ width: 12, height: 12 }}
                   />
                 </th>
-                <th className="sortable" onClick={() => toggleSort('name')}>
-                  名称{sortInd('name')}
-                </th>
-                <th className="sortable" onClick={() => toggleSort('id')}>
-                  ID{sortInd('id')}
-                </th>
-                <th className="sortable" onClick={() => toggleSort('driver')}>
-                  驱动{sortInd('driver')}
-                </th>
-                <th className="sortable" onClick={() => toggleSort('scope')}>
-                  作用域{sortInd('scope')}
-                </th>
-                <th className="sortable" onClick={() => toggleSort('subnet')}>
-                  子网{sortInd('subnet')}
-                </th>
+                <SortableTh label={'名称'} active={sortKey === 'name'} asc={sortAsc} onSort={() => toggleSort('name')} />
+                <SortableTh label={'ID'} active={sortKey === 'id'} asc={sortAsc} onSort={() => toggleSort('id')} />
+                <SortableTh label={'驱动'} active={sortKey === 'driver'} asc={sortAsc} onSort={() => toggleSort('driver')} />
+                <SortableTh label={'作用域'} active={sortKey === 'scope'} asc={sortAsc} onSort={() => toggleSort('scope')} />
+                <SortableTh label={'子网'} active={sortKey === 'subnet'} asc={sortAsc} onSort={() => toggleSort('subnet')} />
                 <th>容器</th>
               </tr>
             </thead>

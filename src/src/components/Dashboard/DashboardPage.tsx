@@ -13,6 +13,8 @@ import {
 import type { ConnectionStatus, SystemStats, DockerInfoLite, ContainerSummary } from '../../types/docker';
 import { useAppStore } from '../../stores/appStore';
 import { formatBuildLabel } from '../../utils/buildInfo';
+import { usePolling } from '../../hooks/usePolling';
+import { loadUiPref } from '../../utils/uiPrefs';
 
 function fmtBytes(n: number): string {
   if (!n || n < 0) return '0 B';
@@ -128,9 +130,8 @@ export function DashboardPage({ hostId, active = true }: { hostId?: string; acti
   const [error, setError] = useState<string | null>(null);
   const inflight = useRef(false);
   const failCount = useRef(0);
-  // false while another surface is showing (keep-alive) — all loads freeze
-  // then, and there is no catch-up reload on reactivation: the previous
-  // content stays until the next live tick or a manual refresh
+  // false while another surface is showing (keep-alive) — event-driven reloads
+  // pause while inactive; usePolling performs the catch-up on reactivation
   const activeRef = useRef(active);
   activeRef.current = active;
 
@@ -162,27 +163,19 @@ export function DashboardPage({ hostId, active = true }: { hostId?: string; acti
     }
   }, [targetHost, setRefreshing, setContainers]);
 
-  useEffect(() => {
-    void load();
-    let stopped = false;
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    const tick = async () => {
-      if (stopped) return;
-      // skip while minimized or hidden behind another surface — content stays
-      // frozen until the dashboard is the visible surface again
-      if (activeRef.current && !document.hidden) {
-        await load();
-      }
-      const delay = failCount.current > 0 ? Math.min(10000 * failCount.current, 60000) : 10000;
-      timer = setTimeout(() => void tick(), delay);
-    };
-    void tick();
-    // no catch-up load on regain — normal tick cadence resumes on its own
-    return () => {
-      stopped = true;
-      if (timer) clearTimeout(timer);
-    };
-  }, [load]);
+  // configurable cadence (settings.pollIntervalMs, 0 = off) with linear backoff
+  // while the daemon is unreachable; the hook skips ticks when hidden and
+  // catches up on reactivation
+  usePolling({
+    active,
+    reloadKey: targetHost,
+    intervalMs: () => {
+      const base = loadUiPref('settings.pollIntervalMs', 10000);
+      if (base <= 0) return 0;
+      return failCount.current > 0 ? Math.min(base * failCount.current, 60000) : base;
+    },
+    onLoad: load,
+  });
 
   useEffect(() => {
     if (containersVersion > 0 && activeRef.current) void load();
@@ -233,15 +226,7 @@ export function DashboardPage({ hostId, active = true }: { hostId?: string; acti
       </div>
 
       {error && (
-        <div
-          style={{
-            padding: 12,
-            borderRadius: 4,
-            background: 'rgba(207,91,86,0.12)',
-            color: 'var(--error)',
-            marginBottom: 16,
-          }}
-        >
+        <div className="alert danger" style={{ marginBottom: 16 }}>
           {error}
           {!status?.connected && <div style={{ marginTop: 6, fontSize: 11 }}>请先在左侧连接该主机</div>}
         </div>
@@ -269,7 +254,7 @@ export function DashboardPage({ hostId, active = true }: { hostId?: string; acti
             </div>
             <div
               className="stat-card"
-              style={problems.length > 0 ? { border: '1px solid rgba(207,91,86,0.45)' } : undefined}
+              style={problems.length > 0 ? { border: '1px solid var(--error-border)' } : undefined}
             >
               <div className="stat-label">异常</div>
               <div
@@ -288,8 +273,8 @@ export function DashboardPage({ hostId, active = true }: { hostId?: string; acti
               style={{
                 padding: '10px 12px',
                 borderRadius: 4,
-                background: 'rgba(89,168,105,0.1)',
-                border: '1px solid rgba(89,168,105,0.25)',
+                background: 'var(--success-soft)',
+                border: '1px solid var(--success-border)',
                 color: 'var(--success)',
                 fontSize: 12,
                 marginBottom: 8,
@@ -310,10 +295,10 @@ export function DashboardPage({ hostId, active = true }: { hostId?: string; acti
                     borderRadius: 4,
                     cursor: 'pointer',
                     border: `1px solid ${
-                      p.level === 'error' ? 'rgba(207,91,86,0.35)' : 'rgba(217,164,6,0.35)'
+                      p.level === 'error' ? 'var(--error-border)' : 'var(--warn-border)'
                     }`,
                     background:
-                      p.level === 'error' ? 'rgba(207,91,86,0.1)' : 'rgba(217,164,6,0.1)',
+                      p.level === 'error' ? 'var(--error-soft)' : 'var(--warn-soft)',
                   }}
                   onClick={() =>
                     openTab({

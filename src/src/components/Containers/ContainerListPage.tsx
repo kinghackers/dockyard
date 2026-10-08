@@ -23,15 +23,17 @@ import { useAppStore } from '../../stores/appStore';
 import { reportError } from '../../utils/connection';
 import { runAction } from '../../utils/runAction';
 import { useConfirm } from '../../utils/useConfirm';
+import { useMultiSelect } from '../../hooks/useMultiSelect';
 import { useHotkeys } from '../../utils/useHotkeys';
 import { localizeStatusChip, localizeContainerStatus, statusChipExtraClass } from '../../utils/localize';
 import { formatPortMappings } from '../../utils/ports';
-import { getContainerActions } from '../../utils/containerActions';
+import { getContainerActions, stopRestartLoop } from '../../utils/containerActions';
 import { loadUiPref, saveUiPref } from '../../utils/uiPrefs';
 import { RunContainerDialog } from './RunContainerDialog';
 import { ContainerRowActions } from './ContainerRowActions';
 import { ContextMenu, useContextMenu, type ContextMenuItem } from '../common/ContextMenu';
 import { ListError, ListLoading } from '../common/ListFeedback';
+import { SortableTh } from '../common/SortableTh';
 import { InputDialog } from '../common/InputDialog';
 
 type SortKey = 'name' | 'state' | 'image' | 'project' | 'created';
@@ -53,7 +55,14 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
   );
   const [selected, setSelected] = useState<string | null>(null);
   /** multi-select ids (checkbox). `selected` remains the focus row for toolbar actions. */
-  const [checked, setChecked] = useState<Set<string>>(new Set());
+  const {
+    checked,
+    toggle: toggleChecked,
+    selectAll,
+    clear: clearChecked,
+    remove: uncheck,
+    selectRange,
+  } = useMultiSelect();
   const [sortKey, setSortKey] = useState<SortKey>(() => loadUiPref('containers.sortKey', 'created'));
   const [sortAsc, setSortAsc] = useState(() => loadUiPref('containers.sortAsc', false));
   const [runOpen, setRunOpen] = useState(false);
@@ -199,18 +208,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
 
   const allChecked = filtered.length > 0 && filtered.every((c) => checked.has(c.id));
 
-  const toggleChecked = (id: string) => {
-    setChecked((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const toggleAll = () => {
-    setChecked(allChecked ? new Set() : new Set(filtered.map((c) => c.id)));
-  };
+  const toggleAll = () => selectAll(allChecked ? [] : filtered.map((c) => c.id));
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) setSortAsc(!sortAsc);
@@ -259,11 +257,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
     });
     if (!ok) return;
     await action(() => window.dockerApi.removeContainer(hostId, id, true), '已删除');
-    setChecked((prev) => {
-      const next = new Set(prev);
-      next.delete(id);
-      return next;
-    });
+    uncheck(id);
   };
 
   const removeMany = async (ids: string[]) => {
@@ -275,22 +269,13 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
     });
     if (!ok) return;
     await runOn(ids, (id) => window.dockerApi.removeContainer(hostId, id, true), `已删除 ${ids.length} 个容器`);
-    setChecked(new Set());
+    clearChecked();
   };
 
-  const stopRestartLoop = async (id: string, name: string) => {
+  const stopRestartLoopOne = async (id: string, name: string) => {
     try {
-      const result = await window.dockerApi.stopRestartLoop(hostId, id);
-      toast(
-        `${name}: ${
-          result === 'killed'
-            ? '已强制终止并关闭自动重启'
-            : result === 'stopped'
-              ? '已停止并关闭自动重启'
-              : '已关闭自动重启'
-        }`,
-        'success'
-      );
+      const msg = await stopRestartLoop(hostId, id);
+      toast(`${name}: ${msg}`, 'success');
       await load();
     } catch (e) {
       reportError(e, toast);
@@ -302,9 +287,9 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
     f5: () => void load(),
     'mod+a': () => {
       if (filtered.length === 0) return;
-      setChecked(new Set(filtered.map((c) => c.id)));
+      selectAll(filtered.map((c) => c.id));
     },
-    escape: () => setChecked(new Set()),
+    escape: () => clearChecked(),
     arrowdown: () => {
       if (filtered.length === 0) return;
       const idx = selected ? filtered.findIndex((c) => c.id === selected) : -1;
@@ -423,7 +408,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
       items.push({
         key: 'loop',
         label: '停止重启循环',
-        onSelect: () => void stopRestartLoop(c.id, c.name),
+        onSelect: () => void stopRestartLoopOne(c.id, c.name),
       });
     }
 
@@ -639,7 +624,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
             >
               <Trash2 size={13} /> 批量删除
             </button>
-            <button className="btn ghost" onClick={() => setChecked(new Set())}>
+            <button className="btn ghost" onClick={() => clearChecked()}>
               清除选择
             </button>
           </>
@@ -704,22 +689,12 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
                     style={{ width: 12, height: 12 }}
                   />
                 </th>
-                <th className="sortable" onClick={() => toggleSort('name')}>
-                  名称{sortInd('name')}
-                </th>
-                <th className="sortable" onClick={() => toggleSort('state')}>
-                  状态{sortInd('state')}
-                </th>
-                <th className="sortable" onClick={() => toggleSort('image')}>
-                  镜像{sortInd('image')}
-                </th>
-                <th className="sortable" onClick={() => toggleSort('project')}>
-                  项目{sortInd('project')}
-                </th>
+                <SortableTh label={'名称'} active={sortKey === 'name'} asc={sortAsc} onSort={() => toggleSort('name')} />
+                <SortableTh label={'状态'} active={sortKey === 'state'} asc={sortAsc} onSort={() => toggleSort('state')} />
+                <SortableTh label={'镜像'} active={sortKey === 'image'} asc={sortAsc} onSort={() => toggleSort('image')} />
+                <SortableTh label={'项目'} active={sortKey === 'project'} asc={sortAsc} onSort={() => toggleSort('project')} />
                 <th>端口</th>
-                <th className="sortable" onClick={() => toggleSort('created')}>
-                  创建时间{sortInd('created')}
-                </th>
+                <SortableTh label={'创建时间'} active={sortKey === 'created'} asc={sortAsc} onSort={() => toggleSort('created')} />
                 <th style={{ width: 140 }}>操作</th>
               </tr>
             </thead>
@@ -745,14 +720,11 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
                     if (e.shiftKey && selected) {
                       const from = filtered.findIndex((x) => x.id === selected);
                       const to = filtered.findIndex((x) => x.id === c.id);
-                      if (from >= 0 && to >= 0) {
-                        const [a, b] = from < to ? [from, to] : [to, from];
-                        setChecked((prev) => {
-                          const next = new Set(prev);
-                          for (let i = a; i <= b; i++) next.add(filtered[i].id);
-                          return next;
-                        });
-                      }
+                      selectRange(
+                        filtered.map((x) => x.id),
+                        from,
+                        to
+                      );
                       setSelected(c.id);
                       return;
                     }
@@ -761,7 +733,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
                   onDoubleClick={() => openDetail(c.id, c.name)}
                   onContextMenu={(e) => {
                     setSelected(c.id);
-                    if (!checked.has(c.id)) setChecked(new Set([c.id]));
+                    if (!checked.has(c.id)) selectAll([c.id]);
                     ctx.open(e, rowMenu(c));
                   }}
                 >
@@ -859,7 +831,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
                           `${c.name}: 正在强杀…`
                         )
                       }
-                      onStopRestartLoop={() => void stopRestartLoop(c.id, c.name)}
+                      onStopRestartLoop={() => void stopRestartLoopOne(c.id, c.name)}
                       extra={
                         <>
                           <button

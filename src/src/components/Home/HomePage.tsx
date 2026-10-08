@@ -1,19 +1,10 @@
+import { useCallback, useState } from 'react';
 import { Boxes, Cpu, Images, MemoryStick, Server, Settings, LayoutGrid } from 'lucide-react';
 import { useAppStore } from '../../stores/appStore';
-import type { ConnectionStatus, DockerConnectionConfig } from '../../types/docker';
+import { usePolling } from '../../hooks/usePolling';
+import { fmtBytes } from '../../utils/format';
+import type { ConnectionStatus, DockerInfoLite, DockerConnectionConfig } from '../../types/docker';
 import pkg from '../../../package.json';
-
-function formatBytes(n?: number): string {
-  if (!n || n <= 0) return '—';
-  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-  let v = n;
-  let i = 0;
-  while (v >= 1024 && i < units.length - 1) {
-    v /= 1024;
-    i++;
-  }
-  return `${v.toFixed(v >= 100 || i === 0 ? 0 : 1)} ${units[i]}`;
-}
 
 const KIND_LABEL: Record<DockerConnectionConfig['kind'], string> = {
   tcp: 'TCP',
@@ -21,10 +12,39 @@ const KIND_LABEL: Record<DockerConnectionConfig['kind'], string> = {
   unix: 'Unix Socket',
 };
 
-function HostCard({ conn, status }: { conn: DockerConnectionConfig; status?: ConnectionStatus }) {
+function pad(n: number) {
+  return String(n).padStart(2, '0');
+}
+
+function timeLabel(ts: number) {
+  const d = new Date(ts);
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
+interface RecentEvent {
+  id: string;
+  hostId: string;
+  type: string;
+  action: string;
+  name?: string;
+  time: number;
+}
+
+function HostCard({
+  conn,
+  status,
+  liveInfo,
+  lastEvent,
+}: {
+  conn: DockerConnectionConfig;
+  status?: ConnectionStatus;
+  /** periodically refreshed info — falls back to the connect-time snapshot */
+  liveInfo?: DockerInfoLite;
+  lastEvent?: RecentEvent;
+}) {
   const openHostView = useAppStore((s) => s.openHostView);
   const online = !!status?.connected;
-  const info = status?.info;
+  const info = liveInfo ?? status?.info;
 
   return (
     <div
@@ -53,7 +73,7 @@ function HostCard({ conn, status }: { conn: DockerConnectionConfig; status?: Con
             <Cpu size={12} /> {info.nCPU ?? '—'} vCPU
           </span>
           <span className="stat-sub" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <MemoryStick size={12} /> {formatBytes(info.memTotal)}
+            <MemoryStick size={12} /> {fmtBytes(info.memTotal, '—')}
           </span>
         </div>
       ) : (
@@ -61,20 +81,48 @@ function HostCard({ conn, status }: { conn: DockerConnectionConfig; status?: Con
           {online ? '' : '点击卡片建立连接并打开标签页'}
         </div>
       )}
+      {online && lastEvent && (
+        <div className="stat-sub" style={{ marginTop: 8, borderTop: '1px solid var(--border)', paddingTop: 6 }}>
+          最近：{lastEvent.action}
+          {lastEvent.name ? ` · ${lastEvent.name}` : ''}
+          <span style={{ marginLeft: 6, opacity: 0.7 }}>{timeLabel(lastEvent.time)}</span>
+        </div>
+      )}
     </div>
   );
 }
 
 /** Non-closable home surface: aggregate Docker info + app info. */
-export function HomePage() {
+export function HomePage({ active = true }: { active?: boolean }) {
   const connections = useAppStore((s) => s.connections);
   const statuses = useAppStore((s) => s.statuses);
+  const recentEvents = useAppStore((s) => s.recentEvents);
   const openTab = useAppStore((s) => s.openTab);
+  /** live info per connected host, refreshed below (status.info is connect-time only) */
+  const [liveInfo, setLiveInfo] = useState<Record<string, DockerInfoLite>>({});
+
+  const refresh = useCallback(async () => {
+    const connected = useAppStore
+      .getState()
+      .connections.filter((c) => useAppStore.getState().statuses[c.id]?.connected);
+    await Promise.allSettled(
+      connected.map(async (conn) => {
+        const info = await window.dockerApi.systemInfo(conn.id);
+        if (info) setLiveInfo((prev) => ({ ...prev, [conn.id]: info }));
+      })
+    );
+  }, []);
+
+  // keep the overview numbers fresh (15s cadence, pauses while hidden)
+  usePolling({ active, intervalMs: 15000, onLoad: refresh });
 
   const list = connections.filter((c) => !!statuses[c.id]);
   const onlineList = list.filter((c) => statuses[c.id]?.connected);
+  const infoOf = (id: string) => liveInfo[id] ?? statuses[id]?.info;
   const sum = (pick: (i: NonNullable<ConnectionStatus['info']>) => number | undefined) =>
-    onlineList.reduce((acc, c) => acc + (pick(statuses[c.id]?.info!) || 0), 0);
+    onlineList.reduce((acc, c) => acc + (pick(infoOf(c.id)!) || 0), 0);
+
+  const lastEventOf = (hostId: string) => recentEvents.find((e) => e.hostId === hostId);
 
   return (
     <div className="page">
@@ -121,7 +169,7 @@ export function HomePage() {
 
       <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))' }}>
         {list.map((c) => (
-          <HostCard key={c.id} conn={c} status={statuses[c.id]} />
+          <HostCard key={c.id} conn={c} status={statuses[c.id]} liveInfo={liveInfo[c.id]} lastEvent={lastEventOf(c.id)} />
         ))}
       </div>
       {list.length === 0 && (

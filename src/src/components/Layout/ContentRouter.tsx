@@ -19,7 +19,7 @@ import { SettingsPage } from '../Settings/SettingsPage';
 
 function renderView(view: OpenTab, active = true) {
   if (view.kind === 'home') {
-    return <HomePage />;
+    return <HomePage active={active} />;
   }
   if (view.kind === 'dashboard') {
     return <DashboardPage hostId={view.hostId} active={active} />;

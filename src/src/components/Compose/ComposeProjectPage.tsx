@@ -27,14 +27,26 @@ import { useHotkeys } from '../../utils/useHotkeys';
 import { loadUiPref, saveUiPref } from '../../utils/uiPrefs';
 import { localizeStatusChip, localizeContainerStatus, statusChipExtraClass } from '../../utils/localize';
 import { formatPortMappings } from '../../utils/ports';
-import { getContainerActions } from '../../utils/containerActions';
+import { getContainerActions, stopRestartLoop } from '../../utils/containerActions';
+import { useMultiSelect } from '../../hooks/useMultiSelect';
 import { ContainerRowActions } from '../Containers/ContainerRowActions';
 import { ContextMenu, useContextMenu, type ContextMenuItem } from '../common/ContextMenu';
 import { ListError, ListLoading } from '../common/ListFeedback';
+import { SortableTh } from '../common/SortableTh';
+import { usePolling } from '../../hooks/usePolling';
 
 type SortKey = 'service' | 'name' | 'state' | 'image';
 
-export function ComposeProjectPage({ hostId, projectName }: { hostId: string; projectName: string }) {
+export function ComposeProjectPage({
+  hostId,
+  projectName,
+  active = true,
+}: {
+  hostId: string;
+  projectName: string;
+  /** false while the tab is hidden (keep-alive) — polling pauses */
+  active?: boolean;
+}) {
   const toast = useAppStore((s) => s.toast);
   const setRefreshing = useAppStore((s) => s.setRefreshing);
   const openTab = useAppStore((s) => s.openTab);
@@ -45,7 +57,13 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   /** multi-select ids (checkbox). `selected` remains the focus row for toolbar actions. */
-  const [checked, setChecked] = useState<Set<string>>(new Set());
+  const {
+    checked,
+    toggle: toggleChecked,
+    selectAll,
+    clear: clearChecked,
+    selectRange,
+  } = useMultiSelect();
   const [sortKey, setSortKey] = useState<SortKey>(() => loadUiPref('compose.sortKey', 'service'));
   const [sortAsc, setSortAsc] = useState(() => loadUiPref('compose.sortAsc', true));
   const [confirmDialog, confirm] = useConfirm();
@@ -71,14 +89,9 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
     }
   }, [hostId, projectName, setRefreshing]);
 
-  useEffect(() => {
-    void load();
-    // fallback poll only — docker events drive most reloads; skip while backgrounded
-    const t = setInterval(() => {
-      if (!document.hidden) void load();
-    }, 30000);
-    return () => clearInterval(t);
-  }, [load]);
+  // fallback poll only — docker events drive most reloads; the hook skips
+  // ticks while hidden and catches up on reactivation
+  usePolling({ active, reloadKey: `${hostId}:${projectName}`, intervalMs: 30000, onLoad: load });
 
   useEffect(() => {
     if (containersVersion > 0) void load();
@@ -90,19 +103,10 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
     await load();
   };
 
-  const stopRestartLoop = async (id: string, name: string) => {
+  const stopRestartLoopOne = async (id: string, name: string) => {
     try {
-      const result = await window.dockerApi.stopRestartLoop(hostId, id);
-      toast(
-        `${name}: ${
-          result === 'killed'
-            ? '已强制终止并关闭自动重启'
-            : result === 'stopped'
-              ? '已停止并关闭自动重启'
-              : '已关闭自动重启'
-        }`,
-        'success'
-      );
+      const msg = await stopRestartLoop(hostId, id);
+      toast(`${name}: ${msg}`, 'success');
       await load();
     } catch (e) {
       reportError(e, toast);
@@ -177,15 +181,6 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
 
   const allChecked = sorted.length > 0 && sorted.every((c) => checked.has(c.id));
 
-  const toggleChecked = (id: string) => {
-    setChecked((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
   const runChecked = (fn: (id: string) => Promise<unknown>, okMsg: string, pendingMsg: string) =>
     action(
       async () => {
@@ -209,7 +204,7 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
     f5: () => void load(),
     escape: () => {
       setSelected(null);
-      setChecked(new Set());
+      clearChecked();
     },
     arrowdown: () => {
       if (sorted.length === 0) return;
@@ -314,7 +309,7 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
       items.push({
         key: 'loop',
         label: '停止重启循环',
-        onSelect: () => void stopRestartLoop(c.id, c.name),
+        onSelect: () => void stopRestartLoopOne(c.id, c.name),
       });
     }
     items.push({ key: 'sep1', label: '', separator: true, onSelect: () => {} });
@@ -423,8 +418,14 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
         </button>
         <button
           className="btn"
-          onClick={() =>
-            action(
+          onClick={async () => {
+            const ok = await confirm({
+              title: '启动全部容器',
+              message: '确认启动该项目的全部未运行容器？',
+              confirmLabel: '启动',
+            });
+            if (!ok) return;
+            await action(
               async () => {
                 for (const c of containers) {
                   if (c.state !== 'running') await window.dockerApi.startContainer(hostId, c.id);
@@ -432,15 +433,22 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
               },
               '项目已启动',
               '正在启动全部…'
-            )
-          }
+            );
+          }}
         >
           <Play size={13} /> 启动全部
         </button>
         <button
           className="btn"
-          onClick={() =>
-            action(
+          onClick={async () => {
+            const ok = await confirm({
+              title: '停止全部容器',
+              message: '确认停止该项目的全部运行中容器？',
+              confirmLabel: '停止',
+              danger: true,
+            });
+            if (!ok) return;
+            await action(
               async () => {
                 for (const c of containers) {
                   if (c.state === 'running') await window.dockerApi.stopContainer(hostId, c.id);
@@ -448,22 +456,28 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
               },
               '项目已停止',
               '正在停止全部…'
-            )
-          }
+            );
+          }}
         >
           <Square size={13} /> 停止全部
         </button>
         <button
           className="btn"
-          onClick={() =>
-            action(
+          onClick={async () => {
+            const ok = await confirm({
+              title: '重启全部容器',
+              message: '确认重启该项目的全部容器？',
+              confirmLabel: '重启',
+            });
+            if (!ok) return;
+            await action(
               async () => {
                 for (const c of containers) await window.dockerApi.restartContainer(hostId, c.id);
               },
               '项目已重启',
               '正在重启全部…'
-            )
-          }
+            );
+          }}
         >
           <RotateCw size={13} /> 重启全部
         </button>
@@ -515,7 +529,7 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
             >
               <RotateCw size={13} /> 重启
             </button>
-            <button className="btn ghost" onClick={() => setChecked(new Set())}>
+            <button className="btn ghost" onClick={() => clearChecked()}>
               清除选择
             </button>
           </>
@@ -582,23 +596,15 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
                     type="checkbox"
                     checked={allChecked}
                     onChange={() =>
-                      setChecked(allChecked ? new Set() : new Set(sorted.map((c) => c.id)))
+                      selectAll(allChecked ? [] : sorted.map((c) => c.id))
                     }
                     style={{ width: 12, height: 12 }}
                   />
                 </th>
-                <th className="sortable" onClick={() => toggleSort('service')}>
-                  服务{sortInd('service')}
-                </th>
-                <th className="sortable" onClick={() => toggleSort('name')}>
-                  容器{sortInd('name')}
-                </th>
-                <th className="sortable" onClick={() => toggleSort('state')}>
-                  状态{sortInd('state')}
-                </th>
-                <th className="sortable" onClick={() => toggleSort('image')}>
-                  镜像{sortInd('image')}
-                </th>
+                <SortableTh label={'服务'} active={sortKey === 'service'} asc={sortAsc} onSort={() => toggleSort('service')} />
+                <SortableTh label={'容器'} active={sortKey === 'name'} asc={sortAsc} onSort={() => toggleSort('name')} />
+                <SortableTh label={'状态'} active={sortKey === 'state'} asc={sortAsc} onSort={() => toggleSort('state')} />
+                <SortableTh label={'镜像'} active={sortKey === 'image'} asc={sortAsc} onSort={() => toggleSort('image')} />
                 <th>端口</th>
                 <th>操作</th>
               </tr>
@@ -619,14 +625,11 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
                     if (e.shiftKey && selected) {
                       const from = sorted.findIndex((x) => x.id === selected);
                       const to = sorted.findIndex((x) => x.id === c.id);
-                      if (from >= 0 && to >= 0) {
-                        const [a, b] = from < to ? [from, to] : [to, from];
-                        setChecked((prev) => {
-                          const next = new Set(prev);
-                          for (let i = a; i <= b; i++) next.add(sorted[i].id);
-                          return next;
-                        });
-                      }
+                      selectRange(
+                        sorted.map((x) => x.id),
+                        from,
+                        to
+                      );
                       setSelected(c.id);
                       return;
                     }
@@ -643,7 +646,7 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
                   }
                   onContextMenu={(e) => {
                     setSelected(c.id);
-                    if (!checked.has(c.id)) setChecked(new Set([c.id]));
+                    if (!checked.has(c.id)) selectAll([c.id]);
                     ctx.open(e, rowMenu(c));
                   }}
                 >
@@ -717,7 +720,7 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
                           `${c.name}: 正在强杀…`
                         )
                       }
-                      onStopRestartLoop={() => void stopRestartLoop(c.id, c.name)}
+                      onStopRestartLoop={() => void stopRestartLoopOne(c.id, c.name)}
                       extra={
                         <>
                           <button

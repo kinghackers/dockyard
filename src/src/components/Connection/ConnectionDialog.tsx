@@ -317,7 +317,7 @@ export function ConnectionDialog({ initial, defaultGroupId, onClose, onSaved }: 
                 gap: 8,
                 padding: '8px 12px',
                 borderRadius: 4,
-                background: testResult.ok ? 'rgba(89,168,105,0.12)' : 'rgba(207,91,86,0.12)',
+                background: testResult.ok ? 'var(--success-soft)' : 'var(--error-soft)',
                 color: testResult.ok ? 'var(--success)' : 'var(--error)',
                 fontSize: 12,
               }}

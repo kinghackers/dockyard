@@ -312,7 +312,7 @@ export function LogViewerPage({ hostId, containerId }: { hostId: string; contain
       </div>
 
       {error && status === 'error' && (
-        <div style={{ padding: 8, background: 'rgba(207,91,86,0.12)', color: 'var(--error)', fontSize: 12 }}>
+        <div className="alert danger" style={{ borderRadius: 0 }}>
           {error}
         </div>
       )}

@@ -75,7 +75,7 @@ export function ImageHistoryDialog({ hostId, imageId, title, onClose, toast }: P
             </div>
           )}
           {error && (
-            <div style={{ padding: 8, borderRadius: 4, background: 'rgba(207,91,86,0.12)', color: 'var(--error)' }}>
+            <div style={{ padding: 8, borderRadius: 4, background: 'var(--error-soft)', color: 'var(--error)' }}>
               {error}
             </div>
           )}

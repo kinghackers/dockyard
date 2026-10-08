@@ -1,14 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { RefreshCw, Search, FileText, Info } from 'lucide-react';
+import { RefreshCw, Search, FileText, Info, ArrowUp, ArrowDown } from 'lucide-react';
 import type { ContainerSummary } from '../../types/docker';
 import { useAppStore } from '../../stores/appStore';
+import { usePolling } from '../../hooks/usePolling';
 import { useHotkeys } from '../../utils/useHotkeys';
+import { loadUiPref, saveUiPref } from '../../utils/uiPrefs';
 import {
   localizeStatusChip,
   localizeContainerStatus,
   statusChipExtraClass,
 } from '../../utils/localize';
 import { ListError, ListLoading } from '../common/ListFeedback';
+import { SortableTh } from '../common/SortableTh';
 
 interface Row {
   hostId: string;
@@ -16,12 +19,15 @@ interface Row {
   c: ContainerSummary;
 }
 
+type SortKey = 'host' | 'name' | 'state' | 'image' | 'project' | 'created';
+type StateFilter = 'all' | 'running' | 'exited' | 'paused' | 'restarting';
+
 /**
  * Containers across every connected host in one table. Fetches all hosts in
  * parallel on open/refresh and also seeds the per-host store so the sidebar
  * tree and command palette stay in sync.
  */
-export function AggregateContainersPage() {
+export function AggregateContainersPage({ active = true }: { active?: boolean }) {
   const toast = useAppStore((s) => s.toast);
   const openTab = useAppStore((s) => s.openTab);
   const setContainers = useAppStore((s) => s.setContainers);
@@ -32,7 +38,12 @@ export function AggregateContainersPage() {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState('');
+  const [filter, setFilter] = useState(() => loadUiPref('aggregate.filter', ''));
+  const [stateFilter, setStateFilter] = useState<StateFilter>(() =>
+    loadUiPref('aggregate.stateFilter', 'all')
+  );
+  const [sortKey, setSortKey] = useState<SortKey>(() => loadUiPref('aggregate.sortKey', 'host'));
+  const [sortAsc, setSortAsc] = useState(() => loadUiPref('aggregate.sortAsc', true));
   const [selected, setSelected] = useState<string | null>(null);
   const filterRef = useRef<HTMLInputElement>(null);
 
@@ -74,10 +85,23 @@ export function AggregateContainersPage() {
     }
   }, [setContainers, setRefreshing, toast]);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  // slow fallback poll — docker events drive most reloads; the hook skips
+  // ticks while hidden and catches up when the tab becomes visible again
+  usePolling({ active, intervalMs: 30000, onLoad: load });
 
+  // remember filter / state filter / sort across sessions
+  useEffect(() => {
+    saveUiPref('aggregate.filter', filter);
+  }, [filter]);
+  useEffect(() => {
+    saveUiPref('aggregate.stateFilter', stateFilter);
+  }, [stateFilter]);
+  useEffect(() => {
+    saveUiPref('aggregate.sortKey', sortKey);
+    saveUiPref('aggregate.sortAsc', sortAsc);
+  }, [sortKey, sortAsc]);
+
+  // reload when docker events indicate containers changed
   useEffect(() => {
     if (containersVersion > 0) void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -91,13 +115,47 @@ export function AggregateContainersPage() {
 
   const filtered = useMemo(() => {
     const q = filter.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter(({ hostName, c }) =>
+    const base = rows.filter(({ c }) => stateFilter === 'all' || c.state === stateFilter);
+    if (!q) return base;
+    return base.filter(({ hostName, c }) =>
       `${c.name} ${c.image} ${hostName} ${c.composeProject || ''} ${c.id}`
         .toLowerCase()
         .includes(q)
     );
-  }, [rows, filter]);
+  }, [rows, filter, stateFilter]);
+
+  const sorted = useMemo(() => {
+    const dir = sortAsc ? 1 : -1;
+    return [...filtered].sort((a, b) => {
+      switch (sortKey) {
+        case 'host':
+          return dir * a.hostName.localeCompare(b.hostName);
+        case 'name':
+          return dir * a.c.name.localeCompare(b.c.name);
+        case 'state':
+          return dir * a.c.state.localeCompare(b.c.state);
+        case 'image':
+          return dir * a.c.image.localeCompare(b.c.image);
+        case 'project':
+          return dir * (a.c.composeProject || '').localeCompare(b.c.composeProject || '');
+        case 'created':
+          return dir * (a.c.created - b.c.created);
+        default:
+          return 0;
+      }
+    });
+  }, [filtered, sortKey, sortAsc]);
+
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) setSortAsc(!sortAsc);
+    else {
+      setSortKey(key);
+      setSortAsc(key === 'host' || key === 'name' || key === 'image' || key === 'project');
+    }
+  };
+
+  const sortInd = (key: SortKey) =>
+    sortKey === key ? <span className="sort-ind">{sortAsc ? <ArrowUp size={11} /> : <ArrowDown size={11} />}</span> : null;
 
   const openDetail = (r: Row) => {
     openTab({
@@ -124,16 +182,29 @@ export function AggregateContainersPage() {
           {hostCount} 台主机 · {filtered.length}/{rows.length} 个容器
         </span>
         <div style={{ flex: 1 }} />
-        <div style={{ position: 'relative' }}>
-          <Search size={13} style={{ position: 'absolute', left: 8, top: 8, color: 'var(--text-muted)' }} />
-          <input
-            ref={filterRef}
-            className="search-input"
-            style={{ paddingLeft: 26 }}
-            placeholder="跨主机搜索名称 / 镜像 / 项目（Ctrl+F）"
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-          />
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <select
+            value={stateFilter}
+            onChange={(e) => setStateFilter(e.target.value as StateFilter)}
+            style={{ height: 28 }}
+          >
+            <option value="all">全部状态</option>
+            <option value="running">运行中</option>
+            <option value="exited">已退出</option>
+            <option value="paused">已暂停</option>
+            <option value="restarting">重启中</option>
+          </select>
+          <div style={{ position: 'relative' }}>
+            <Search size={13} style={{ position: 'absolute', left: 8, top: 8, color: 'var(--text-muted)' }} />
+            <input
+              ref={filterRef}
+              className="search-input"
+              style={{ paddingLeft: 26 }}
+              placeholder="跨主机搜索名称 / 镜像 / 项目（Ctrl+F）"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+            />
+          </div>
         </div>
       </div>
 
@@ -146,7 +217,7 @@ export function AggregateContainersPage() {
           <div className="empty-state">
             <p>尚未连接任何 Docker 主机</p>
           </div>
-        ) : filtered.length === 0 ? (
+        ) : sorted.length === 0 ? (
           <div className="empty-state">
             <p>{rows.length === 0 ? '没有容器' : '没有匹配的容器'}</p>
           </div>
@@ -154,17 +225,17 @@ export function AggregateContainersPage() {
           <table className="table">
             <thead>
               <tr>
-                <th className="sortable">主机</th>
-                <th>名称</th>
-                <th>状态</th>
-                <th>镜像</th>
-                <th>项目</th>
-                <th>创建时间</th>
+                <SortableTh label={'主机'} active={sortKey === 'host'} asc={sortAsc} onSort={() => toggleSort('host')} />
+                <SortableTh label={'名称'} active={sortKey === 'name'} asc={sortAsc} onSort={() => toggleSort('name')} />
+                <SortableTh label={'状态'} active={sortKey === 'state'} asc={sortAsc} onSort={() => toggleSort('state')} />
+                <SortableTh label={'镜像'} active={sortKey === 'image'} asc={sortAsc} onSort={() => toggleSort('image')} />
+                <SortableTh label={'项目'} active={sortKey === 'project'} asc={sortAsc} onSort={() => toggleSort('project')} />
+                <SortableTh label={'创建时间'} active={sortKey === 'created'} asc={sortAsc} onSort={() => toggleSort('created')} />
                 <th style={{ width: 80 }}>操作</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((r) => (
+              {sorted.map((r) => (
                 <tr
                   key={`${r.hostId}:${r.c.id}`}
                   title="双击打开详情"

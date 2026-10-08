@@ -29,6 +29,16 @@
   --error: #cf5b56;
   --info: #589df6;
 
+  /* soft tints for callouts / alert backgrounds (theme-neutral brand tints) */
+  --error-soft: rgba(207, 91, 86, 0.12);
+  --error-border: rgba(207, 91, 86, 0.35);
+  --warn-soft: rgba(217, 164, 6, 0.12);
+  --warn-border: rgba(217, 164, 6, 0.35);
+  --success-soft: rgba(89, 168, 105, 0.12);
+  --success-border: rgba(89, 168, 105, 0.3);
+  --info-soft: rgba(88, 157, 246, 0.1);
+  --info-border: rgba(88, 157, 246, 0.3);
+
   --compose: #59a869;
   --container: #4b6eaf;
   --image: #d9a406;
@@ -249,6 +259,14 @@ textarea:focus {
   background: var(--bg-app);
   color: var(--text-bright);
   box-shadow: inset 0 2px 0 var(--accent);
+}
+
+.tab-item.dragging {
+  opacity: 0.4;
+}
+
+.tab-item.drop-target {
+  box-shadow: inset 2px 0 0 var(--accent);
 }
 
 .tab-item .tab-close {
@@ -857,6 +875,33 @@ textarea:focus {
 .search-input {
   min-width: 180px;
   height: 28px;
+}
+
+/* ---------- callouts / alerts ---------- */
+.alert {
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: var(--warn-soft);
+  border: 1px solid var(--warn-border);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.alert.danger {
+  background: var(--error-soft);
+  border-color: var(--error-border);
+  color: var(--error);
+}
+
+.alert.info {
+  background: var(--info-soft);
+  border-color: var(--info-border);
+}
+
+.alert.success {
+  background: var(--success-soft);
+  border-color: var(--success-border);
 }
 
 .empty-state {

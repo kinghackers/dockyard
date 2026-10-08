@@ -47,3 +47,13 @@ export function getContainerActions(
     isBusy: busy,
   };
 }
+
+/** Stop a fault restart loop and return the human-readable toast message. */
+export async function stopRestartLoop(hostId: string, containerId: string): Promise<string> {
+  const result = await window.dockerApi.stopRestartLoop(hostId, containerId);
+  return result === 'killed'
+    ? '已强制终止并关闭自动重启'
+    : result === 'stopped'
+      ? '已停止并关闭自动重启'
+      : '已关闭自动重启';
+}

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { X, LayoutDashboard, Boxes, Image, Network, Database, Layers, FileText, Terminal as Term, Settings, LayoutGrid, Home } from 'lucide-react';
 import { useAppStore, MAIN_VIEW_ID } from '../../stores/appStore';
 import type { ViewKind } from '../../types/docker';
@@ -24,8 +25,11 @@ export function TabBar() {
   const activeTabId = useAppStore((s) => s.activeTabId);
   const setActiveTab = useAppStore((s) => s.setActiveTab);
   const closeTab = useAppStore((s) => s.closeTab);
+  const moveTab = useAppStore((s) => s.moveTab);
   const mainView = useAppStore((s) => s.mainView);
   const mainActive = activeTabId === MAIN_VIEW_ID || activeTabId === null;
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [overId, setOverId] = useState<string | null>(null);
 
   return (
     <div className="tab-bar">
@@ -50,7 +54,30 @@ export function TabBar() {
       {tabs.map((tab) => (
         <div
           key={tab.id}
-          className={`tab-item ${activeTabId === tab.id ? 'active' : ''}`}
+          className={`tab-item ${activeTabId === tab.id ? 'active' : ''} ${dragId === tab.id ? 'dragging' : ''} ${overId === tab.id && dragId !== tab.id ? 'drop-target' : ''}`}
+          draggable
+          onDragStart={(e) => {
+            setDragId(tab.id);
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', tab.id);
+          }}
+          onDragEnd={() => {
+            setDragId(null);
+            setOverId(null);
+          }}
+          onDragOver={(e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            if (dragId && dragId !== tab.id) setOverId(tab.id);
+          }}
+          onDragLeave={() => setOverId((v) => (v === tab.id ? null : v))}
+          onDrop={(e) => {
+            e.preventDefault();
+            const from = dragId || e.dataTransfer.getData('text/plain');
+            if (from) moveTab(from, tab.id);
+            setDragId(null);
+            setOverId(null);
+          }}
           onClick={() => setActiveTab(tab.id)}
           onAuxClick={(e) => {
             // middle-click closes, like browser tabs
@@ -71,6 +98,8 @@ export function TabBar() {
           {tab.closable !== false && (
             <span
               className="tab-close"
+              role="button"
+              aria-label={`关闭 ${tab.title}`}
               onClick={(e) => {
                 e.stopPropagation();
                 closeTab(tab.id);

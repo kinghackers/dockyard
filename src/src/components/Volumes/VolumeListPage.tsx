@@ -10,6 +10,7 @@ import { localizeVolumeDriver, localizeScope } from '../../utils/localize';
 import { CreateVolumeDialog } from './CreateVolumeDialog';
 import { ContextMenu, useContextMenu, type ContextMenuItem } from '../common/ContextMenu';
 import { ListError, ListLoading } from '../common/ListFeedback';
+import { SortableTh } from '../common/SortableTh';
 
 type SortKey = 'name' | 'driver' | 'mountpoint' | 'scope' | 'created';
 
@@ -290,21 +291,11 @@ export function VolumeListPage({ hostId }: { hostId: string }) {
                     style={{ width: 12, height: 12 }}
                   />
                 </th>
-                <th className="sortable" onClick={() => toggleSort('name')}>
-                  名称{sortInd('name')}
-                </th>
-                <th className="sortable" onClick={() => toggleSort('driver')}>
-                  驱动{sortInd('driver')}
-                </th>
-                <th className="sortable" onClick={() => toggleSort('mountpoint')}>
-                  挂载点{sortInd('mountpoint')}
-                </th>
-                <th className="sortable" onClick={() => toggleSort('scope')}>
-                  作用域{sortInd('scope')}
-                </th>
-                <th className="sortable" onClick={() => toggleSort('created')}>
-                  创建时间{sortInd('created')}
-                </th>
+                <SortableTh label={'名称'} active={sortKey === 'name'} asc={sortAsc} onSort={() => toggleSort('name')} />
+                <SortableTh label={'驱动'} active={sortKey === 'driver'} asc={sortAsc} onSort={() => toggleSort('driver')} />
+                <SortableTh label={'挂载点'} active={sortKey === 'mountpoint'} asc={sortAsc} onSort={() => toggleSort('mountpoint')} />
+                <SortableTh label={'作用域'} active={sortKey === 'scope'} asc={sortAsc} onSort={() => toggleSort('scope')} />
+                <SortableTh label={'创建时间'} active={sortKey === 'created'} asc={sortAsc} onSort={() => toggleSort('created')} />
               </tr>
             </thead>
             <tbody>

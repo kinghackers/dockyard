@@ -6,6 +6,7 @@ import { reportError } from '../../utils/connection';
 import { runAction } from '../../utils/runAction';
 import { localizeStatusChip, localizeContainerStatus, localizeContainerState } from '../../utils/localize';
 import { ComposeUpDialog } from './ComposeUpDialog';
+import { useConfirm } from '../../utils/useConfirm';
 import { ListError, ListLoading } from '../common/ListFeedback';
 
 export function ComposeListPage({ hostId }: { hostId: string }) {
@@ -42,7 +43,15 @@ export function ComposeListPage({ hostId }: { hostId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [containersVersion]);
 
+  const [confirmDialog, confirm] = useConfirm();
+
   const startProject = async (p: ComposeProject) => {
+    const ok = await confirm({
+      title: '启动全部容器',
+      message: `确认启动项目「${p.name}」的全部未运行容器？`,
+      confirmLabel: '启动',
+    });
+    if (!ok) return;
     await runAction(
       toast,
       {
@@ -59,6 +68,13 @@ export function ComposeListPage({ hostId }: { hostId: string }) {
   };
 
   const stopProject = async (p: ComposeProject) => {
+    const ok = await confirm({
+      title: '停止全部容器',
+      message: `确认停止项目「${p.name}」的全部运行中容器？`,
+      confirmLabel: '停止',
+      danger: true,
+    });
+    if (!ok) return;
     await runAction(
       toast,
       {
@@ -209,6 +225,7 @@ export function ComposeListPage({ hostId }: { hostId: string }) {
           toast={toast}
         />
       )}
+      {confirmDialog}
     </div>
   );
 }

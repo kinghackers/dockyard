@@ -64,7 +64,7 @@ export function CreateVolumeDialog({ hostId, onClose, onCreated }: Props) {
           {error && (
             <div
               style={{
-                background: 'rgba(207,91,86,0.15)',
+                background: 'var(--error-soft)',
                 border: '1px solid var(--error)',
                 color: 'var(--error)',
                 padding: '8px 10px',

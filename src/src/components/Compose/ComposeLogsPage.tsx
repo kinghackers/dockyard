@@ -4,9 +4,10 @@ import type { ContainerSummary } from '../../types/docker';
 import { useAppStore } from '../../stores/appStore';
 import { reportError } from '../../utils/connection';
 import { useHotkeys } from '../../utils/useHotkeys';
+import { loadUiPref } from '../../utils/uiPrefs';
 import { detectLogLevel } from '../../utils/logLevel';
 
-const MAX_LINES = 8000;
+const MAX_LINES = loadUiPref('settings.logMaxLines', 8000);
 const TAIL_LINES = 200;
 
 type Line = {
@@ -314,7 +315,7 @@ export function ComposeLogsPage({ hostId, projectName }: { hostId: string; proje
       </div>
 
       {error && (
-        <div style={{ padding: 8, background: 'rgba(207,91,86,0.12)', color: 'var(--error)', fontSize: 12 }}>
+        <div className="alert danger" style={{ borderRadius: 0 }}>
           {error}
         </div>
       )}

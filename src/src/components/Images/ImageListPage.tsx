@@ -17,28 +17,19 @@ import type { ImageSummary } from '../../types/docker';
 import { useAppStore } from '../../stores/appStore';
 import { reportError } from '../../utils/connection';
 import { useConfirm } from '../../utils/useConfirm';
+import { fmtBytes } from '../../utils/format';
+import { useMultiSelect } from '../../hooks/useMultiSelect';
 import { useHotkeys } from '../../utils/useHotkeys';
 import { loadUiPref, saveUiPref } from '../../utils/uiPrefs';
 import { RunContainerDialog } from '../Containers/RunContainerDialog';
 import { ContextMenu, useContextMenu, type ContextMenuItem } from '../common/ContextMenu';
 import { ListError, ListLoading } from '../common/ListFeedback';
+import { SortableTh } from '../common/SortableTh';
 import { TagImageDialog } from './TagImageDialog';
 import { ImageHistoryDialog } from './ImageHistoryDialog';
 import { CleanupDialog } from './CleanupDialog';
 
 type SortKey = 'tags' | 'id' | 'size' | 'created';
-
-function fmtBytes(n: number): string {
-  if (!n || n < 0) return '0 B';
-  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-  let i = 0;
-  let v = n;
-  while (v >= 1024 && i < units.length - 1) {
-    v /= 1024;
-    i++;
-  }
-  return `${v.toFixed(v >= 100 ? 0 : 1)} ${units[i]}`;
-}
 
 function tagsLabel(img: ImageSummary): string {
   return img.repoTags.length > 0 ? img.repoTags.join(', ') : `<none>:${img.id.slice(7, 19)}`;
@@ -52,7 +43,14 @@ export function ImageListPage({ hostId }: { hostId: string }) {
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState(() => loadUiPref('images.filter', ''));
   const [selected, setSelected] = useState<string | null>(null);
-  const [checked, setChecked] = useState<Set<string>>(new Set());
+  const {
+    checked,
+    toggle: toggleChecked,
+    selectAll,
+    clear: clearChecked,
+    remove: uncheck,
+    selectRange,
+  } = useMultiSelect();
   const [sortKey, setSortKey] = useState<SortKey>(() => loadUiPref('images.sortKey', 'created'));
   const [sortAsc, setSortAsc] = useState(() => loadUiPref('images.sortAsc', false));
   const [pullName, setPullName] = useState('');
@@ -157,18 +155,7 @@ export function ImageListPage({ hostId }: { hostId: string }) {
   );
   const allChecked = filtered.length > 0 && filtered.every((i) => checked.has(i.id));
 
-  const toggleChecked = (id: string) => {
-    setChecked((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const toggleAll = () => {
-    setChecked(allChecked ? new Set() : new Set(filtered.map((i) => i.id)));
-  };
+  const toggleAll = () => selectAll(allChecked ? [] : filtered.map((i) => i.id));
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) setSortAsc(!sortAsc);
@@ -268,11 +255,7 @@ export function ImageListPage({ hostId }: { hostId: string }) {
       await window.dockerApi.removeImage(hostId, id, false);
       toast('镜像已删除', 'success');
       setSelected(null);
-      setChecked((prev) => {
-        const next = new Set(prev);
-        next.delete(id);
-        return next;
-      });
+      uncheck(id);
       await load();
     } catch (e) {
       reportError(e, toast);
@@ -297,7 +280,7 @@ export function ImageListPage({ hostId }: { hostId: string }) {
       }
     }
     toast(`已删除 ${okCount}/${ids.length} 个镜像`, okCount === ids.length ? 'success' : 'error');
-    setChecked(new Set());
+    clearChecked();
     setSelected(null);
     await load();
   };
@@ -307,9 +290,9 @@ export function ImageListPage({ hostId }: { hostId: string }) {
     f5: () => void load(),
     'mod+a': () => {
       if (filtered.length === 0) return;
-      setChecked(new Set(filtered.map((i) => i.id)));
+      selectAll(filtered.map((i) => i.id));
     },
-    escape: () => setChecked(new Set()),
+    escape: () => clearChecked(),
     arrowdown: () => {
       if (filtered.length === 0) return;
       const idx = selected ? filtered.findIndex((c) => c.id === selected) : -1;
@@ -463,7 +446,7 @@ export function ImageListPage({ hostId }: { hostId: string }) {
             <button className="btn danger" onClick={() => void removeMany([...checked])}>
               <Trash2 size={13} /> 批量删除
             </button>
-            <button className="btn ghost" onClick={() => setChecked(new Set())}>
+            <button className="btn ghost" onClick={() => clearChecked()}>
               清除选择
             </button>
           </>
@@ -547,18 +530,10 @@ export function ImageListPage({ hostId }: { hostId: string }) {
                     style={{ width: 12, height: 12 }}
                   />
                 </th>
-                <th className="sortable" onClick={() => toggleSort('tags')}>
-                  仓库:标签{sortInd('tags')}
-                </th>
-                <th className="sortable" onClick={() => toggleSort('id')}>
-                  ID{sortInd('id')}
-                </th>
-                <th className="sortable" onClick={() => toggleSort('size')}>
-                  大小{sortInd('size')}
-                </th>
-                <th className="sortable" onClick={() => toggleSort('created')}>
-                  创建时间{sortInd('created')}
-                </th>
+                <SortableTh label={'仓库:标签'} active={sortKey === 'tags'} asc={sortAsc} onSort={() => toggleSort('tags')} />
+                <SortableTh label={'ID'} active={sortKey === 'id'} asc={sortAsc} onSort={() => toggleSort('id')} />
+                <SortableTh label={'大小'} active={sortKey === 'size'} asc={sortAsc} onSort={() => toggleSort('size')} />
+                <SortableTh label={'创建时间'} active={sortKey === 'created'} asc={sortAsc} onSort={() => toggleSort('created')} />
               </tr>
             </thead>
             <tbody>
@@ -575,14 +550,11 @@ export function ImageListPage({ hostId }: { hostId: string }) {
                     if (e.shiftKey && selected) {
                       const from = filtered.findIndex((x) => x.id === selected);
                       const to = filtered.findIndex((x) => x.id === img.id);
-                      if (from >= 0 && to >= 0) {
-                        const [a, b] = from < to ? [from, to] : [to, from];
-                        setChecked((prev) => {
-                          const next = new Set(prev);
-                          for (let i = a; i <= b; i++) next.add(filtered[i].id);
-                          return next;
-                        });
-                      }
+                      selectRange(
+                        filtered.map((x) => x.id),
+                        from,
+                        to
+                      );
                       setSelected(img.id);
                       return;
                     }
@@ -591,7 +563,7 @@ export function ImageListPage({ hostId }: { hostId: string }) {
                   onDoubleClick={() => runOne(img)}
                   onContextMenu={(e) => {
                     setSelected(img.id);
-                    if (!checked.has(img.id)) setChecked(new Set([img.id]));
+                    if (!checked.has(img.id)) selectAll([img.id]);
                     ctx.open(e, rowMenu(img));
                   }}
                 >

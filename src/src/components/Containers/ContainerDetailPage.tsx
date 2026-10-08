@@ -21,24 +21,23 @@ import { reportError } from '../../utils/connection';
 import { runAction } from '../../utils/runAction';
 import { useConfirm } from '../../utils/useConfirm';
 import { InputDialog } from '../common/InputDialog';
+import { usePolling } from '../../hooks/usePolling';
 import { ContainerFilesDialog } from './ContainerFilesDialog';
 import { localizeContainerStatus, localizeContainerState, localizeRestartPolicy } from '../../utils/localize';
 import { formatPortMappingsDetailed } from '../../utils/ports';
-import { getContainerActions } from '../../utils/containerActions';
+import { getContainerActions, stopRestartLoop } from '../../utils/containerActions';
+import { fmtBytes } from '../../utils/format';
 
-function fmtBytes(n: number | undefined): string {
-  if (!n || n < 0) return '0 B';
-  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-  let i = 0;
-  let v = n;
-  while (v >= 1024 && i < units.length - 1) {
-    v /= 1024;
-    i++;
-  }
-  return `${v.toFixed(v >= 100 ? 0 : 1)} ${units[i]}`;
-}
-
-export function ContainerDetailPage({ hostId, containerId }: { hostId: string; containerId: string }) {
+export function ContainerDetailPage({
+  hostId,
+  containerId,
+  active = true,
+}: {
+  hostId: string;
+  containerId: string;
+  /** false while the tab is hidden (keep-alive) — polling pauses */
+  active?: boolean;
+}) {
   const toast = useAppStore((s) => s.toast);
   const openTab = useAppStore((s) => s.openTab);
   const containersVersion = useAppStore((s) => s.containersVersion);
@@ -69,15 +68,15 @@ export function ContainerDetailPage({ hostId, containerId }: { hostId: string; c
     }
   }, [hostId, containerId]);
 
-  useEffect(() => {
-    void load();
-    // slow fallback poll for static fields (state, exit code, mounts…);
-    // docker events drive most reloads, and skip it while backgrounded
-    const t = setInterval(() => {
-      if (!document.hidden) void load();
-    }, 30000);
-    return () => clearInterval(t);
-  }, [load]);
+  // slow fallback poll for static fields (state, exit code, mounts…);
+  // docker events drive most reloads. The hook skips ticks while hidden
+  // and catches up immediately when the tab becomes visible again.
+  usePolling({
+    active: active ?? true,
+    reloadKey: `${hostId}:${containerId}`,
+    intervalMs: 30000,
+    onLoad: load,
+  });
 
   // reload when docker events indicate the container changed
   useEffect(() => {
@@ -182,17 +181,10 @@ export function ContainerDetailPage({ hostId, containerId }: { hostId: string; c
     ? getContainerActions(detail.state, detail.status, detail.restartCount)
     : null;
 
-  const stopRestartLoop = async () => {
+  const stopRestartLoopHere = async () => {
     try {
-      const result = await window.dockerApi.stopRestartLoop(hostId, containerId);
-      toast(
-        result === 'killed'
-          ? '已强制终止并关闭自动重启'
-          : result === 'stopped'
-            ? '已停止并关闭自动重启'
-            : '已关闭自动重启',
-        'success'
-      );
+      const msg = await stopRestartLoop(hostId, containerId);
+      toast(msg, 'success');
       await load();
     } catch (e) {
       reportError(e, toast);
@@ -408,7 +400,7 @@ export function ContainerDetailPage({ hostId, containerId }: { hostId: string; c
                 // back to the container list inside the host's tab
                 openTab({
                   id: `containers:${hostId}`,
-                  title: `容器 · ${detail?.name || hostId}`,
+                  title: `容器 · ${connections.find((c) => c.id === hostId)?.name || hostId}`,
                   kind: 'containers',
                   hostId,
                 });
@@ -421,19 +413,7 @@ export function ContainerDetailPage({ hostId, containerId }: { hostId: string; c
       </div>
 
       {acts?.isRestartLoop && detail && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            padding: '10px 12px',
-            borderRadius: 4,
-            background: 'rgba(217,164,6,0.12)',
-            border: '1px solid rgba(217,164,6,0.35)',
-            color: 'var(--warning)',
-            marginBottom: 14,
-          }}
-        >
+        <div className="alert" style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
           <AlertTriangle size={16} style={{ flexShrink: 0 }} />
           <div style={{ flex: 1, fontSize: 12, color: 'var(--text)' }}>
             <strong style={{ color: 'var(--warning)' }}>检测到频繁自动重启</strong>
@@ -445,7 +425,7 @@ export function ContainerDetailPage({ hostId, containerId }: { hostId: string; c
               。建议先看日志定位故障原因；若需止住重启循环，可关闭自动重启并停止容器。
             </span>
           </div>
-          <button className="btn" onClick={() => void stopRestartLoop()}>
+          <button className="btn" onClick={() => void stopRestartLoopHere()}>
             <ShieldOff size={13} /> 停止重启循环
           </button>
           <button
@@ -518,17 +498,17 @@ export function ContainerDetailPage({ hostId, containerId }: { hostId: string; c
                 lineHeight: 1.5,
                 border: `1px solid ${
                   d.level === 'error'
-                    ? 'rgba(207,91,86,0.35)'
+                    ? 'var(--error-border)'
                     : d.level === 'warning'
-                      ? 'rgba(217,164,6,0.35)'
-                      : 'rgba(88,157,246,0.3)'
+                      ? 'var(--warn-border)'
+                      : 'var(--info-border)'
                 }`,
                 background:
                   d.level === 'error'
-                    ? 'rgba(207,91,86,0.12)'
+                    ? 'var(--error-soft)'
                     : d.level === 'warning'
-                      ? 'rgba(217,164,6,0.1)'
-                      : 'rgba(88,157,246,0.08)',
+                      ? 'var(--warn-soft)'
+                      : 'var(--info-soft)',
                 color: 'var(--text)',
               }}
             >
@@ -552,7 +532,7 @@ export function ContainerDetailPage({ hostId, containerId }: { hostId: string; c
       )}
 
       {error && (
-        <div style={{ padding: 12, borderRadius: 4, background: 'rgba(207,91,86,0.12)', color: 'var(--error)', marginBottom: 14 }}>
+        <div className="alert danger" style={{ marginBottom: 14 }}>
           {error}
         </div>
       )}

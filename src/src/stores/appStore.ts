@@ -12,7 +12,7 @@ import { loadUiPref, saveUiPref } from '../utils/uiPrefs';
 export const MAIN_VIEW_ID = '__main_view__';
 
 const EVENTS_PREF = 'events.recent';
-const MAX_RECENT_EVENTS = 40;
+const MAX_RECENT_EVENTS = 40; // fallback — real cap read from settings.eventMaxCount
 
 interface Toast {
   id: string;
@@ -95,6 +95,7 @@ interface AppState {
   openTab: (tab: OpenTab) => void;
   closeTab: (id: string) => void;
   setActiveTab: (id: string) => void;
+  moveTab: (fromId: string, toId: string) => void;
 
   toast: (message: string, type?: Toast['type'], durationMs?: number) => void;
   dismissToast: (id: string) => void;
@@ -290,6 +291,18 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ tabs, activeTabId: active });
   },
 
+  /** drag-reorder session tabs (the home surface always stays first) */
+  moveTab: (fromId, toId) => {
+    if (fromId === toId) return;
+    const tabs = [...get().tabs];
+    const from = tabs.findIndex((t) => t.id === fromId);
+    const to = tabs.findIndex((t) => t.id === toId);
+    if (from < 0 || to < 0) return;
+    const [moved] = tabs.splice(from, 1);
+    tabs.splice(to, 0, moved);
+    set({ tabs });
+  },
+
   setActiveTab: (id) => set({ activeTabId: id }),
 
   toast: (message, type = 'info', durationMs = 3500) => {
@@ -315,7 +328,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({ containersVersion: get().containersVersion + 1 });
     }, 300);
   },
-  recentEvents: loadUiPref<AppState['recentEvents']>(EVENTS_PREF, []).slice(0, MAX_RECENT_EVENTS),
+  recentEvents: loadUiPref<AppState['recentEvents']>(EVENTS_PREF, []).slice(0, loadUiPref('settings.eventMaxCount', MAX_RECENT_EVENTS)),
   pushEvent: (e) => {
     const item = {
       id: `${e.time}-${Math.random().toString(36).slice(2, 7)}`,
@@ -326,7 +339,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       time: e.time,
     };
     const next = [item, ...get().recentEvents];
-    const capped = next.length > MAX_RECENT_EVENTS ? next.slice(0, MAX_RECENT_EVENTS) : next;
+    const cap = loadUiPref('settings.eventMaxCount', MAX_RECENT_EVENTS);
+    const capped = next.length > cap ? next.slice(0, cap) : next;
     set({ recentEvents: capped });
     saveUiPref(EVENTS_PREF, capped);
   },
