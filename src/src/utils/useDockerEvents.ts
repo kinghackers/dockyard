@@ -50,6 +50,14 @@ function isNoiseEvent(e: DockerEvent) {
 const STREAM_ERROR_TOAST_MS = 60_000;
 
 /**
+ * Docker emits `kill` (signal 15/9) and/or `stop` right before `die` when a
+ * container is stopped deliberately (UI button, `docker stop`, `docker kill`).
+ * A crash has no such preceding event. Manual stops very commonly exit with
+ * 143 (SIGTERM) / 137 (SIGKILL) — that is normal, not abnormal.
+ */
+const DELIBERATE_STOP_WINDOW_MS = 15_000;
+
+/**
  * Subscribes to docker events for every connected host and bumps
  * `containersVersion` so list/tree views auto-refresh.
  */
@@ -60,6 +68,8 @@ export function useDockerEvents() {
   const pushEvent = useAppStore((s) => s.pushEvent);
   const openHostsRef = useRef<Set<string>>(new Set());
   const streamErrorAtRef = useRef<Record<string, number>>({});
+  /** `${hostId}:${containerId/name}` → timestamp of the last deliberate kill/stop */
+  const deliberateStopAtRef = useRef<Record<string, number>>({});
 
   const connectedIds = connections
     .filter((c) => statuses[c.id]?.connected)
@@ -82,15 +92,29 @@ export function useDockerEvents() {
           time: e.time || Date.now(),
         });
       }
-      // OS notification when a container exits abnormally (opt-out in settings)
-      if (
-        e.type === 'container' &&
-        e.action === 'die' &&
-        loadUiPref('settings.notifyAbnormalExit', true)
-      ) {
-        const exitCode = e.attributes?.exitCode;
-        if (exitCode !== undefined && String(exitCode) !== '0' && e.name) {
-          window.dockerApi.notify(`容器异常退出：${e.name}`, `退出码 ${exitCode}`);
+      // OS notification when a container exits abnormally (opt-out in settings).
+      // Suppress when the die was preceded by a deliberate stop/kill — manual
+      // stops routinely exit 143/137 which is not a crash.
+      if (e.type === 'container') {
+        const stopKey = (k: string) => `${e.hostId}:${k}`;
+        if (e.action === 'kill' || e.action === 'stop') {
+          if (e.id) deliberateStopAtRef.current[stopKey(e.id)] = Date.now();
+          if (e.name) deliberateStopAtRef.current[stopKey(e.name)] = Date.now();
+        }
+        if (
+          e.action === 'die' &&
+          loadUiPref('settings.notifyAbnormalExit', true)
+        ) {
+          const exitCode = e.attributes?.exitCode;
+          const oom = e.attributes?.OOMKilled === 'true' || e.attributes?.oomKilled === 'true';
+          const stoppedDeliberately =
+            !oom &&
+            [e.id, e.name]
+              .filter(Boolean)
+              .some((k) => Date.now() - (deliberateStopAtRef.current[stopKey(String(k))] || 0) < DELIBERATE_STOP_WINDOW_MS);
+          if (!stoppedDeliberately && exitCode !== undefined && String(exitCode) !== '0' && e.name) {
+            window.dockerApi.notify(`容器异常退出：${e.name}`, `退出码 ${exitCode}`);
+          }
         }
       }
       if (REFRESH_ACTIONS.has(e.action) || REFRESH_ACTIONS.has(`${e.type}.${e.action}`)) {
