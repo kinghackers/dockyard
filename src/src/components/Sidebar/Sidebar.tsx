@@ -81,10 +81,11 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
   const toggleHost = useAppStore((s) => s.toggleHost);
   const toggleGroup = useAppStore((s) => s.toggleGroup);
   const toggleCompose = useAppStore((s) => s.toggleCompose);
+  const expandedContainers = useAppStore((s) => s.expandedContainers);
+  const toggleContainers = useAppStore((s) => s.toggleContainers);
   const selectTree = useAppStore((s) => s.selectTree);
   const openTab = useAppStore((s) => s.openTab);
   const setContainers = useAppStore((s) => s.setContainers);
-  const containersByHost = useAppStore((s) => s.containersByHost);
   const containersVersion = useAppStore((s) => s.containersVersion);
   const toast = useAppStore((s) => s.toast);
 
@@ -799,55 +800,74 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
               );
             })}
 
-            {loose.map((c) => {
-              const cKey = `c:${conn.id}:${c.id}`;
+            {/* loose (non-compose) containers live inside the collapsible 容器 folder */}
+            {(() => {
+              const containersKey = `containers:${conn.id}`;
+              const containersExpanded = !!expandedContainers[containersKey];
               return (
-                <div
-                  key={cKey}
-                  className={`tree-row ${selectedTreeKey === cKey ? 'selected' : ''}`}
-                  style={{ paddingLeft: indent + 16 }}
-                  onClick={() => {
-                    selectTree(cKey, conn.id);
-                    openTab({
-                      id: `containerDetail:${conn.id}:${c.id}`,
-                      title: `容器: ${c.name}`,
-                      kind: 'containerDetail',
-                      hostId: conn.id,
-                      containerId: c.id,
-                    });
-                  }}
-                  onContextMenu={(e) => ctx.open(e, containerNodeMenu(c.id, c.name, c.state, c.status))}
-                >
-                  <span className="twisty" />
-                  <span className="icon">
-                    <Container size={13} color="var(--container)" />
-                  </span>
-                  <span className="label">{c.name}</span>
-                  <span className={`chip ${c.state}`} style={{ marginRight: 6 }}>
-                    <span className="dot" />
-                  </span>
-                </div>
+                <>
+                  <div
+                    className={`tree-row ${selectedTreeKey === containersKey ? 'selected' : ''}`}
+                    style={{ paddingLeft: indent + 16 }}
+                    onClick={() => {
+                      selectTree(containersKey, conn.id);
+                      openView(conn.id, 'containers');
+                    }}
+                    onContextMenu={(e) =>
+                      ctx.open(e, categoryMenu(containersKey, 'containers', '容器列表'))
+                    }
+                  >
+                    <span
+                      className="twisty"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleContainers(containersKey);
+                      }}
+                    >
+                      {containersExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                    </span>
+                    <span className="icon">
+                      <Box size={14} color="var(--container)" />
+                    </span>
+                    <span className="label">容器</span>
+                    <span className="badge">{loose.length}</span>
+                  </div>
+                  {containersExpanded &&
+                    loose.map((c) => {
+                      const cKey = `c:${conn.id}:${c.id}`;
+                      return (
+                        <div
+                          key={cKey}
+                          className={`tree-row ${selectedTreeKey === cKey ? 'selected' : ''}`}
+                          style={{ paddingLeft: indent + 42 }}
+                          onClick={() => {
+                            selectTree(cKey, conn.id);
+                            openTab({
+                              id: `containerDetail:${conn.id}:${c.id}`,
+                              title: `容器: ${c.name}`,
+                              kind: 'containerDetail',
+                              hostId: conn.id,
+                              containerId: c.id,
+                            });
+                          }}
+                          onContextMenu={(e) =>
+                            ctx.open(e, containerNodeMenu(c.id, c.name, c.state, c.status))
+                          }
+                        >
+                          <span className="twisty" />
+                          <span className="icon">
+                            <Container size={13} color="var(--container)" />
+                          </span>
+                          <span className="label">{c.name}</span>
+                          <span className={`chip ${c.state}`} style={{ marginRight: 6 }}>
+                            <span className="dot" />
+                          </span>
+                        </div>
+                      );
+                    })}
+                </>
               );
-            })}
-
-            <div
-              className={`tree-row ${selectedTreeKey === `containers:${conn.id}` ? 'selected' : ''}`}
-              style={{ paddingLeft: indent + 16 }}
-              onClick={() => {
-                selectTree(`containers:${conn.id}`, conn.id);
-                openView(conn.id, 'containers');
-              }}
-              onContextMenu={(e) =>
-                ctx.open(e, categoryMenu(`containers:${conn.id}`, 'containers', '容器列表'))
-              }
-            >
-              <span className="twisty" />
-              <span className="icon">
-                <Box size={14} color="var(--container)" />
-              </span>
-              <span className="label">容器</span>
-              <span className="badge">{containersByHost[conn.id]?.length ?? 0}</span>
-            </div>
+            })()}
 
             <div
               className={`tree-row ${selectedTreeKey === `images:${conn.id}` ? 'selected' : ''}`}

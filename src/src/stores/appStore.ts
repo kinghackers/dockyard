@@ -57,6 +57,8 @@ interface AppState {
   expandedHosts: Record<string, boolean>;
   expandedGroups: Record<string, boolean>;
   expandedCompose: Record<string, boolean>;
+  /** collapsible "容器" folder per host (loose containers live inside) */
+  expandedContainers: Record<string, boolean>;
   selectedTreeKey: string | null;
   selectedHostId: string | null;
   /** Single content surface shown in the main area (driven by tree selection). */
@@ -80,6 +82,7 @@ interface AppState {
   toggleHost: (id: string) => void;
   toggleGroup: (id: string) => void;
   toggleCompose: (key: string) => void;
+  toggleContainers: (key: string) => void;
   selectTree: (key: string | null, hostId?: string | null) => void;
 
   /** Switch the primary content surface (tree navigation). Does not create tabs. */
@@ -124,6 +127,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   expandedHosts: loadUiPref('sidebar.expandedHosts', {}),
   expandedGroups: loadUiPref('sidebar.expandedGroups', {}),
   expandedCompose: loadUiPref('sidebar.expandedCompose', {}),
+  expandedContainers: loadUiPref('sidebar.expandedContainers', {}),
   selectedTreeKey: null,
   selectedHostId: null,
   mainView: defaultMainView,
@@ -202,6 +206,15 @@ export const useAppStore = create<AppState>((set, get) => ({
     const expandedCompose = { ...get().expandedCompose, [key]: !get().expandedCompose[key] };
     saveUiPref('sidebar.expandedCompose', expandedCompose);
     set({ expandedCompose });
+  },
+
+  toggleContainers: (key) => {
+    const expandedContainers = {
+      ...get().expandedContainers,
+      [key]: !get().expandedContainers[key],
+    };
+    saveUiPref('sidebar.expandedContainers', expandedContainers);
+    set({ expandedContainers });
   },
 
   selectTree: (key, hostId) =>
