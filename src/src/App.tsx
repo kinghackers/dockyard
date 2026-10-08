@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useState } from 'react';
+import { useEffect, useCallback, useState, useRef } from 'react';
 import { Sidebar } from './components/Sidebar/Sidebar';
 import { TabBar } from './components/Layout/TabBar';
 import { ContentRouter } from './components/Layout/ContentRouter';
@@ -23,6 +23,7 @@ export default function App() {
   const [connDialogOpen, setConnDialogOpen] = useState(false);
   const [editingConn, setEditingConn] = useState<DockerConnectionConfig | null>(null);
   const [defaultGroupId, setDefaultGroupId] = useState<string | undefined>(undefined);
+  const healthWarned = useRef(false);
 
   // live auto-refresh via docker events
   useDockerEvents();
@@ -35,10 +36,28 @@ export default function App() {
       setGroups(groups);
       const st = await window.dockerApi.listStatuses();
       setAllStatuses(st);
+
+      // one-time startup warnings: corrupt config backup / plaintext secrets
+      if (!healthWarned.current) {
+        healthWarned.current = true;
+        try {
+          const health = await window.dockerApi.configHealth();
+          if (health.loadError) {
+            toast(health.loadError, 'error');
+          } else if (
+            !health.encryptionAvailable &&
+            list.some((c) => c.sshPassword || c.sshPassphrase || c.key || c.cert)
+          ) {
+            toast('系统加密存储不可用，SSH/TLS 凭据将以明文保存在本机配置文件中', 'info');
+          }
+        } catch {
+          /* health check is best-effort */
+        }
+      }
     } catch (e) {
       console.error(e);
     }
-  }, [setConnections, setGroups, setAllStatuses]);
+  }, [setConnections, setGroups, setAllStatuses, toast]);
 
   useEffect(() => {
     void loadConnections();

@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
 
 export interface DockerApi {
   listConnections(): Promise<unknown[]>;
+  configHealth(): Promise<{ loadError: string | null; encryptionAvailable: boolean }>;
   upsertConnection(cfg: unknown): Promise<unknown>;
   removeConnection(id: string): Promise<boolean>;
   listGroups(): Promise<unknown[]>;
@@ -104,6 +105,7 @@ function subscribe<T>(channel: string, cb: (payload: T) => void): () => void {
 
 const api: DockerApi = {
   listConnections: () => ipcRenderer.invoke('docker:listConnections'),
+  configHealth: () => ipcRenderer.invoke('docker:configHealth'),
   upsertConnection: (cfg) => ipcRenderer.invoke('docker:upsertConnection', cfg),
   removeConnection: (id) => ipcRenderer.invoke('docker:removeConnection', id),
   listGroups: () => ipcRenderer.invoke('docker:listGroups'),

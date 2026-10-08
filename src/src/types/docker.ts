@@ -292,6 +292,7 @@ declare global {
   interface Window {
     dockerApi: {
       listConnections(): Promise<DockerConnectionConfig[]>;
+      configHealth(): Promise<{ loadError: string | null; encryptionAvailable: boolean }>;
       upsertConnection(cfg: DockerConnectionConfig): Promise<DockerConnectionConfig>;
       removeConnection(id: string): Promise<boolean>;
       listGroups(): Promise<ConnectionGroup[]>;

@@ -1,4 +1,5 @@
 import { ipcMain, BrowserWindow, IpcMainInvokeEvent, dialog } from 'electron';
+import * as path from 'path';
 import { DockerConnectionManager } from './connectionManager';
 import {
   ConnectionGroup,
@@ -13,9 +14,23 @@ const execSessions = new Map<string, { write: (chunk: string) => void; resize: (
 const eventStreams = new Map<string, { abort: () => void }>();
 const statsStreams = new Map<string, { abort: () => void }>();
 
+/**
+ * File paths the user actually picked via docker:selectFile. Only these may
+ * be read by docker:readTextFile or executed by compose handlers — otherwise
+ * a compromised renderer could read arbitrary files off the disk.
+ */
+const userSelectedFiles = new Set<string>();
+
+function requireUserSelected(filePath: string) {
+  if (!userSelectedFiles.has(path.resolve(filePath))) {
+    throw new Error('只能访问通过文件选择器选择的文件');
+  }
+}
+
 export function registerIpc(manager: DockerConnectionManager, getWindows: () => BrowserWindow[]) {
   // ---- connection config ----
   ipcMain.handle('docker:listConnections', () => manager.listConfigs());
+  ipcMain.handle('docker:configHealth', () => manager.configHealth());
 
   ipcMain.handle('docker:upsertConnection', (_e, cfg: DockerConnectionConfig) => {
     return manager.upsertConfig(cfg);
@@ -110,12 +125,14 @@ export function registerIpc(manager: DockerConnectionManager, getWindows: () => 
     return manager.createVolume(hostId, opts);
   });
 
-  ipcMain.handle('docker:composeUp', (_e, hostId: string, filePath: string) =>
-    manager.composeUp(hostId, filePath)
-  );
-  ipcMain.handle('docker:composeFileDown', (_e, hostId: string, filePath: string, volumes?: boolean) =>
-    manager.composeFileDown(hostId, filePath, volumes)
-  );
+  ipcMain.handle('docker:composeUp', (_e, hostId: string, filePath: string) => {
+    requireUserSelected(filePath);
+    return manager.composeUp(hostId, filePath);
+  });
+  ipcMain.handle('docker:composeFileDown', (_e, hostId: string, filePath: string, volumes?: boolean) => {
+    requireUserSelected(filePath);
+    return manager.composeFileDown(hostId, filePath, volumes);
+  });
   ipcMain.handle(
     'docker:composeProjectDown',
     (_e, hostId: string, projectName: string, volumes?: boolean) =>
@@ -131,10 +148,13 @@ export function registerIpc(manager: DockerConnectionManager, getWindows: () => 
       properties: ['openFile'],
       filters: filters?.length ? filters : [{ name: 'Compose 文件', extensions: ['yml', 'yaml'] }],
     });
-    return res.canceled || res.filePaths.length === 0 ? null : res.filePaths[0];
+    if (res.canceled || res.filePaths.length === 0) return null;
+    userSelectedFiles.add(path.resolve(res.filePaths[0]));
+    return res.filePaths[0];
   });
 
   ipcMain.handle('docker:readTextFile', async (_e, filePath: string) => {
+    requireUserSelected(filePath);
     const fs = await import('fs');
     return fs.readFileSync(filePath, 'utf8');
   });

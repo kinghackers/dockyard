@@ -24,6 +24,7 @@ import {
   VolumeSummary,
 } from './types';
 import { createSshDockerTunnel, SshTunnel } from './sshTunnel';
+import { readJsonStore, writeJsonStore } from './configStore';
 import {
   decryptSecret,
   encryptSecret,
@@ -161,30 +162,38 @@ export class DockerConnectionManager {
   }
 
   // ---------- persistence ----------
-  loadConfigs(): DockerConnectionConfig[] {
-    try {
-      if (!fs.existsSync(this.configPath)) return [];
-      const raw = JSON.parse(fs.readFileSync(this.configPath, 'utf8'));
-      if (!Array.isArray(raw)) return [];
-      const list = raw.map((c: DockerConnectionConfig) => decryptConfig(c));
+  private configLoadError: string | null = null;
 
-      // one-shot upgrade: rewrite legacy plaintext secrets as encrypted blobs
-      if (encryptionAvailable() && raw.some((c: DockerConnectionConfig) => hasPlaintextSecret(secretValues(c)))) {
-        try {
-          this.saveConfigs(list);
-        } catch {
-          /* keep using in-memory plaintext if rewrite fails */
-        }
+  /** Last config-load failure + whether at-rest encryption is available, for UI warnings. */
+  configHealth(): { loadError: string | null; encryptionAvailable: boolean } {
+    return { loadError: this.configLoadError, encryptionAvailable: encryptionAvailable() };
+  }
+
+  loadConfigs(): DockerConnectionConfig[] {
+    // NOTE: readJsonStore never silently treats a *corrupt* file as empty —
+    // it moves it aside and reports it, so a save cannot wipe user data.
+    const { value, corruptedBackup } = readJsonStore<DockerConnectionConfig[]>(this.configPath);
+    this.configLoadError = corruptedBackup
+      ? `连接配置文件已损坏，原文件备份于 ${corruptedBackup}。为避免覆盖，已从空配置启动，可手动恢复该备份。`
+      : null;
+    if (!value) return [];
+    const raw = value;
+    if (!Array.isArray(raw)) return [];
+    const list = raw.map((c: DockerConnectionConfig) => decryptConfig(c));
+
+    // one-shot upgrade: rewrite legacy plaintext secrets as encrypted blobs
+    if (encryptionAvailable() && raw.some((c: DockerConnectionConfig) => hasPlaintextSecret(secretValues(c)))) {
+      try {
+        this.saveConfigs(list);
+      } catch {
+        /* keep using in-memory plaintext if rewrite fails */
       }
-      return list;
-    } catch {
-      return [];
     }
+    return list;
   }
 
   private saveConfigs(list: DockerConnectionConfig[]) {
-    const out = list.map(encryptConfig);
-    fs.writeFileSync(this.configPath, JSON.stringify(out, null, 2), 'utf8');
+    writeJsonStore(this.configPath, list.map(encryptConfig));
   }
 
   listConfigs(): DockerConnectionConfig[] {
@@ -208,17 +217,12 @@ export class DockerConnectionManager {
 
   // ---------- sidebar groups ----------
   loadGroups(): ConnectionGroup[] {
-    try {
-      if (!fs.existsSync(this.groupsPath)) return [];
-      const raw = JSON.parse(fs.readFileSync(this.groupsPath, 'utf8'));
-      return Array.isArray(raw) ? raw : [];
-    } catch {
-      return [];
-    }
+    const { value } = readJsonStore<ConnectionGroup[]>(this.groupsPath);
+    return Array.isArray(value) ? value : [];
   }
 
   private saveGroups(list: ConnectionGroup[]) {
-    fs.writeFileSync(this.groupsPath, JSON.stringify(list, null, 2), 'utf8');
+    writeJsonStore(this.groupsPath, list);
   }
 
   listGroups(): ConnectionGroup[] {

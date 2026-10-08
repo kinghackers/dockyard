@@ -18,9 +18,10 @@
     "check:ipc": "node scripts/check-ipc.mjs",
     "check:logic": "node scripts/check-logic.mjs",
     "check:dist": "node scripts/check-dist.mjs",
-    "verify": "npm run typecheck && npm run check:ipc && npm run check:logic",
+    "verify": "npm run typecheck && npm run test && npm run check:ipc && npm run check:logic",
     "verify:dist": "npm run build && npm run verify && npm run check:dist",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run"
   },
   "dependencies": {
     "@xterm/addon-fit": "^0.10.0",
@@ -45,7 +46,8 @@
     "electron-builder": "^25.1.8",
     "esbuild": "^0.24.0",
     "typescript": "^5.6.3",
-    "vite": "^5.4.9"
+    "vite": "^5.4.9",
+    "vitest": "^2.1.9"
   },
   "allowScripts": {
     "electron@33.4.11": true,
@@ -82,11 +84,15 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         },
         {
           "target": "dir",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "artifactName": "DockerManager-${version}-Setup.${ext}"
