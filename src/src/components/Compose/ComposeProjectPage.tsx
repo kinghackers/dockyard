@@ -589,6 +589,7 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
               {sorted.map((c) => (
                 <tr
                   key={c.id}
+                  title="双击打开详情"
                   className={`${selected === c.id ? 'selected' : ''} ${checked.has(c.id) ? 'checked' : ''}`}
                   onClick={(e) => {
                     // ctrl/cmd toggles multi-select; shift selects range; plain click focuses
@@ -699,6 +700,42 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
                         )
                       }
                       onStopRestartLoop={() => void stopRestartLoop(c.id, c.name)}
+                      extra={
+                        <>
+                          <button
+                            className="btn ghost icon-btn"
+                            title="详情"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openTab({
+                                id: `containerDetail:${hostId}:${c.id}`,
+                                title: `容器: ${c.name}`,
+                                kind: 'containerDetail',
+                                hostId,
+                                containerId: c.id,
+                              });
+                            }}
+                          >
+                            <Info size={12} />
+                          </button>
+                          <button
+                            className="btn ghost icon-btn"
+                            title="日志"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openTab({
+                                id: `logs:${hostId}:${c.id}`,
+                                title: `日志 · ${c.name}`,
+                                kind: 'logs',
+                                hostId,
+                                containerId: c.id,
+                              });
+                            }}
+                          >
+                            <FileText size={12} />
+                          </button>
+                        </>
+                      }
                     />
                   </td>
                 </tr>

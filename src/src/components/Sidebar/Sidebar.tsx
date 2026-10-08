@@ -8,6 +8,7 @@ import {
   Trash2,
   ChevronRight,
   ChevronDown,
+  ChevronsUpDown,
   Server,
   Layers,
   Box,
@@ -20,9 +21,18 @@ import {
   FolderOpen,
   FolderInput,
   HardDriveDownload,
+  LayoutDashboard,
+  FileText,
+  Terminal as TermIcon,
+  Info,
+  Play,
+  Square,
+  Download,
+  ArrowRight,
 } from 'lucide-react';
 import { useAppStore } from '../../stores/appStore';
 import { useConfirm } from '../../utils/useConfirm';
+import { getContainerActions } from '../../utils/containerActions';
 import type { ComposeProject, ContainerSummary, DockerConnectionConfig } from '../../types/docker';
 import { GroupNameDialog } from './GroupNameDialog';
 import { ConnectionBackupDialog } from '../Connection/ConnectionBackupDialog';
@@ -37,6 +47,18 @@ interface Props {
 
 function newGroupId() {
   return `grp-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+/** Run a docker API call from a tree context menu with pending/success/error toasts. */
+async function runSidebarAction(pending: string, ok: string, fn: () => Promise<unknown>) {
+  const { toast } = useAppStore.getState();
+  toast(pending, 'info');
+  try {
+    await fn();
+    toast(ok, 'success');
+  } catch (e) {
+    toast(e instanceof Error ? e.message : String(e), 'error');
+  }
 }
 
 export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDisconnect }: Props) {
@@ -230,11 +252,195 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
       }
     };
 
+    const composeProjectMenu = (p: ComposeProject): ContextMenuItem[] => [
+      {
+        key: 'open',
+        label: '打开项目',
+        icon: <Layers size={13} />,
+        onSelect: () => {
+          selectTree(`compose:${conn.id}:${p.name}`, conn.id);
+          openTab({
+            id: `composeProject:${conn.id}:${p.name}`,
+            title: p.name,
+            kind: 'composeProject',
+            hostId: conn.id,
+            projectName: p.name,
+          });
+        },
+      },
+      {
+        key: 'logs',
+        label: '项目日志',
+        icon: <FileText size={13} />,
+        onSelect: () =>
+          openTab({
+            id: `composeLogs:${conn.id}:${p.name}`,
+            title: `项目日志 · ${p.name}`,
+            kind: 'composeLogs',
+            hostId: conn.id,
+            projectName: p.name,
+          }),
+      },
+      { key: 'sep1', label: '', separator: true, onSelect: () => {} },
+      {
+        key: 'start',
+        label: '启动全部',
+        icon: <Play size={13} />,
+        onSelect: () =>
+          void runSidebarAction(`正在启动项目 ${p.name}…`, `项目 ${p.name} 已启动`, async () => {
+            for (const c of p.containers) {
+              if (c.state !== 'running') await window.dockerApi.startContainer(conn.id, c.id);
+            }
+          }),
+      },
+      {
+        key: 'stop',
+        label: '停止全部',
+        icon: <Square size={13} />,
+        onSelect: () =>
+          void runSidebarAction(`正在停止项目 ${p.name}…`, `项目 ${p.name} 已停止`, async () => {
+            for (const c of p.containers) {
+              if (c.state === 'running') await window.dockerApi.stopContainer(conn.id, c.id);
+            }
+          }),
+      },
+      {
+        key: 'pull',
+        label: '更新镜像',
+        icon: <Download size={13} />,
+        onSelect: () =>
+          void runSidebarAction(`正在更新 ${p.name} 镜像…`, '镜像已更新', async () => {
+            const res = await window.dockerApi.composeProjectPull(conn.id, p.name);
+            if (!res.ok) throw new Error(res.output || `更新失败（退出码 ${res.exitCode ?? '-'}）`);
+          }),
+      },
+      { key: 'sep2', label: '', separator: true, onSelect: () => {} },
+      {
+        key: 'down',
+        label: '项目下线…',
+        icon: <Trash2 size={13} />,
+        danger: true,
+        onSelect: () =>
+          void (async () => {
+            const ok = await confirm({
+              title: '项目下线',
+              message: `确认停止并移除项目「${p.name}」的容器？（默认保留数据卷）`,
+              confirmLabel: '下线',
+              danger: true,
+            });
+            if (!ok) return;
+            await runSidebarAction(
+              `正在下线项目 ${p.name}…`,
+              `项目 ${p.name} 已下线`,
+              () => window.dockerApi.composeProjectDown(conn.id, p.name)
+            );
+          })(),
+      },
+    ];
+
+    const containerNodeMenu = (
+      id: string,
+      name: string,
+      state?: string,
+      status?: string
+    ): ContextMenuItem[] => {
+      const a = getContainerActions(state || 'created', status);
+      const items: ContextMenuItem[] = [
+        {
+          key: 'detail',
+          label: '打开详情',
+          icon: <Info size={13} />,
+          onSelect: () =>
+            openTab({
+              id: `containerDetail:${conn.id}:${id}`,
+              title: `容器: ${name}`,
+              kind: 'containerDetail',
+              hostId: conn.id,
+              containerId: id,
+            }),
+        },
+        {
+          key: 'logs',
+          label: '查看日志',
+          icon: <FileText size={13} />,
+          onSelect: () =>
+            openTab({
+              id: `logs:${conn.id}:${id}`,
+              title: `日志 · ${name}`,
+              kind: 'logs',
+              hostId: conn.id,
+              containerId: id,
+            }),
+        },
+        {
+          key: 'term',
+          label: '打开终端',
+          icon: <TermIcon size={13} />,
+          disabled: !a.canExec,
+          onSelect: () =>
+            openTab({
+              id: `terminal:${conn.id}:${id}`,
+              title: `终端 · ${name}`,
+              kind: 'terminal',
+              hostId: conn.id,
+              containerId: id,
+            }),
+        },
+      ];
+      if (a.canStart || a.canStop) {
+        items.push({ key: 'sep', label: '', separator: true, onSelect: () => {} });
+        if (a.canStart) {
+          items.push({
+            key: 'start',
+            label: '启动',
+            icon: <Play size={13} />,
+            onSelect: () =>
+              void runSidebarAction(
+                `正在启动 ${name}…`,
+                `已启动 ${name}`,
+                () => window.dockerApi.startContainer(conn.id, id)
+              ),
+          });
+        }
+        if (a.canStop) {
+          items.push({
+            key: 'stop',
+            label: '停止',
+            icon: <Square size={13} />,
+            onSelect: () =>
+              void runSidebarAction(
+                `正在停止 ${name}…`,
+                `已停止 ${name}`,
+                () => window.dockerApi.stopContainer(conn.id, id)
+              ),
+          });
+        }
+      }
+      return items;
+    };
+
+    const categoryMenu = (
+      treeKey: string,
+      kind: 'containers' | 'images' | 'networks' | 'volumes',
+      label: string
+    ): ContextMenuItem[] => [
+      {
+        key: 'open',
+        label: `打开${label}`,
+        icon: <ArrowRight size={13} />,
+        onSelect: () => {
+          selectTree(treeKey, conn.id);
+          openView(conn.id, kind);
+        },
+      },
+    ];
+
     const hostMenu = (): ContextMenuItem[] => {
       const items: ContextMenuItem[] = [
         {
           key: 'toggle',
           label: isExpanded ? '折叠' : '展开',
+          icon: <ChevronsUpDown size={13} />,
           onSelect: () => void handleToggleHost(conn.id),
         },
         {
@@ -250,6 +456,7 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
         {
           key: 'dashboard',
           label: '打开仪表板',
+          icon: <LayoutDashboard size={13} />,
           onSelect: () => {
             selectTree(`host:${conn.id}`, conn.id);
             openTab({
@@ -263,6 +470,7 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
         {
           key: 'containers',
           label: '打开容器列表',
+          icon: <Box size={13} />,
           onSelect: () => openView(conn.id, 'containers'),
         },
         { key: 'sep2', label: '', separator: true, onSelect: () => {} },
@@ -398,6 +606,7 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
                         projectName: p.name,
                       });
                     }}
+                    onContextMenu={(e) => ctx.open(e, composeProjectMenu(p))}
                   >
                     <span
                       className="twisty"
@@ -437,6 +646,20 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
                                 });
                               }
                             }}
+                            onContextMenu={
+                              s.containerId
+                                ? (e) =>
+                                    ctx.open(
+                                      e,
+                                      containerNodeMenu(
+                                        s.containerId!,
+                                        s.containerName || s.name,
+                                        s.state,
+                                        s.status
+                                      )
+                                    )
+                                : undefined
+                            }
                           >
                             <span className="twisty" />
                             <span className="icon">
@@ -478,6 +701,7 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
                       containerId: c.id,
                     });
                   }}
+                  onContextMenu={(e) => ctx.open(e, containerNodeMenu(c.id, c.name, c.state, c.status))}
                 >
                   <span className="twisty" />
                   <span className="icon">
@@ -498,6 +722,9 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
                 selectTree(`containers:${conn.id}`, conn.id);
                 openView(conn.id, 'containers');
               }}
+              onContextMenu={(e) =>
+                ctx.open(e, categoryMenu(`containers:${conn.id}`, 'containers', '容器列表'))
+              }
             >
               <span className="twisty" />
               <span className="icon">
@@ -514,6 +741,9 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
                 selectTree(`images:${conn.id}`, conn.id);
                 openView(conn.id, 'images');
               }}
+              onContextMenu={(e) =>
+                ctx.open(e, categoryMenu(`images:${conn.id}`, 'images', '镜像列表'))
+              }
             >
               <span className="twisty" />
               <span className="icon">
@@ -529,6 +759,9 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
                 selectTree(`networks:${conn.id}`, conn.id);
                 openView(conn.id, 'networks');
               }}
+              onContextMenu={(e) =>
+                ctx.open(e, categoryMenu(`networks:${conn.id}`, 'networks', '网络列表'))
+              }
             >
               <span className="twisty" />
               <span className="icon">
@@ -544,12 +777,15 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
                 selectTree(`volumes:${conn.id}`, conn.id);
                 openView(conn.id, 'volumes');
               }}
+              onContextMenu={(e) =>
+                ctx.open(e, categoryMenu(`volumes:${conn.id}`, 'volumes', '数据卷列表'))
+              }
             >
               <span className="twisty" />
               <span className="icon">
                 <Database size={14} color="var(--volume)" />
               </span>
-              <span className="label">卷</span>
+              <span className="label">数据卷</span>
             </div>
           </div>
         )}

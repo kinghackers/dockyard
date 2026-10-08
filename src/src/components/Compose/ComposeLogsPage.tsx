@@ -212,6 +212,7 @@ export function ComposeLogsPage({ hostId, projectName }: { hostId: string; proje
     a.download = `${projectName}.log`;
     a.click();
     URL.revokeObjectURL(url);
+    toast(`已导出 ${visible.length} 行日志`, 'success');
   };
 
   useHotkeys({

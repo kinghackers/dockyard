@@ -697,6 +697,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
                 <tr
                   key={c.id}
                   ref={i === 0 ? firstRowRef : undefined}
+                  title="双击打开详情"
                   className={`${selected === c.id ? 'selected' : ''} ${checked.has(c.id) ? 'checked' : ''}`}
                   onClick={(e) => {
                     // ctrl/cmd toggles multi-select; shift selects range; plain click focuses
@@ -825,6 +826,16 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
                       onStopRestartLoop={() => void stopRestartLoop(c.id, c.name)}
                       extra={
                         <>
+                          <button
+                            className="btn ghost icon-btn"
+                            title="详情"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openDetail(c.id, c.name);
+                            }}
+                          >
+                            <Info size={12} />
+                          </button>
                           <button
                             className="btn ghost icon-btn"
                             title="日志"

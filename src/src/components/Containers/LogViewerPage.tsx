@@ -190,6 +190,7 @@ export function LogViewerPage({ hostId, containerId }: { hostId: string; contain
     a.download = `${containerId.slice(0, 12)}.log`;
     a.click();
     URL.revokeObjectURL(url);
+    toast(`已导出 ${lines.length} 行日志`, 'success');
   };
 
   const visibleLines = useMemo(() => {

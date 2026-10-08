@@ -64,6 +64,7 @@ export function ConnectionBackupDialog({
     a.click();
     URL.revokeObjectURL(url);
     toast(includeSecrets ? '已导出（含敏感信息，请妥善保管）' : '已导出（不含密码/密钥）', 'success');
+    onClose();
   };
 
   const importJson = async () => {
