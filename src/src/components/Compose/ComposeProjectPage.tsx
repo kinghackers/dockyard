@@ -15,6 +15,8 @@ import {
   ArrowUp,
   ArrowDown,
   Download,
+  Pause,
+  PlayCircle,
 } from 'lucide-react';
 import type { ContainerSummary, ComposeProject } from '../../types/docker';
 import { useAppStore } from '../../stores/appStore';
@@ -290,6 +292,22 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
         label: '强制终止',
         icon: <Skull size={13} />,
         onSelect: () => void action(each((id) => window.dockerApi.killContainer(hostId, id)), '已强制终止'),
+      });
+    }
+    if (a.canPause) {
+      items.push({
+        key: 'pause',
+        label: '暂停',
+        icon: <Pause size={13} />,
+        onSelect: () => void action(() => window.dockerApi.pauseContainer(hostId, c.id), '已暂停'),
+      });
+    }
+    if (a.canUnpause) {
+      items.push({
+        key: 'unpause',
+        label: '恢复',
+        icon: <PlayCircle size={13} />,
+        onSelect: () => void action(() => window.dockerApi.unpauseContainer(hostId, c.id), '已恢复'),
       });
     }
     if (a.isRestartLoop) {

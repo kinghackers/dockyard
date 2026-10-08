@@ -97,6 +97,10 @@ export interface ContainerDetail extends ContainerSummary {
   cpuPercent?: number;
   memUsage?: number;
   memLimit?: number;
+  /** configured HostConfig.Memory (bytes) — 0/undefined means unlimited */
+  memLimitConfigured?: number;
+  /** configured HostConfig.NanoCpus — 1e9 = 1 core */
+  nanoCpus?: number;
   netRx?: number;
   netTx?: number;
   blockRead?: number;

@@ -29,6 +29,17 @@ export interface DockerApi {
   removeContainer(hostId: string, id: string, force?: boolean): Promise<boolean>;
   pauseContainer(hostId: string, id: string): Promise<boolean>;
   unpauseContainer(hostId: string, id: string): Promise<boolean>;
+  renameContainer(hostId: string, id: string, name: string): Promise<boolean>;
+  updateContainerResources(
+    hostId: string,
+    id: string,
+    opts: { memoryMB?: number; cpuCores?: number }
+  ): Promise<boolean>;
+  commitContainer(
+    hostId: string,
+    id: string,
+    opts: { repo: string; tag?: string; comment?: string }
+  ): Promise<string>;
 
   openLogs(hostId: string, containerId: string, tail?: number): Promise<boolean>;
   closeLogs(hostId: string, containerId: string): Promise<boolean>;
@@ -52,6 +63,11 @@ export interface DockerApi {
   onPullProgress(cb: (payload: { name: string; message: string }) => void): () => void;
   pushImage(hostId: string, name: string): Promise<boolean>;
   onPushProgress(cb: (payload: { name: string; message: string }) => void): () => void;
+  saveImage(
+    hostId: string,
+    name: string
+  ): Promise<{ ok: boolean; canceled?: boolean; path?: string; bytes?: number; error?: string }>;
+  loadImage(hostId: string): Promise<{ ok: boolean; canceled?: boolean; path?: string; output?: string; error?: string }>;
 
   listNetworks(hostId: string): Promise<unknown[]>;
   removeNetwork(hostId: string, id: string): Promise<boolean>;
@@ -129,6 +145,10 @@ const api: DockerApi = {
   removeContainer: (hostId, id, force) => ipcRenderer.invoke('docker:removeContainer', hostId, id, force),
   pauseContainer: (hostId, id) => ipcRenderer.invoke('docker:pauseContainer', hostId, id),
   unpauseContainer: (hostId, id) => ipcRenderer.invoke('docker:unpauseContainer', hostId, id),
+  renameContainer: (hostId, id, name) => ipcRenderer.invoke('docker:renameContainer', hostId, id, name),
+  updateContainerResources: (hostId, id, opts) =>
+    ipcRenderer.invoke('docker:updateContainerResources', hostId, id, opts),
+  commitContainer: (hostId, id, opts) => ipcRenderer.invoke('docker:commitContainer', hostId, id, opts),
 
   openLogs: (hostId, containerId, tail) => ipcRenderer.invoke('docker:openLogs', hostId, containerId, tail),
   closeLogs: (hostId, containerId) => ipcRenderer.invoke('docker:closeLogs', hostId, containerId),
@@ -152,6 +172,8 @@ const api: DockerApi = {
   onPullProgress: (cb) => subscribe('docker:pullProgress', cb),
   pushImage: (hostId, name) => ipcRenderer.invoke('docker:pushImage', hostId, name),
   onPushProgress: (cb) => subscribe('docker:pushProgress', cb),
+  saveImage: (hostId, name) => ipcRenderer.invoke('docker:saveImage', hostId, name),
+  loadImage: (hostId) => ipcRenderer.invoke('docker:loadImage', hostId),
 
   listNetworks: (hostId) => ipcRenderer.invoke('docker:listNetworks', hostId),
   removeNetwork: (hostId, id) => ipcRenderer.invoke('docker:removeNetwork', hostId, id),

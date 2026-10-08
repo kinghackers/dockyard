@@ -91,6 +91,10 @@ export interface ContainerDetail extends ContainerSummary {
   cpuPercent?: number;
   memUsage?: number;
   memLimit?: number;
+  /** configured HostConfig.Memory (bytes) — 0/undefined means unlimited */
+  memLimitConfigured?: number;
+  /** configured HostConfig.NanoCpus — 1e9 = 1 core */
+  nanoCpus?: number;
   netRx?: number;
   netTx?: number;
   blockRead?: number;
@@ -318,6 +322,17 @@ declare global {
       removeContainer(hostId: string, id: string, force?: boolean): Promise<boolean>;
       pauseContainer(hostId: string, id: string): Promise<boolean>;
       unpauseContainer(hostId: string, id: string): Promise<boolean>;
+      renameContainer(hostId: string, id: string, name: string): Promise<boolean>;
+      updateContainerResources(
+        hostId: string,
+        id: string,
+        opts: { memoryMB?: number; cpuCores?: number }
+      ): Promise<boolean>;
+      commitContainer(
+        hostId: string,
+        id: string,
+        opts: { repo: string; tag?: string; comment?: string }
+      ): Promise<string>;
 
       openLogs(hostId: string, containerId: string, tail?: number): Promise<boolean>;
       closeLogs(hostId: string, containerId: string): Promise<boolean>;
@@ -341,6 +356,13 @@ declare global {
       onPullProgress(cb: (p: { name: string; message: string }) => void): () => void;
       pushImage(hostId: string, name: string): Promise<boolean>;
       onPushProgress(cb: (p: { name: string; message: string }) => void): () => void;
+      saveImage(
+        hostId: string,
+        name: string
+      ): Promise<{ ok: boolean; canceled?: boolean; path?: string; bytes?: number; error?: string }>;
+      loadImage(
+        hostId: string
+      ): Promise<{ ok: boolean; canceled?: boolean; path?: string; output?: string; error?: string }>;
 
       listNetworks(hostId: string): Promise<NetworkSummary[]>;
       removeNetwork(hostId: string, id: string): Promise<boolean>;

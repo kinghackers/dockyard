@@ -16,6 +16,7 @@ import {
   ArrowDown,
   Copy,
   Info,
+  Pencil,
 } from 'lucide-react';
 import type { ContainerSummary } from '../../types/docker';
 import { useAppStore } from '../../stores/appStore';
@@ -31,6 +32,7 @@ import { RunContainerDialog } from './RunContainerDialog';
 import { ContainerRowActions } from './ContainerRowActions';
 import { ContextMenu, useContextMenu, type ContextMenuItem } from '../common/ContextMenu';
 import { ListError, ListLoading } from '../common/ListFeedback';
+import { InputDialog } from '../common/InputDialog';
 
 type SortKey = 'name' | 'state' | 'image' | 'project' | 'created';
 
@@ -56,6 +58,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
   const [sortAsc, setSortAsc] = useState(() => loadUiPref('containers.sortAsc', false));
   const [runOpen, setRunOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [renameFor, setRenameFor] = useState<ContainerSummary | null>(null);
   const [confirmDialog, confirm] = useConfirm();
   const ctx = useContextMenu();
   const filterRef = useRef<HTMLInputElement>(null);
@@ -390,6 +393,32 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
           ),
       });
     }
+    if (a.canPause && !multi) {
+      items.push({
+        key: 'pause',
+        label: '暂停',
+        icon: <Pause size={13} />,
+        onSelect: () =>
+          void action(
+            () => window.dockerApi.pauseContainer(hostId, c.id),
+            '已暂停',
+            `${c.name}: 正在暂停…`
+          ),
+      });
+    }
+    if (a.canUnpause && !multi) {
+      items.push({
+        key: 'unpause',
+        label: '恢复',
+        icon: <PlayCircle size={13} />,
+        onSelect: () =>
+          void action(
+            () => window.dockerApi.unpauseContainer(hostId, c.id),
+            '已恢复',
+            `${c.name}: 正在恢复…`
+          ),
+      });
+    }
     if (a.isRestartLoop && !multi) {
       items.push({
         key: 'loop',
@@ -429,6 +458,13 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
         void navigator.clipboard?.writeText(c.id);
         toast('已复制容器 ID', 'info');
       },
+    });
+    items.push({
+      key: 'rename',
+      label: '重命名…',
+      icon: <Pencil size={13} />,
+      disabled: multi,
+      onSelect: () => setRenameFor(c),
     });
     items.push({ key: 'sep2', label: '', separator: true, onSelect: () => {} });
     items.push({
@@ -881,6 +917,25 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
             toast('容器已创建', 'success');
             await load();
             setSelected(id);
+          }}
+        />
+      )}
+      {renameFor && (
+        <InputDialog
+          title="重命名容器"
+          label="容器名称"
+          initial={renameFor.name}
+          confirmLabel="重命名"
+          onClose={() => setRenameFor(null)}
+          onSubmit={async (name) => {
+            try {
+              await window.dockerApi.renameContainer(hostId, renameFor.id, name);
+              toast('已重命名', 'success');
+              setRenameFor(null);
+              await load();
+            } catch (e) {
+              toast(e instanceof Error ? e.message : String(e), 'error');
+            }
           }}
         />
       )}

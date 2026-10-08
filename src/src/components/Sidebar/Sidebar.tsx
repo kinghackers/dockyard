@@ -32,6 +32,8 @@ import {
   Copy,
   Download,
   ArrowRight,
+  Pause,
+  PlayCircle,
 } from 'lucide-react';
 import { useAppStore } from '../../stores/appStore';
 import { useConfirm } from '../../utils/useConfirm';
@@ -450,6 +452,32 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
                 `正在强制终止 ${name}…`,
                 `已强制终止 ${name}`,
                 () => window.dockerApi.killContainer(conn.id, id)
+              ),
+          });
+        }
+        if (a.canPause) {
+          items.push({
+            key: 'pause',
+            label: '暂停',
+            icon: <Pause size={13} />,
+            onSelect: () =>
+              void runSidebarAction(
+                `正在暂停 ${name}…`,
+                `已暂停 ${name}`,
+                () => window.dockerApi.pauseContainer(conn.id, id)
+              ),
+          });
+        }
+        if (a.canUnpause) {
+          items.push({
+            key: 'unpause',
+            label: '恢复',
+            icon: <PlayCircle size={13} />,
+            onSelect: () =>
+              void runSidebarAction(
+                `正在恢复 ${name}…`,
+                `已恢复 ${name}`,
+                () => window.dockerApi.unpauseContainer(conn.id, id)
               ),
           });
         }

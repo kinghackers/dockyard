@@ -11,6 +11,7 @@ import {
   Tag,
   Plus,
   Upload,
+  Save,
 } from 'lucide-react';
 import type { ImageSummary } from '../../types/docker';
 import { useAppStore } from '../../stores/appStore';
@@ -204,6 +205,40 @@ export function ImageListPage({ hostId }: { hostId: string }) {
     }
   };
 
+  const saveOne = async (img: ImageSummary) => {
+    const name = img.repoTags[0] || img.id;
+    toast(`正在导出 ${name}，大镜像可能需要一些时间…`, 'info');
+    try {
+      const res = await window.dockerApi.saveImage(hostId, name);
+      if (res.ok) {
+        toast(`已导出 ${(res.bytes ?? 0).toLocaleString()} 字节 → ${res.path}`, 'success');
+      } else if (!res.canceled) {
+        toast(res.error || '导出失败', 'error');
+      }
+    } catch (e) {
+      reportError(e, toast);
+    }
+  };
+
+  const loadFromFile = async () => {
+    setPulling(true);
+    setPullMessage('正在导入镜像…');
+    try {
+      const res = await window.dockerApi.loadImage(hostId);
+      if (res.ok) {
+        toast('镜像导入完成', 'success');
+        await load();
+      } else if (!res.canceled) {
+        toast(res.error || '导入失败', 'error');
+      }
+    } catch (e) {
+      reportError(e, toast);
+    } finally {
+      setPulling(false);
+      setPullMessage('');
+    }
+  };
+
   const tagOne = (img: ImageSummary) => setTagFor(img);
   const showHistory = (img: ImageSummary) => setHistoryFor(img);
 
@@ -332,6 +367,13 @@ export function ImageListPage({ hostId }: { hostId: string }) {
         onSelect: () => showHistory(img),
       },
       {
+        key: 'save',
+        label: '保存到文件…（docker save）',
+        icon: <Save size={13} />,
+        disabled: multi,
+        onSelect: () => void saveOne(img),
+      },
+      {
         key: 'copy',
         label: '复制镜像 ID',
         icon: <Copy size={13} />,
@@ -444,6 +486,9 @@ export function ImageListPage({ hostId }: { hostId: string }) {
           onClick={() => void doPull()}
         >
           <Download size={13} /> {pulling ? '拉取中…' : '拉取镜像'}
+        </button>
+        <button className="btn" disabled={pulling} onClick={() => void loadFromFile()} title="从 tar 文件导入镜像（docker load）">
+          <Upload size={13} /> 导入
         </button>
         <div style={{ position: 'relative' }}>
           <Search size={13} style={{ position: 'absolute', left: 8, top: 8, color: 'var(--text-muted)' }} />

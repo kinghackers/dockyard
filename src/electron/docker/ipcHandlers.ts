@@ -114,6 +114,23 @@ export function registerIpc(manager: DockerConnectionManager, getWindows: () => 
     return true;
   });
 
+  ipcMain.handle('docker:renameContainer', async (_e, hostId: string, id: string, name: string) => {
+    await manager.renameContainer(hostId, id, name);
+    return true;
+  });
+  ipcMain.handle(
+    'docker:updateContainerResources',
+    async (_e, hostId: string, id: string, opts: { memoryMB?: number; cpuCores?: number }) => {
+      await manager.updateContainerResources(hostId, id, opts);
+      return true;
+    }
+  );
+  ipcMain.handle(
+    'docker:commitContainer',
+    (_e, hostId: string, id: string, opts: { repo: string; tag?: string; comment?: string }) =>
+      manager.commitContainer(hostId, id, opts)
+  );
+
   // ---- create ----
   ipcMain.handle('docker:createContainer', async (_e, hostId: string, opts: CreateContainerOptions, start?: boolean) => {
     return manager.createContainer(hostId, opts, start ?? true);
@@ -351,6 +368,37 @@ export function registerIpc(manager: DockerConnectionManager, getWindows: () => 
       win?.webContents.send('docker:pushProgress', { name, message: msg });
     });
     return true;
+  });
+
+  // docker save / load with native file dialogs on the main side
+  ipcMain.handle('docker:saveImage', async (e, hostId: string, name: string) => {
+    const win = BrowserWindow.fromWebContents(e.sender);
+    const safe = name.replace(/[\\/:*?"<>|]/g, '_');
+    const dest = await dialog.showSaveDialog(win as BrowserWindow, {
+      defaultPath: `${safe}.tar`,
+      filters: [{ name: '镜像 tar 包', extensions: ['tar'] }],
+    });
+    if (dest.canceled || !dest.filePath) return { ok: false, canceled: true };
+    try {
+      const bytes = await manager.saveImageToFile(hostId, name, dest.filePath);
+      return { ok: true, path: dest.filePath, bytes };
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err) };
+    }
+  });
+  ipcMain.handle('docker:loadImage', async (e, hostId: string) => {
+    const win = BrowserWindow.fromWebContents(e.sender);
+    const pick = await dialog.showOpenDialog(win as BrowserWindow, {
+      properties: ['openFile'],
+      filters: [{ name: '镜像 tar 包', extensions: ['tar'] }],
+    });
+    if (pick.canceled || pick.filePaths.length === 0) return { ok: false, canceled: true };
+    try {
+      const output = await manager.loadImageFromFile(hostId, pick.filePaths[0]);
+      return { ok: true, path: pick.filePaths[0], output };
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err) };
+    }
   });
 
   ipcMain.handle('docker:listNetworks', (_e, hostId: string) => manager.listNetworks(hostId));

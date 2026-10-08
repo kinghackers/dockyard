@@ -525,6 +525,8 @@ export class DockerConnectionManager {
       cpuPercent,
       memUsage,
       memLimit,
+      memLimitConfigured: c.HostConfig?.Memory || undefined,
+      nanoCpus: c.HostConfig?.NanoCpus || undefined,
       netRx,
       netTx,
       blockRead,
@@ -563,6 +565,78 @@ export class DockerConnectionManager {
           MaximumRetryCount: policy === 'on-failure' ? maximumRetryCount : 0,
         },
       });
+  }
+
+  /** Rename a running or stopped container (docker rename). */
+  async renameContainer(hostId: string, id: string, name: string) {
+    if (!name.trim()) throw new Error('容器名称不能为空');
+    await this.dockerOf(hostId).getContainer(id).rename({ name: name.trim() });
+  }
+
+  /** Update runtime resource limits (docker update): memory in MB, CPU as cores. */
+  async updateContainerResources(
+    hostId: string,
+    id: string,
+    opts: { memoryMB?: number; cpuCores?: number }
+  ) {
+    const update: { Memory?: number; NanoCpus?: number } = {};
+    if (typeof opts.memoryMB === 'number' && opts.memoryMB > 0) {
+      update.Memory = Math.round(opts.memoryMB * 1024 * 1024);
+    }
+    if (typeof opts.cpuCores === 'number' && opts.cpuCores > 0) {
+      update.NanoCpus = Math.round(opts.cpuCores * 1e9);
+    }
+    if (Object.keys(update).length === 0) throw new Error('未指定要更新的资源限制');
+    await this.dockerOf(hostId).getContainer(id).update(update);
+  }
+
+  /** Commit the container's current filesystem state as a new image (docker commit). */
+  async commitContainer(
+    hostId: string,
+    id: string,
+    opts: { repo: string; tag?: string; comment?: string }
+  ): Promise<string> {
+    if (!opts.repo.trim()) throw new Error('镜像仓库不能为空');
+    const res = (await this.dockerOf(hostId).getContainer(id).commit({
+      repo: opts.repo.trim(),
+      tag: opts.tag?.trim() || 'latest',
+      comment: opts.comment?.trim() || undefined,
+    })) as { Id?: string };
+    return res.Id || '';
+  }
+
+  /** Stream an image out as a tar (docker save) to the given file path. Returns bytes written. */
+  async saveImageToFile(hostId: string, name: string, destPath: string): Promise<number> {
+    const stream = await this.dockerOf(hostId).getImage(name).get();
+    let bytes = 0;
+    await new Promise<void>((resolve, reject) => {
+      const out = fs.createWriteStream(destPath);
+      stream.on('data', (c: Buffer) => {
+        bytes += c.length;
+      });
+      stream.on('error', reject);
+      out.on('error', reject);
+      out.on('finish', () => resolve());
+      stream.pipe(out);
+    });
+    return bytes;
+  }
+
+  /** Load an image from a tar file (docker load). Returns daemon output. */
+  async loadImageFromFile(hostId: string, filePath: string): Promise<string> {
+    const res = await this.dockerOf(hostId).loadImage(fs.createReadStream(filePath));
+    let out = '';
+    const s = res as unknown as NodeJS.ReadableStream;
+    if (s && typeof s.on === 'function') {
+      await new Promise<void>((resolve, reject) => {
+        s.on('data', (b: Buffer) => {
+          out += b.toString('utf8');
+        });
+        s.on('end', () => resolve());
+        s.on('error', reject);
+      });
+    }
+    return out.trim() || '(无输出)';
   }
 
   /**

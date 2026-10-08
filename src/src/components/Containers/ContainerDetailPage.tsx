@@ -11,12 +11,15 @@ import {
   AlertTriangle,
   ShieldOff,
   ArrowLeft,
+  Save,
+  Pencil,
 } from 'lucide-react';
 import type { ContainerDetail, ContainerStatsSample } from '../../types/docker';
 import { useAppStore } from '../../stores/appStore';
 import { reportError } from '../../utils/connection';
 import { runAction } from '../../utils/runAction';
 import { useConfirm } from '../../utils/useConfirm';
+import { InputDialog } from '../common/InputDialog';
 import { localizeContainerStatus, localizeContainerState, localizeRestartPolicy } from '../../utils/localize';
 import { formatPortMappingsDetailed } from '../../utils/ports';
 import { getContainerActions } from '../../utils/containerActions';
@@ -43,6 +46,11 @@ export function ContainerDetailPage({ hostId, containerId }: { hostId: string; c
   const [live, setLive] = useState<ContainerStatsSample | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [commitOpen, setCommitOpen] = useState(false);
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [memLimitMB, setMemLimitMB] = useState('');
+  const [cpuCores, setCpuCores] = useState('');
+  const [savingRes, setSavingRes] = useState(false);
   const [confirmDialog, confirm] = useConfirm();
   const liveSupported = useRef(true);
 
@@ -74,6 +82,36 @@ export function ContainerDetailPage({ hostId, containerId }: { hostId: string; c
     if (containersVersion > 0) void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [containersVersion]);
+
+  // seed the resource-limit inputs from the inspected config
+  useEffect(() => {
+    setMemLimitMB(
+      detail?.memLimitConfigured ? String(Math.round(detail.memLimitConfigured / 1048576)) : ''
+    );
+    setCpuCores(detail?.nanoCpus ? String(detail.nanoCpus / 1e9) : '');
+  }, [detail?.id, detail?.memLimitConfigured, detail?.nanoCpus]);
+
+  const saveResources = async () => {
+    const opts: { memoryMB?: number; cpuCores?: number } = {};
+    const m = Number(memLimitMB);
+    const c = Number(cpuCores);
+    if (memLimitMB.trim() && Number.isFinite(m) && m > 0) opts.memoryMB = m;
+    if (cpuCores.trim() && Number.isFinite(c) && c > 0) opts.cpuCores = c;
+    if (Object.keys(opts).length === 0) {
+      toast('请至少填写一项要修改的限制', 'error');
+      return;
+    }
+    setSavingRes(true);
+    try {
+      await window.dockerApi.updateContainerResources(hostId, containerId, opts);
+      toast('资源限制已更新', 'success');
+      await load();
+    } catch (e) {
+      toast(e instanceof Error ? e.message : String(e), 'error');
+    } finally {
+      setSavingRes(false);
+    }
+  };
 
   // live CPU / memory / net / block I/O stream while running
   const isRunning = detail?.state === 'running';
@@ -305,6 +343,16 @@ export function ContainerDetailPage({ hostId, containerId }: { hostId: string; c
             <Skull size={13} /> 强制终止
           </button>
         )}
+        <button
+          className="btn"
+          onClick={() => setCommitOpen(true)}
+          title="将容器当前文件系统状态提交为新镜像（docker commit）"
+        >
+          <Save size={13} /> 另存为镜像…
+        </button>
+        <button className="btn" onClick={() => setRenameOpen(true)}>
+          <Pencil size={13} /> 重命名…
+        </button>
         <button
           className="btn"
           disabled={!acts?.canLogs}
@@ -584,6 +632,56 @@ export function ContainerDetailPage({ hostId, containerId }: { hostId: string; c
             <dd style={{ whiteSpace: 'pre-line' }}>{formatPortMappingsDetailed(detail.ports)}</dd>
           </dl>
 
+          {detail.health && (
+            <>
+              <div className="section-title">健康检查</div>
+              <div style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 8 }}>
+                状态 {detail.health.status || '-'}
+                {detail.health.failingStreak ? ` · 连续失败 ${detail.health.failingStreak} 次` : ''}
+                {' · '}最近 {Math.min(detail.health.log?.length || 0, 5)} 次探测：
+              </div>
+              <div className="log-view" style={{ maxHeight: 240, overflow: 'auto', fontSize: 11 }}>
+                {(detail.health.log || []).slice(-5).reverse().map((h, i) => (
+                  <div key={i}>
+                    <span className="log-line-ts">
+                      [{h.start ? h.start.replace(/\.\d+Z?$/, '').replace('T', ' ') : '-'}]{' '}
+                    </span>
+                    退出码 {h.exitCode ?? '-'}：{String(h.output || '').trim().slice(0, 400) || '(无输出)'}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          <div className="section-title">资源限制</div>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            <div className="form-row" style={{ width: 180 }}>
+              <label>内存上限 (MB)</label>
+              <input
+                type="number"
+                value={memLimitMB}
+                placeholder="不限制"
+                onChange={(e) => setMemLimitMB(e.target.value)}
+              />
+            </div>
+            <div className="form-row" style={{ width: 180 }}>
+              <label>CPU 核数</label>
+              <input
+                type="number"
+                step="0.5"
+                value={cpuCores}
+                placeholder="不限制"
+                onChange={(e) => setCpuCores(e.target.value)}
+              />
+            </div>
+            <button className="btn" onClick={() => void saveResources()} disabled={savingRes}>
+              {savingRes ? '应用中…' : '应用'}
+            </button>
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
+            留空表示不修改该项；修改对运行中的容器即时生效（docker update）。
+          </div>
+
           {detail.mounts && detail.mounts.length > 0 && (
             <>
               <div className="section-title">挂载</div>
@@ -622,6 +720,50 @@ export function ContainerDetailPage({ hostId, containerId }: { hostId: string; c
             </>
           )}
         </>
+      )}
+      {commitOpen && (
+        <InputDialog
+          title="另存为镜像"
+          label="镜像仓库:标签"
+          initial={`${detail?.name || 'snapshot'}:latest`}
+          placeholder="myapp:snapshot"
+          confirmLabel="提交"
+          onClose={() => setCommitOpen(false)}
+          onSubmit={async (value) => {
+            const idx = value.lastIndexOf(':');
+            const repo = idx > 0 ? value.slice(0, idx) : value;
+            const tag = idx > 0 ? value.slice(idx + 1) : undefined;
+            try {
+              const imageId = await window.dockerApi.commitContainer(hostId, containerId, {
+                repo,
+                tag,
+              });
+              toast(`已提交为新镜像${imageId ? ` (${imageId.slice(7, 19)})` : ''}`, 'success');
+              setCommitOpen(false);
+            } catch (e) {
+              toast(e instanceof Error ? e.message : String(e), 'error');
+            }
+          }}
+        />
+      )}
+      {renameOpen && detail && (
+        <InputDialog
+          title="重命名容器"
+          label="容器名称"
+          initial={detail.name}
+          confirmLabel="重命名"
+          onClose={() => setRenameOpen(false)}
+          onSubmit={async (name) => {
+            try {
+              await window.dockerApi.renameContainer(hostId, containerId, name);
+              toast('已重命名', 'success');
+              setRenameOpen(false);
+              await load();
+            } catch (e) {
+              toast(e instanceof Error ? e.message : String(e), 'error');
+            }
+          }}
+        />
       )}
       {confirmDialog}
     </div>
