@@ -27,16 +27,19 @@ import { formatPortMappings } from '../../utils/ports';
 import { getContainerActions } from '../../utils/containerActions';
 import { ContainerRowActions } from '../Containers/ContainerRowActions';
 import { ContextMenu, useContextMenu, type ContextMenuItem } from '../common/ContextMenu';
+import { ListError, ListLoading } from '../common/ListFeedback';
 
 type SortKey = 'service' | 'name' | 'state' | 'image';
 
 export function ComposeProjectPage({ hostId, projectName }: { hostId: string; projectName: string }) {
   const toast = useAppStore((s) => s.toast);
+  const setRefreshing = useAppStore((s) => s.setRefreshing);
   const openTab = useAppStore((s) => s.openTab);
   const containersVersion = useAppStore((s) => s.containersVersion);
   const [containers, setContainers] = useState<ContainerSummary[]>([]);
   const [project, setProject] = useState<ComposeProject | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>(() => loadUiPref('compose.sortKey', 'service'));
   const [sortAsc, setSortAsc] = useState(() => loadUiPref('compose.sortAsc', true));
@@ -45,6 +48,8 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
 
   const load = useCallback(async () => {
     setLoading(true);
+    setRefreshing(true);
+    setError(null);
     try {
       const [projects, all] = await Promise.all([
         window.dockerApi.listComposeProjects(hostId),
@@ -54,11 +59,12 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
       setProject(p);
       setContainers(all.filter((c) => c.composeProject === projectName));
     } catch (e) {
-      reportError(e, toast);
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  }, [hostId, projectName, toast]);
+  }, [hostId, projectName, setRefreshing]);
 
   useEffect(() => {
     void load();
@@ -459,8 +465,12 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
         })()}
       </div>
 
+      {error && <ListError error={error} onRetry={() => void load()} />}
+
       <div style={{ flex: 1, overflow: 'auto' }}>
-        {containers.length === 0 ? (
+        {loading && containers.length === 0 && !error ? (
+          <ListLoading label="正在加载项目服务…" />
+        ) : containers.length === 0 ? (
           <div className="empty-state">
             <p>该项目下没有容器</p>
           </div>

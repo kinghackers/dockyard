@@ -9,11 +9,13 @@ import { loadUiPref, saveUiPref } from '../../utils/uiPrefs';
 import { localizeVolumeDriver, localizeScope } from '../../utils/localize';
 import { CreateVolumeDialog } from './CreateVolumeDialog';
 import { ContextMenu, useContextMenu, type ContextMenuItem } from '../common/ContextMenu';
+import { ListError, ListLoading } from '../common/ListFeedback';
 
 type SortKey = 'name' | 'driver' | 'mountpoint' | 'scope' | 'created';
 
 export function VolumeListPage({ hostId }: { hostId: string }) {
   const toast = useAppStore((s) => s.toast);
+  const setRefreshing = useAppStore((s) => s.setRefreshing);
   const containersVersion = useAppStore((s) => s.containersVersion);
   const [list, setList] = useState<VolumeSummary[]>([]);
   const [loading, setLoading] = useState(false);
@@ -23,21 +25,25 @@ export function VolumeListPage({ hostId }: { hostId: string }) {
   const [sortKey, setSortKey] = useState<SortKey>(() => loadUiPref('volumes.sortKey', 'name'));
   const [sortAsc, setSortAsc] = useState(() => loadUiPref('volumes.sortAsc', true));
   const [createOpen, setCreateOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [confirmDialog, confirm] = useConfirm();
   const filterRef = useRef<HTMLInputElement>(null);
   const ctx = useContextMenu();
 
   const load = useCallback(async () => {
     setLoading(true);
+    setRefreshing(true);
+    setError(null);
     try {
       const data = await window.dockerApi.listVolumes(hostId);
       setList(data);
     } catch (e) {
-      reportError(e, toast);
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  }, [hostId, toast]);
+  }, [hostId, setRefreshing]);
 
   useEffect(() => {
     void load();
@@ -261,8 +267,12 @@ export function VolumeListPage({ hostId }: { hostId: string }) {
         </div>
       </div>
 
+      {error && <ListError error={error} onRetry={() => void load()} />}
+
       <div style={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
-        {filtered.length === 0 ? (
+        {loading && list.length === 0 && !error ? (
+          <ListLoading label="正在加载数据卷…" />
+        ) : filtered.length === 0 ? (
           <div className="empty-state">
             <p>{list.length === 0 ? '暂无数据卷' : '没有匹配的数据卷'}</p>
           </div>

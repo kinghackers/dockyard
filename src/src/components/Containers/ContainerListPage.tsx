@@ -30,6 +30,7 @@ import { loadUiPref, saveUiPref } from '../../utils/uiPrefs';
 import { RunContainerDialog } from './RunContainerDialog';
 import { ContainerRowActions } from './ContainerRowActions';
 import { ContextMenu, useContextMenu, type ContextMenuItem } from '../common/ContextMenu';
+import { ListError, ListLoading } from '../common/ListFeedback';
 
 type SortKey = 'name' | 'state' | 'image' | 'project' | 'created';
 
@@ -40,6 +41,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
   const openTab = useAppStore((s) => s.openTab);
   const toast = useAppStore((s) => s.toast);
   const setContainers = useAppStore((s) => s.setContainers);
+  const setRefreshing = useAppStore((s) => s.setRefreshing);
   const list = useAppStore((s) => s.containersByHost[hostId] || EMPTY_LIST);
   const containersVersion = useAppStore((s) => s.containersVersion);
   const [loading, setLoading] = useState(false);
@@ -53,21 +55,25 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
   const [sortKey, setSortKey] = useState<SortKey>(() => loadUiPref('containers.sortKey', 'created'));
   const [sortAsc, setSortAsc] = useState(() => loadUiPref('containers.sortAsc', false));
   const [runOpen, setRunOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [confirmDialog, confirm] = useConfirm();
   const ctx = useContextMenu();
   const filterRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setRefreshing(true);
+    setError(null);
     try {
       const data = await window.dockerApi.listContainers(hostId, true, true);
       setContainers(hostId, data);
     } catch (e) {
-      reportError(e, toast);
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  }, [hostId, setContainers, toast]);
+  }, [hostId, setContainers, setRefreshing]);
 
   useEffect(() => {
     void load();
@@ -637,12 +643,16 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
         </div>
       </div>
 
+      {error && <ListError error={error} onRetry={() => void load()} />}
+
       <div
         ref={scrollRef}
         style={{ flex: 1, overflow: 'auto', minHeight: 0 }}
         onScroll={windowed ? handleListScroll : undefined}
       >
-        {filtered.length === 0 ? (
+        {loading && list.length === 0 && !error ? (
+          <ListLoading label="正在加载容器…" />
+        ) : filtered.length === 0 ? (
           <div className="empty-state">
             <p>{list.length === 0 ? '暂无容器' : '没有匹配的容器'}</p>
           </div>

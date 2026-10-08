@@ -6,26 +6,32 @@ import { reportError } from '../../utils/connection';
 import { runAction } from '../../utils/runAction';
 import { localizeStatusChip, localizeContainerStatus, localizeContainerState } from '../../utils/localize';
 import { ComposeUpDialog } from './ComposeUpDialog';
+import { ListError, ListLoading } from '../common/ListFeedback';
 
 export function ComposeListPage({ hostId }: { hostId: string }) {
   const toast = useAppStore((s) => s.toast);
+  const setRefreshing = useAppStore((s) => s.setRefreshing);
   const openTab = useAppStore((s) => s.openTab);
   const containersVersion = useAppStore((s) => s.containersVersion);
   const [projects, setProjects] = useState<ComposeProject[]>([]);
   const [loading, setLoading] = useState(false);
   const [upOpen, setUpOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setRefreshing(true);
+    setError(null);
     try {
       const data = await window.dockerApi.listComposeProjects(hostId);
       setProjects(data);
     } catch (e) {
-      reportError(e, toast);
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  }, [hostId, toast]);
+  }, [hostId, setRefreshing]);
 
   useEffect(() => {
     void load();
@@ -84,7 +90,11 @@ export function ComposeListPage({ hostId }: { hostId: string }) {
         </button>
       </div>
 
-      {projects.length === 0 ? (
+      {error && <ListError error={error} onRetry={() => void load()} />}
+
+      {loading && projects.length === 0 && !error ? (
+        <ListLoading label="正在加载 Compose 项目…" />
+      ) : projects.length === 0 ? (
         <div className="empty-state">
           <Layers size={32} strokeWidth={1.2} color="var(--text-muted)" />
           <h3>没有发现 Compose 项目</h3>

@@ -20,6 +20,7 @@ import { useHotkeys } from '../../utils/useHotkeys';
 import { loadUiPref, saveUiPref } from '../../utils/uiPrefs';
 import { RunContainerDialog } from '../Containers/RunContainerDialog';
 import { ContextMenu, useContextMenu, type ContextMenuItem } from '../common/ContextMenu';
+import { ListError, ListLoading } from '../common/ListFeedback';
 import { TagImageDialog } from './TagImageDialog';
 import { ImageHistoryDialog } from './ImageHistoryDialog';
 
@@ -43,6 +44,7 @@ function tagsLabel(img: ImageSummary): string {
 
 export function ImageListPage({ hostId }: { hostId: string }) {
   const toast = useAppStore((s) => s.toast);
+  const setRefreshing = useAppStore((s) => s.setRefreshing);
   const containersVersion = useAppStore((s) => s.containersVersion);
   const [list, setList] = useState<ImageSummary[]>([]);
   const [loading, setLoading] = useState(false);
@@ -59,6 +61,7 @@ export function ImageListPage({ hostId }: { hostId: string }) {
   const [runImage, setRunImage] = useState<string | null>(null);
   const [tagFor, setTagFor] = useState<ImageSummary | null>(null);
   const [historyFor, setHistoryFor] = useState<ImageSummary | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [confirmDialog, confirm] = useConfirm();
   const pullOffRef = useRef<(() => void) | null>(null);
   const filterRef = useRef<HTMLInputElement>(null);
@@ -66,15 +69,18 @@ export function ImageListPage({ hostId }: { hostId: string }) {
 
   const load = useCallback(async () => {
     setLoading(true);
+    setRefreshing(true);
+    setError(null);
     try {
       const data = await window.dockerApi.listImages(hostId);
       setList(data);
     } catch (e) {
-      reportError(e, toast);
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  }, [hostId, toast]);
+  }, [hostId, setRefreshing]);
 
   useEffect(() => {
     void load();
@@ -470,8 +476,12 @@ export function ImageListPage({ hostId }: { hostId: string }) {
         </div>
       ) : null}
 
+      {error && <ListError error={error} onRetry={() => void load()} />}
+
       <div style={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
-        {filtered.length === 0 ? (
+        {loading && list.length === 0 && !error ? (
+          <ListLoading label="正在加载镜像…" />
+        ) : filtered.length === 0 ? (
           <div className="empty-state">
             <p>{list.length === 0 ? '暂无镜像' : '没有匹配的镜像'}</p>
           </div>

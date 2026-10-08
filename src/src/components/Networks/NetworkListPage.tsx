@@ -9,11 +9,13 @@ import { loadUiPref, saveUiPref } from '../../utils/uiPrefs';
 import { localizeNetworkDriver, localizeScope } from '../../utils/localize';
 import { CreateNetworkDialog } from './CreateNetworkDialog';
 import { ContextMenu, useContextMenu, type ContextMenuItem } from '../common/ContextMenu';
+import { ListError, ListLoading } from '../common/ListFeedback';
 
 type SortKey = 'name' | 'id' | 'driver' | 'scope' | 'subnet';
 
 export function NetworkListPage({ hostId }: { hostId: string }) {
   const toast = useAppStore((s) => s.toast);
+  const setRefreshing = useAppStore((s) => s.setRefreshing);
   const containersVersion = useAppStore((s) => s.containersVersion);
   const [list, setList] = useState<NetworkSummary[]>([]);
   const [loading, setLoading] = useState(false);
@@ -24,21 +26,25 @@ export function NetworkListPage({ hostId }: { hostId: string }) {
   const [sortAsc, setSortAsc] = useState(() => loadUiPref('networks.sortAsc', true));
   const [expanded, setExpanded] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [confirmDialog, confirm] = useConfirm();
   const filterRef = useRef<HTMLInputElement>(null);
   const ctx = useContextMenu();
 
   const load = useCallback(async () => {
     setLoading(true);
+    setRefreshing(true);
+    setError(null);
     try {
       const data = await window.dockerApi.listNetworks(hostId);
       setList(data);
     } catch (e) {
-      reportError(e, toast);
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  }, [hostId, toast]);
+  }, [hostId, setRefreshing]);
 
   useEffect(() => {
     void load();
@@ -265,8 +271,12 @@ export function NetworkListPage({ hostId }: { hostId: string }) {
         </div>
       </div>
 
+      {error && <ListError error={error} onRetry={() => void load()} />}
+
       <div style={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
-        {filtered.length === 0 ? (
+        {loading && list.length === 0 && !error ? (
+          <ListLoading label="正在加载网络…" />
+        ) : filtered.length === 0 ? (
           <div className="empty-state">
             <p>{list.length === 0 ? '暂无网络' : '没有匹配的网络'}</p>
           </div>
