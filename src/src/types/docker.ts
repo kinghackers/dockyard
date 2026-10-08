@@ -371,6 +371,32 @@ declare global {
 
       listComposeProjects(hostId: string): Promise<ComposeProject[]>;
       listUnclassified(hostId: string): Promise<ContainerSummary[]>;
+      systemDf(hostId: string): Promise<{
+        images: number;
+        danglingImages: number;
+        danglingImageBytes: number;
+        containers: number;
+        stoppedContainers: number;
+        stoppedContainerBytes: number;
+        volumes: number;
+        unusedVolumes: number;
+        unusedVolumeBytes: number;
+        reclaimableBytes: number;
+      }>;
+      pruneSystem(
+        hostId: string,
+        opts: {
+          danglingImages?: boolean;
+          stoppedContainers?: boolean;
+          unusedNetworks?: boolean;
+          unusedVolumes?: boolean;
+        }
+      ): Promise<{
+        imagesDeleted: number;
+        containersDeleted: number;
+        networksDeleted: number;
+        volumesDeleted: number;
+      }>;
       systemStats(hostId: string): Promise<SystemStats>;
       systemInfo(hostId: string): Promise<DockerInfoLite | undefined>;
 

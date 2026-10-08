@@ -416,6 +416,16 @@ export function registerIpc(manager: DockerConnectionManager, getWindows: () => 
   // ---- compose / stats ----
   ipcMain.handle('docker:listComposeProjects', (_e, hostId: string) => manager.listComposeProjects(hostId));
   ipcMain.handle('docker:listUnclassified', (_e, hostId: string) => manager.listUnclassifiedContainers(hostId));
+  ipcMain.handle('docker:systemDf', (_e, hostId: string) => manager.systemDf(hostId));
+  ipcMain.handle(
+    'docker:pruneSystem',
+    async (_e, hostId: string, opts: {
+      danglingImages?: boolean;
+      stoppedContainers?: boolean;
+      unusedNetworks?: boolean;
+      unusedVolumes?: boolean;
+    }) => manager.pruneSystem(hostId, opts)
+  );
   ipcMain.handle('docker:systemStats', async (_e, hostId: string) => {
     try {
       return await manager.systemStats(hostId);

@@ -24,6 +24,7 @@ import { ContextMenu, useContextMenu, type ContextMenuItem } from '../common/Con
 import { ListError, ListLoading } from '../common/ListFeedback';
 import { TagImageDialog } from './TagImageDialog';
 import { ImageHistoryDialog } from './ImageHistoryDialog';
+import { CleanupDialog } from './CleanupDialog';
 
 type SortKey = 'tags' | 'id' | 'size' | 'created';
 
@@ -62,6 +63,7 @@ export function ImageListPage({ hostId }: { hostId: string }) {
   const [runImage, setRunImage] = useState<string | null>(null);
   const [tagFor, setTagFor] = useState<ImageSummary | null>(null);
   const [historyFor, setHistoryFor] = useState<ImageSummary | null>(null);
+  const [cleanupOpen, setCleanupOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmDialog, confirm] = useConfirm();
   const pullOffRef = useRef<(() => void) | null>(null);
@@ -490,6 +492,9 @@ export function ImageListPage({ hostId }: { hostId: string }) {
         <button className="btn" disabled={pulling} onClick={() => void loadFromFile()} title="从 tar 文件导入镜像（docker load）">
           <Upload size={13} /> 导入
         </button>
+        <button className="btn" onClick={() => setCleanupOpen(true)} title="清理悬空镜像、已停止容器、未使用网络/数据卷">
+          <Trash2 size={13} /> 清理
+        </button>
         <div style={{ position: 'relative' }}>
           <Search size={13} style={{ position: 'absolute', left: 8, top: 8, color: 'var(--text-muted)' }} />
           <input
@@ -652,6 +657,13 @@ export function ImageListPage({ hostId }: { hostId: string }) {
           title={tagsLabel(historyFor)}
           onClose={() => setHistoryFor(null)}
           toast={toast}
+        />
+      )}
+      {cleanupOpen && (
+        <CleanupDialog
+          hostId={hostId}
+          onClose={() => setCleanupOpen(false)}
+          onDone={() => void load()}
         />
       )}
       {confirmDialog}

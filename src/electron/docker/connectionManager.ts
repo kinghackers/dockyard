@@ -1369,6 +1369,78 @@ export class DockerConnectionManager {
   }
 
   // ---------- stats ----------
+  /** Disk usage summary for the cleanup wizard (docker system df). */
+  async systemDf(
+    hostId: string
+  ): Promise<{
+    images: number;
+    danglingImages: number;
+    danglingImageBytes: number;
+    containers: number;
+    stoppedContainers: number;
+    stoppedContainerBytes: number;
+    volumes: number;
+    unusedVolumes: number;
+    unusedVolumeBytes: number;
+    reclaimableBytes: number;
+  }> {
+    const df = (await this.dockerOf(hostId).df()) as {
+      Images?: { Size?: number; RepoTags?: string[] }[];
+      Containers?: { Size?: number; State?: string }[];
+      Volumes?: { UsageData?: { Size?: number; RefCount?: number } }[];
+    };
+    const images = df.Images || [];
+    const containers = df.Containers || [];
+    const volumes = df.Volumes || [];
+    const isDangling = (img: (typeof images)[number]) =>
+      !img.RepoTags || img.RepoTags.length === 0 || img.RepoTags.every((t) => t === '<none>:<none>');
+    const dangling = images.filter(isDangling);
+    const stopped = containers.filter((c) => c.State !== 'running');
+    const unused = volumes.filter((v) => (v.UsageData?.RefCount ?? 0) === 0);
+    const danglingImageBytes = dangling.reduce((s, i) => s + (i.Size || 0), 0);
+    const stoppedContainerBytes = stopped.reduce((s, c) => s + (c.Size || 0), 0);
+    const unusedVolumeBytes = unused.reduce((s, v) => s + (v.UsageData?.Size || 0), 0);
+    return {
+      images: images.length,
+      danglingImages: dangling.length,
+      danglingImageBytes,
+      containers: containers.length,
+      stoppedContainers: stopped.length,
+      stoppedContainerBytes,
+      volumes: volumes.length,
+      unusedVolumes: unused.length,
+      unusedVolumeBytes,
+      reclaimableBytes: danglingImageBytes + stoppedContainerBytes + unusedVolumeBytes,
+    };
+  }
+
+  /** Prune dangling images / stopped containers / unused networks / unused volumes. */
+  async pruneSystem(
+    hostId: string,
+    opts: { danglingImages?: boolean; stoppedContainers?: boolean; unusedNetworks?: boolean; unusedVolumes?: boolean }
+  ): Promise<{ imagesDeleted: number; containersDeleted: number; networksDeleted: number; volumesDeleted: number }> {
+    const docker = this.dockerOf(hostId);
+    const out = { imagesDeleted: 0, containersDeleted: 0, networksDeleted: 0, volumesDeleted: 0 };
+    if (opts.danglingImages) {
+      // no filters → dangling-only, matching the dialog's label
+      const r = (await docker.pruneImages()) as { ImagesDeleted?: unknown[] } | undefined;
+      out.imagesDeleted = r?.ImagesDeleted?.length ?? 0;
+    }
+    if (opts.stoppedContainers) {
+      const r = (await docker.pruneContainers()) as { ContainersDeleted?: unknown[] } | undefined;
+      out.containersDeleted = r?.ContainersDeleted?.length ?? 0;
+    }
+    if (opts.unusedNetworks) {
+      const r = (await docker.pruneNetworks()) as { NetworksDeleted?: unknown[] } | undefined;
+      out.networksDeleted = r?.NetworksDeleted?.length ?? 0;
+    }
+    if (opts.unusedVolumes) {
+      const r = (await docker.pruneVolumes()) as { VolumesDeleted?: unknown[] } | undefined;
+      out.volumesDeleted = r?.VolumesDeleted?.length ?? 0;
+    }
+    return out;
+  }
+
   async systemStats(hostId: string): Promise<SystemStats> {
     const docker = this.dockerOf(hostId);
     const [info, containers, images, volumes, networks] = await Promise.all([

@@ -76,6 +76,32 @@ export interface DockerApi {
 
   listComposeProjects(hostId: string): Promise<unknown[]>;
   listUnclassified(hostId: string): Promise<unknown[]>;
+  systemDf(hostId: string): Promise<{
+    images: number;
+    danglingImages: number;
+    danglingImageBytes: number;
+    containers: number;
+    stoppedContainers: number;
+    stoppedContainerBytes: number;
+    volumes: number;
+    unusedVolumes: number;
+    unusedVolumeBytes: number;
+    reclaimableBytes: number;
+  }>;
+  pruneSystem(
+    hostId: string,
+    opts: {
+      danglingImages?: boolean;
+      stoppedContainers?: boolean;
+      unusedNetworks?: boolean;
+      unusedVolumes?: boolean;
+    }
+  ): Promise<{
+    imagesDeleted: number;
+    containersDeleted: number;
+    networksDeleted: number;
+    volumesDeleted: number;
+  }>;
   systemStats(hostId: string): Promise<unknown>;
   systemInfo(hostId: string): Promise<unknown>;
 
@@ -183,6 +209,8 @@ const api: DockerApi = {
 
   listComposeProjects: (hostId) => ipcRenderer.invoke('docker:listComposeProjects', hostId),
   listUnclassified: (hostId) => ipcRenderer.invoke('docker:listUnclassified', hostId),
+  systemDf: (hostId) => ipcRenderer.invoke('docker:systemDf', hostId),
+  pruneSystem: (hostId, opts) => ipcRenderer.invoke('docker:pruneSystem', hostId, opts),
   systemStats: (hostId) => ipcRenderer.invoke('docker:systemStats', hostId),
   systemInfo: (hostId) => ipcRenderer.invoke('docker:systemInfo', hostId),
 
