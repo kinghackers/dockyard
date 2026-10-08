@@ -995,7 +995,7 @@ export class DockerConnectionManager {
   async runCompose(
     hostId: string,
     args: string[],
-    opts?: { cwd?: string }
+    opts?: { cwd?: string; timeoutMs?: number }
   ): Promise<{ ok: boolean; output: string; exitCode: number | null }> {
     const cfg = this.loadConfigs().find((c) => c.id === hostId);
     if (!cfg) throw new Error(`未找到连接配置: ${hostId}`);
@@ -1052,15 +1052,46 @@ export class DockerConnectionManager {
         };
         child.stdout.on('data', (d: Buffer) => cap(d.toString('utf8')));
         child.stderr.on('data', (d: Buffer) => cap(d.toString('utf8')));
+
+        // a hung `docker compose` (stuck pull, dead daemon) must not hang the
+        // promise forever — kill the whole tree after a generous timeout
+        let settled = false;
+        const settle = (r: { ok: boolean; output: string; exitCode: number | null }) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          resolve(r);
+        };
+        const timeoutMs = opts?.timeoutMs ?? 10 * 60_000;
+        const timer = setTimeout(() => {
+          if (child.pid) {
+            if (process.platform === 'win32') {
+              // compose spawns helper processes; taskkill takes down the tree
+              spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { windowsHide: true });
+            } else {
+              try {
+                child.kill('SIGKILL');
+              } catch {
+                /* ignore */
+              }
+            }
+          }
+          settle({
+            ok: false,
+            output: `${out.trim()}\n\n操作超时（${Math.round(timeoutMs / 60_000)} 分钟未完成），已终止 docker compose 进程。`.trim(),
+            exitCode: null,
+          });
+        }, timeoutMs);
+
         child.on('error', (err) => {
-          resolve({
+          settle({
             ok: false,
             output: `无法启动 docker CLI：${err.message}\n请确认已安装 Docker 并加入 PATH。`,
             exitCode: null,
           });
         });
         child.on('close', (code) => {
-          resolve({ ok: code === 0, output: out.trim(), exitCode: code });
+          settle({ ok: code === 0, output: out.trim(), exitCode: code });
         });
       });
     } finally {
