@@ -138,6 +138,21 @@ export interface DockerApi {
 
   cleanupAll(): Promise<boolean>;
   notify(title: string, body: string): void;
+  listContainerFiles(
+    hostId: string,
+    containerId: string,
+    dirPath: string
+  ): Promise<{ path: string; entries: { name: string; dir: boolean }[] }>;
+  downloadContainerFile(
+    hostId: string,
+    containerId: string,
+    filePath: string
+  ): Promise<{ ok: boolean; canceled?: boolean; path?: string; bytes?: number; error?: string }>;
+  uploadContainerFile(
+    hostId: string,
+    containerId: string,
+    destDir: string
+  ): Promise<{ ok: boolean; canceled?: boolean; path?: string; error?: string }>;
 }
 
 function subscribe<T>(channel: string, cb: (payload: T) => void): () => void {
@@ -239,6 +254,12 @@ const api: DockerApi = {
 
   cleanupAll: () => ipcRenderer.invoke('docker:cleanupAll'),
   notify: (title, body) => ipcRenderer.send('ui:notify', { title, body }),
+  listContainerFiles: (hostId, containerId, dirPath) =>
+    ipcRenderer.invoke('docker:listContainerFiles', hostId, containerId, dirPath),
+  downloadContainerFile: (hostId, containerId, filePath) =>
+    ipcRenderer.invoke('docker:downloadContainerFile', hostId, containerId, filePath),
+  uploadContainerFile: (hostId, containerId, destDir) =>
+    ipcRenderer.invoke('docker:uploadContainerFile', hostId, containerId, destDir),
 };
 
 contextBridge.exposeInMainWorld('dockerApi', api);

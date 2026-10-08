@@ -25,6 +25,7 @@ import {
 } from './types';
 import { createSshDockerTunnel, SshTunnel } from './sshTunnel';
 import { readJsonStore, writeJsonStore } from './configStore';
+import { extractFirstEntry, packSingleFile, readStreamToEnd } from './tar';
 import {
   decryptSecret,
   encryptSecret,
@@ -979,8 +980,7 @@ export class DockerConnectionManager {
   }
 
   startExec(execId: string, hostId: string): Promise<NodeJS.ReadWriteStream> {
-    const docker = this.dockerOf(hostId);
-    const exec = docker.getExec(execId);
+    const docker = this.dockerOf(hostId);    const exec = docker.getExec(execId);
     return new Promise((resolve, reject) => {
       exec.start({ hijack: true, stdin: true, Tty: true }, (err: Error | null, stream?: NodeJS.ReadWriteStream) => {
         if (err) return reject(err);
@@ -1061,12 +1061,78 @@ export class DockerConnectionManager {
       .tag({ repo: r, tag: (tag || 'latest').trim() });
   }
 
+  // ---------- container files (docker cp-style via archive API) ----------
+
+  /** Run a one-shot exec and collect its (Tty) text output. */
+  private async execCollect(hostId: string, containerId: string, cmd: string[]): Promise<string> {
+    const exec = await this.createExec(hostId, containerId, cmd);
+    const stream = await this.startExec(exec.id, hostId);
+    return await new Promise((resolve, reject) => {
+      let out = '';
+      stream.on('data', (b: Buffer) => {
+        out += b.toString('utf8');
+      });
+      stream.on('error', reject);
+      stream.on('end', () => resolve(out));
+    });
+  }
+
+  /** List a directory inside a container; directories sort first. */
+  async listContainerDir(
+    hostId: string,
+    id: string,
+    dirPath: string
+  ): Promise<{ path: string; entries: { name: string; dir: boolean }[] }> {
+    const norm = (dirPath.trim() || '/').replace(/\\/g, '/').replace(/\/+$/, '') || '/';
+    const quoted = `'${norm.replace(/'/g, `'\\''`)}'`;
+    const out = await this.execCollect(hostId, id, ['sh', '-c', `ls -1Ap -- ${quoted} 2>&1 || true`]);
+    if (/cannot access|No such file/i.test(out)) {
+      throw new Error(`目录不存在或不可读：${norm}`);
+    }
+    const entries = out
+      .split('\n')
+      .map((l) => l.replace(/\r$/, '').trim())
+      .filter((l) => l.length > 0 && !l.startsWith('ls:'))
+      .map((l) => ({ name: l.replace(/\/$/, ''), dir: l.endsWith('/') }));
+    entries.sort((a, b) => (a.dir === b.dir ? a.name.localeCompare(b.name) : a.dir ? -1 : 1));
+    return { path: norm, entries };
+  }
+
+  /** Download a single file from a container to a local path. Returns bytes. */
+  async downloadContainerFile(
+    hostId: string,
+    id: string,
+    filePath: string,
+    destPath: string
+  ): Promise<number> {
+    const archive = (await this.dockerOf(hostId)
+      .getContainer(id)
+      .getArchive({ path: filePath })) as NodeJS.ReadableStream;
+    const tarBuf = await readStreamToEnd(archive);
+    const { data } = extractFirstEntry(tarBuf);
+    fs.writeFileSync(destPath, data);
+    return data.length;
+  }
+
+  /** Upload a local file into a container directory. */
+  async uploadFileToContainer(
+    hostId: string,
+    id: string,
+    localPath: string,
+    destDir: string
+  ): Promise<void> {
+    const content = fs.readFileSync(localPath);
+    const tar = packSingleFile(path.basename(localPath), content);
+    await this.dockerOf(hostId)
+      .getContainer(id)
+      .putArchive(tar, { path: destDir === '/' ? '/' : destDir.replace(/\/+$/, '') });
+  }
+
   // ---------- compose CLI ----------
   /**
    * Run `docker compose …` against the selected connection.
    * Needs the Docker CLI on PATH. TLS material is staged to a temp dir when inline.
-   */
-  async runCompose(
+   */  async runCompose(
     hostId: string,
     args: string[],
     opts?: { cwd?: string; timeoutMs?: number }

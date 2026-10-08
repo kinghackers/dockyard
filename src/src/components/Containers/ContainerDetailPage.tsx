@@ -13,6 +13,7 @@ import {
   ArrowLeft,
   Save,
   Pencil,
+  FolderOpen,
 } from 'lucide-react';
 import type { ContainerDetail, ContainerStatsSample } from '../../types/docker';
 import { useAppStore } from '../../stores/appStore';
@@ -20,6 +21,7 @@ import { reportError } from '../../utils/connection';
 import { runAction } from '../../utils/runAction';
 import { useConfirm } from '../../utils/useConfirm';
 import { InputDialog } from '../common/InputDialog';
+import { ContainerFilesDialog } from './ContainerFilesDialog';
 import { localizeContainerStatus, localizeContainerState, localizeRestartPolicy } from '../../utils/localize';
 import { formatPortMappingsDetailed } from '../../utils/ports';
 import { getContainerActions } from '../../utils/containerActions';
@@ -48,6 +50,7 @@ export function ContainerDetailPage({ hostId, containerId }: { hostId: string; c
   const [error, setError] = useState<string | null>(null);
   const [commitOpen, setCommitOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
+  const [filesOpen, setFilesOpen] = useState(false);
   const [memLimitMB, setMemLimitMB] = useState('');
   const [cpuCores, setCpuCores] = useState('');
   const [savingRes, setSavingRes] = useState(false);
@@ -343,6 +346,9 @@ export function ContainerDetailPage({ hostId, containerId }: { hostId: string; c
             <Skull size={13} /> 强制终止
           </button>
         )}
+        <button className="btn" onClick={() => setFilesOpen(true)} title="浏览容器文件系统，支持上传/下载">
+          <FolderOpen size={13} /> 文件
+        </button>
         <button
           className="btn"
           onClick={() => setCommitOpen(true)}
@@ -764,6 +770,9 @@ export function ContainerDetailPage({ hostId, containerId }: { hostId: string; c
             }
           }}
         />
+      )}
+      {filesOpen && (
+        <ContainerFilesDialog hostId={hostId} containerId={containerId} onClose={() => setFilesOpen(false)} />
       )}
       {confirmDialog}
     </div>

@@ -438,6 +438,21 @@ declare global {
 
       cleanupAll(): Promise<boolean>;
       notify(title: string, body: string): void;
+      listContainerFiles(
+        hostId: string,
+        containerId: string,
+        dirPath: string
+      ): Promise<{ path: string; entries: { name: string; dir: boolean }[] }>;
+      downloadContainerFile(
+        hostId: string,
+        containerId: string,
+        filePath: string
+      ): Promise<{ ok: boolean; canceled?: boolean; path?: string; bytes?: number; error?: string }>;
+      uploadContainerFile(
+        hostId: string,
+        containerId: string,
+        destDir: string
+      ): Promise<{ ok: boolean; canceled?: boolean; path?: string; error?: string }>;
     };
   }
 }

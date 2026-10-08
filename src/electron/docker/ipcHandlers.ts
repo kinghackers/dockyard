@@ -342,6 +342,42 @@ export function registerIpc(manager: DockerConnectionManager, getWindows: () => 
     return true;
   });
 
+  // ---- container file browse / transfer (docker cp-style) ----
+  ipcMain.handle(
+    'docker:listContainerFiles',
+    (_e, hostId: string, containerId: string, dirPath: string) =>
+      manager.listContainerDir(hostId, containerId, dirPath)
+  );
+  ipcMain.handle(
+    'docker:downloadContainerFile',
+    async (e, hostId: string, containerId: string, filePath: string) => {
+      const win = BrowserWindow.fromWebContents(e.sender);
+      const name = filePath.replace(/^.*\//, '') || 'file';
+      const dest = await dialog.showSaveDialog(win as BrowserWindow, { defaultPath: name });
+      if (dest.canceled || !dest.filePath) return { ok: false, canceled: true };
+      try {
+        const bytes = await manager.downloadContainerFile(hostId, containerId, filePath, dest.filePath);
+        return { ok: true, path: dest.filePath, bytes };
+      } catch (err) {
+        return { ok: false, error: err instanceof Error ? err.message : String(err) };
+      }
+    }
+  );
+  ipcMain.handle(
+    'docker:uploadContainerFile',
+    async (e, hostId: string, containerId: string, destDir: string) => {
+      const win = BrowserWindow.fromWebContents(e.sender);
+      const pick = await dialog.showOpenDialog(win as BrowserWindow, { properties: ['openFile'] });
+      if (pick.canceled || pick.filePaths.length === 0) return { ok: false, canceled: true };
+      try {
+        await manager.uploadFileToContainer(hostId, containerId, pick.filePaths[0], destDir);
+        return { ok: true, path: pick.filePaths[0] };
+      } catch (err) {
+        return { ok: false, error: err instanceof Error ? err.message : String(err) };
+      }
+    }
+  );
+
   // ---- images / networks / volumes ----
   ipcMain.handle('docker:listImages', (_e, hostId: string) => manager.listImages(hostId));
   ipcMain.handle('docker:inspectImage', (_e, hostId: string, id: string) =>
