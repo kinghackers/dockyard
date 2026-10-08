@@ -100,6 +100,18 @@ function fmtEventTime(ts: number) {
   return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
+function eventLabel(e: { type: string; action: string }) {
+  const known = EVENT_LABEL[`${e.type}.${e.action}`];
+  if (known) return known;
+  // "health_status: healthy/unhealthy" — 只在状态真正变化时出现
+  if (e.action.startsWith('health_status')) {
+    if (e.action.endsWith('unhealthy')) return '转为不健康';
+    if (e.action.endsWith('healthy')) return '转为健康';
+    return '健康状态变更';
+  }
+  return e.action;
+}
+
 export function DashboardPage({ hostId }: { hostId?: string }) {
   const {
     connections,
@@ -374,7 +386,7 @@ export function DashboardPage({ hostId }: { hostId?: string }) {
               }}
             >
               {hostEvents.map((e) => {
-                const key = `${e.type}.${e.action}`;
+                const label = eventLabel(e);
                 return (
                   <div
                     key={e.id}
@@ -391,7 +403,7 @@ export function DashboardPage({ hostId }: { hostId?: string }) {
                       {fmtEventTime(e.time)}
                     </span>
                     <span style={{ color: 'var(--text-bright)', minWidth: 72 }}>
-                      {EVENT_LABEL[key] || e.action}
+                      {label}
                     </span>
                     <span style={{ flex: 1, color: 'var(--text-dim)' }}>{e.name || e.type}</span>
                   </div>

@@ -34,6 +34,18 @@ const REFRESH_ACTIONS = new Set([
 ]);
 
 /**
+ * Health-check probes (and our own terminal sessions) surface as exec_create /
+ * exec_start / exec_die — up to 3 events per probe per container, which floods
+ * the dashboard "最近事件" feed. They are pure noise; health_status transitions
+ * (the actual healthy/unhealthy changes) still pass through.
+ */
+const NOISE_EVENT_PREFIXES = ['exec_'];
+
+function isNoiseEvent(e: DockerEvent) {
+  return NOISE_EVENT_PREFIXES.some((p) => e.action.startsWith(p));
+}
+
+/**
  * Subscribes to docker events for every connected host and bumps
  * `containersVersion` so list/tree views auto-refresh.
  */
@@ -57,14 +69,16 @@ export function useDockerEvents() {
     let cancelled = false;
 
     const handleEvent = (e: DockerEvent) => {
-      noteEvent(e.hostId, `${e.type}.${e.action}`);
-      pushEvent({
-        hostId: e.hostId,
-        type: e.type,
-        action: e.action,
-        name: e.name,
-        time: e.time || Date.now(),
-      });
+      if (!isNoiseEvent(e)) {
+        noteEvent(e.hostId, `${e.type}.${e.action}`);
+        pushEvent({
+          hostId: e.hostId,
+          type: e.type,
+          action: e.action,
+          name: e.name,
+          time: e.time || Date.now(),
+        });
+      }
       if (REFRESH_ACTIONS.has(e.action) || REFRESH_ACTIONS.has(`${e.type}.${e.action}`)) {
         bumpContainers();
       }
