@@ -1,3 +1,4 @@
+import { useRef, type ReactNode } from 'react';
 import { useAppStore } from '../../stores/appStore';
 import type { OpenTab } from '../../types/docker';
 import { HostGuard } from '../common/HostGuard';
@@ -62,46 +63,63 @@ function renderView(view: OpenTab) {
   }
 }
 
+/** logs/terminal and list surfaces scroll internally — clip the content shell */
+const FILL_KINDS = new Set([
+  'containers',
+  'images',
+  'networks',
+  'volumes',
+  'composeProject',
+  'logs',
+  'composeLogs',
+  'terminal',
+]);
+
+function shellClass(kind: OpenTab['kind']) {
+  return FILL_KINDS.has(kind) ? 'content fill' : 'content';
+}
+
 export function ContentRouter() {
   const tabs = useAppStore((s) => s.tabs);
   const activeTabId = useAppStore((s) => s.activeTabId);
   const mainView = useAppStore((s) => s.mainView);
 
-  // Session tab (logs/terminal) wins when active; otherwise the primary surface.
-  const sessionTab = tabs.find((t) => t.id === activeTabId);
-  const view: OpenTab = sessionTab ?? mainView;
+  const sessionTab = tabs.find((t) => t.id === activeTabId) ?? null;
+  const mainActive = !sessionTab;
 
-  // key forces a remount when the tree switches the primary surface → fresh data
-  const contentKey = sessionTab
-    ? sessionTab.id
-    : `main:${view.kind}:${view.hostId ?? ''}:${view.containerId ?? ''}:${view.projectName ?? ''}`;
+  // ---- keep-alive surfaces ----
+  // Session tabs (logs / terminals) stay mounted but hidden while inactive so
+  // streams and scrollback survive tab switches. The dashboard is kept alive
+  // too: switching back shows the previous content without a reload, and its
+  // polling pauses while it is not the visible surface.
+  const lastDashboardRef = useRef<OpenTab | null>(null);
+  if (mainView.kind === 'dashboard') lastDashboardRef.current = mainView;
+  const dashboardView = mainView.kind === 'dashboard' ? mainView : lastDashboardRef.current;
+  const dashboardVisible = mainActive && mainView.kind === 'dashboard';
 
-  const body = renderView(view);
+  const mainKey = `main:${mainView.kind}:${mainView.hostId ?? ''}:${mainView.containerId ?? ''}:${mainView.projectName ?? ''}`;
 
-  // logs/terminal and list surfaces scroll internally — clip the content shell
-  const fillKinds = new Set([
-    'containers',
-    'images',
-    'networks',
-    'volumes',
-    'composeProject',
-    'logs',
-    'composeLogs',
-    'terminal',
-  ]);
-  const className = fillKinds.has(view.kind) ? 'content fill' : 'content';
-
-  if (view.hostId) {
-    return (
-      <div className={className} key={contentKey}>
-        <HostGuard hostId={view.hostId}>{body}</HostGuard>
-      </div>
-    );
-  }
+  const wrap = (key: string, kind: OpenTab['kind'], visible: boolean, node: ReactNode, hostId?: string) => (
+    <div key={key} className={shellClass(kind)} style={{ display: visible ? undefined : 'none' }}>
+      {hostId ? <HostGuard hostId={hostId}>{node}</HostGuard> : node}
+    </div>
+  );
 
   return (
-    <div className={className} key={contentKey}>
-      {body}
-    </div>
+    <>
+      {dashboardView &&
+        wrap(
+          `dash:${dashboardView.hostId ?? 'overview'}`,
+          'dashboard',
+          dashboardVisible,
+          <DashboardPage hostId={dashboardView.hostId} active={dashboardVisible} />,
+          dashboardView.hostId
+        )}
+
+      {mainView.kind !== 'dashboard' &&
+        wrap(mainKey, mainView.kind, mainActive, renderView(mainView), mainView.hostId)}
+
+      {tabs.map((tab) => wrap(tab.id, tab.kind, tab.id === activeTabId, renderView(tab), tab.hostId))}
+    </>
   );
 }

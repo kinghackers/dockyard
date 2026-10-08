@@ -112,7 +112,7 @@ function eventLabel(e: { type: string; action: string }) {
   return e.action;
 }
 
-export function DashboardPage({ hostId }: { hostId?: string }) {
+export function DashboardPage({ hostId, active = true }: { hostId?: string; active?: boolean }) {
   // per-field selectors keep toasts / unrelated store writes from re-rendering the page
   const connections = useAppStore((s) => s.connections);
   const statuses = useAppStore((s) => s.statuses);
@@ -128,6 +128,11 @@ export function DashboardPage({ hostId }: { hostId?: string }) {
   const [error, setError] = useState<string | null>(null);
   const inflight = useRef(false);
   const failCount = useRef(0);
+  // false while another surface is showing (keep-alive) — all loads freeze
+  // then, and there is no catch-up reload on reactivation: the previous
+  // content stays until the next live tick or a manual refresh
+  const activeRef = useRef(active);
+  activeRef.current = active;
 
   const targetHost = hostId || connections.find((c) => statuses[c.id]?.connected)?.id;
 
@@ -163,28 +168,24 @@ export function DashboardPage({ hostId }: { hostId?: string }) {
     let timer: ReturnType<typeof setTimeout> | null = null;
     const tick = async () => {
       if (stopped) return;
-      // skip polling while the window is minimized / in the background
-      if (!document.hidden) {
+      // skip while minimized or hidden behind another surface — content stays
+      // frozen until the dashboard is the visible surface again
+      if (activeRef.current && !document.hidden) {
         await load();
       }
       const delay = failCount.current > 0 ? Math.min(10000 * failCount.current, 60000) : 10000;
       timer = setTimeout(() => void tick(), delay);
     };
     void tick();
-    // refresh promptly when the user comes back instead of waiting out the timer
-    const onVisible = () => {
-      if (!document.hidden && !stopped) void load();
-    };
-    document.addEventListener('visibilitychange', onVisible);
+    // no catch-up load on regain — normal tick cadence resumes on its own
     return () => {
       stopped = true;
       if (timer) clearTimeout(timer);
-      document.removeEventListener('visibilitychange', onVisible);
     };
   }, [load]);
 
   useEffect(() => {
-    if (containersVersion > 0) void load();
+    if (containersVersion > 0 && activeRef.current) void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [containersVersion]);
 

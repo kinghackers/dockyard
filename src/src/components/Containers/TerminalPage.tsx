@@ -122,11 +122,23 @@ export function TerminalPage({ hostId, containerId }: { hostId: string; containe
   }, [hostId, containerId]);
 
   useEffect(() => {
-    const onResize = () => {
-      fitRef.current?.fit();
+    const fitIfVisible = () => {
+      // while the tab is hidden (keep-alive display:none) the wrapper has no
+      // size — fitting then would corrupt cols/rows with zeros
+      if (wrapRef.current && wrapRef.current.clientWidth > 0) fitRef.current?.fit();
     };
+    const onResize = () => fitIfVisible();
     window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
+    // re-fit when the tab becomes visible again (box 0 → N)
+    let ro: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined' && wrapRef.current) {
+      ro = new ResizeObserver(() => fitIfVisible());
+      ro.observe(wrapRef.current);
+    }
+    return () => {
+      window.removeEventListener('resize', onResize);
+      ro?.disconnect();
+    };
   }, []);
 
   const disconnect = () => {
