@@ -125,27 +125,27 @@ export function TerminalPage({ hostId, containerId }: { hostId: string; containe
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
+  const disconnect = () => {
+    cleanupRef.current?.();
+    cleanupRef.current = null;
+    // leave a visible trace in the scrollback and drop keyboard focus
+    termRef.current?.writeln('\r\n\x1b[33m[已手动断开]\x1b[0m');
+    termRef.current?.blur();
+    setStatus('closed');
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, overflow: 'hidden' }}>
       <div className="content-toolbar">
         <button
           className="btn"
           onClick={() => {
-            cleanupRef.current?.();
-            cleanupRef.current = null;
             void start();
           }}
         >
           <RefreshCw size={14} /> 重新连接
         </button>
-        <button
-          className="btn"
-          onClick={() => {
-            cleanupRef.current?.();
-            cleanupRef.current = null;
-            setStatus('closed');
-          }}
-        >
+        <button className="btn" onClick={disconnect} disabled={status === 'closed'}>
           <XCircle size={13} /> 断开
         </button>
         <div style={{ flex: 1 }} />
@@ -156,7 +156,30 @@ export function TerminalPage({ hostId, containerId }: { hostId: string; containe
           {status === 'error' && `错误: ${error || '未知'}`}
         </span>
       </div>
-      <div className="terminal-wrap" ref={wrapRef} style={{ flex: 1, minHeight: 0 }} />
+      <div style={{ position: 'relative', flex: 1, minHeight: 0 }}>
+        <div className="terminal-wrap" ref={wrapRef} style={{ height: '100%' }} />
+        {(status === 'closed' || status === 'error') && (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 12,
+              background: 'rgba(30, 30, 30, 0.72)',
+            }}
+          >
+            <span style={{ color: '#d8d8d8', fontSize: 13 }}>
+              {status === 'error' ? `连接失败：${error || '未知错误'}` : '会话已断开'}
+            </span>
+            <button className="btn primary" onClick={() => void start()}>
+              <RefreshCw size={13} /> 重新连接
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
