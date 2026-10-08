@@ -139,7 +139,7 @@ export function ComposeListPage({ hostId }: { hostId: string }) {
                   onClick={() =>
                     openTab({
                       id: `composeProject:${hostId}:${p.name}`,
-                      title: `Docker-compose: ${p.name}`,
+                      title: p.name,
                       kind: 'composeProject',
                       hostId,
                       projectName: p.name,

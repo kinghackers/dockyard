@@ -42,6 +42,8 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
+  /** multi-select ids (checkbox). `selected` remains the focus row for toolbar actions. */
+  const [checked, setChecked] = useState<Set<string>>(new Set());
   const [sortKey, setSortKey] = useState<SortKey>(() => loadUiPref('compose.sortKey', 'service'));
   const [sortAsc, setSortAsc] = useState(() => loadUiPref('compose.sortAsc', true));
   const [confirmDialog, confirm] = useConfirm();
@@ -171,6 +173,26 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
     }
   };
 
+  const allChecked = sorted.length > 0 && sorted.every((c) => checked.has(c.id));
+
+  const toggleChecked = (id: string) => {
+    setChecked((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const runChecked = (fn: (id: string) => Promise<unknown>, okMsg: string, pendingMsg: string) =>
+    action(
+      async () => {
+        for (const id of [...checked]) await fn(id);
+      },
+      okMsg,
+      pendingMsg
+    );
+
   useEffect(() => {
     saveUiPref('compose.sortKey', sortKey);
     saveUiPref('compose.sortAsc', sortAsc);
@@ -183,7 +205,10 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
 
   useHotkeys({
     f5: () => void load(),
-    escape: () => setSelected(null),
+    escape: () => {
+      setSelected(null);
+      setChecked(new Set());
+    },
     arrowdown: () => {
       if (sorted.length === 0) return;
       const idx = selected ? sorted.findIndex((c) => c.id === selected) : -1;
@@ -227,13 +252,20 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
 
   const rowMenu = (c: ContainerSummary): ContextMenuItem[] => {
     const a = getContainerActions(c.state, c.status);
+    // operate on the whole checked set when the right-clicked row belongs to it
+    const ids = checked.has(c.id) && checked.size > 1 ? [...checked] : [c.id];
+    const each =
+      (fn: (id: string) => Promise<unknown>) =>
+      async () => {
+        for (const id of ids) await fn(id);
+      };
     const items: ContextMenuItem[] = [];
     if (a.canStart) {
       items.push({
         key: 'start',
         label: '启动',
         icon: <Play size={13} />,
-        onSelect: () => void action(() => window.dockerApi.startContainer(hostId, c.id), '已启动'),
+        onSelect: () => void action(each((id) => window.dockerApi.startContainer(hostId, id)), '已启动'),
       });
     }
     if (a.canStop) {
@@ -241,7 +273,7 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
         key: 'stop',
         label: '停止',
         icon: <Square size={13} />,
-        onSelect: () => void action(() => window.dockerApi.stopContainer(hostId, c.id), '已停止'),
+        onSelect: () => void action(each((id) => window.dockerApi.stopContainer(hostId, id)), '已停止'),
       });
     }
     if (a.canRestart) {
@@ -249,7 +281,7 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
         key: 'restart',
         label: '重启',
         icon: <RotateCw size={13} />,
-        onSelect: () => void action(() => window.dockerApi.restartContainer(hostId, c.id), '已重启'),
+        onSelect: () => void action(each((id) => window.dockerApi.restartContainer(hostId, id)), '已重启'),
       });
     }
     if (a.canKill) {
@@ -257,7 +289,7 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
         key: 'kill',
         label: '强制终止',
         icon: <Skull size={13} />,
-        onSelect: () => void action(() => window.dockerApi.killContainer(hostId, c.id), '已强制终止'),
+        onSelect: () => void action(each((id) => window.dockerApi.killContainer(hostId, id)), '已强制终止'),
       });
     }
     if (a.isRestartLoop) {
@@ -437,6 +469,39 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
         >
           <FileText size={13} /> 项目日志
         </button>
+        {checked.size > 0 && (
+          <>
+            <div style={{ width: 1, height: 18, background: 'var(--border)', margin: '0 4px' }} />
+            <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>已选 {checked.size}</span>
+            <button
+              className="btn"
+              onClick={() =>
+                void runChecked((id) => window.dockerApi.startContainer(hostId, id), '已启动', '正在启动所选…')
+              }
+            >
+              <Play size={13} /> 启动
+            </button>
+            <button
+              className="btn"
+              onClick={() =>
+                void runChecked((id) => window.dockerApi.stopContainer(hostId, id), '已停止', '正在停止所选…')
+              }
+            >
+              <Square size={13} /> 停止
+            </button>
+            <button
+              className="btn"
+              onClick={() =>
+                void runChecked((id) => window.dockerApi.restartContainer(hostId, id), '已重启', '正在重启所选…')
+              }
+            >
+              <RotateCw size={13} /> 重启
+            </button>
+            <button className="btn ghost" onClick={() => setChecked(new Set())}>
+              清除选择
+            </button>
+          </>
+        )}
         <div style={{ flex: 1 }} />
         {(() => {
           const cur = containers.find((c) => c.id === selected);
@@ -494,7 +559,16 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
           <table className="table">
             <thead>
               <tr>
-                <th style={{ width: 28 }}></th>
+                <th style={{ width: 28 }}>
+                  <input
+                    type="checkbox"
+                    checked={allChecked}
+                    onChange={() =>
+                      setChecked(allChecked ? new Set() : new Set(sorted.map((c) => c.id)))
+                    }
+                    style={{ width: 12, height: 12 }}
+                  />
+                </th>
                 <th className="sortable" onClick={() => toggleSort('service')}>
                   服务{sortInd('service')}
                 </th>
@@ -515,8 +589,30 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
               {sorted.map((c) => (
                 <tr
                   key={c.id}
-                  className={selected === c.id ? 'selected' : ''}
-                  onClick={() => setSelected(c.id)}
+                  className={`${selected === c.id ? 'selected' : ''} ${checked.has(c.id) ? 'checked' : ''}`}
+                  onClick={(e) => {
+                    // ctrl/cmd toggles multi-select; shift selects range; plain click focuses
+                    if (e.ctrlKey || e.metaKey) {
+                      toggleChecked(c.id);
+                      setSelected(c.id);
+                      return;
+                    }
+                    if (e.shiftKey && selected) {
+                      const from = sorted.findIndex((x) => x.id === selected);
+                      const to = sorted.findIndex((x) => x.id === c.id);
+                      if (from >= 0 && to >= 0) {
+                        const [a, b] = from < to ? [from, to] : [to, from];
+                        setChecked((prev) => {
+                          const next = new Set(prev);
+                          for (let i = a; i <= b; i++) next.add(sorted[i].id);
+                          return next;
+                        });
+                      }
+                      setSelected(c.id);
+                      return;
+                    }
+                    setSelected(c.id);
+                  }}
                   onDoubleClick={() =>
                     openTab({
                       id: `containerDetail:${hostId}:${c.id}`,
@@ -528,14 +624,16 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
                   }
                   onContextMenu={(e) => {
                     setSelected(c.id);
+                    if (!checked.has(c.id)) setChecked(new Set([c.id]));
                     ctx.open(e, rowMenu(c));
                   }}
                 >
                   <td>
                     <input
-                      type="radio"
-                      checked={selected === c.id}
-                      onChange={() => setSelected(c.id)}
+                      type="checkbox"
+                      checked={checked.has(c.id)}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={() => toggleChecked(c.id)}
                       style={{ width: 12, height: 12 }}
                     />
                   </td>

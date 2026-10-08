@@ -302,7 +302,7 @@ export function ContainerDetailPage({ hostId, containerId }: { hostId: string; c
               )
             }
           >
-            <Skull size={13} /> 强杀
+            <Skull size={13} /> 强制终止
           </button>
         )}
         <button

@@ -77,7 +77,7 @@ const EVENT_LABEL: Record<string, string> = {
   'container.start': '启动',
   'container.stop': '停止',
   'container.die': '退出',
-  'container.kill': '强杀',
+  'container.kill': '强制终止',
   'container.restart': '重启',
   'container.destroy': '删除',
   'container.create': '创建',

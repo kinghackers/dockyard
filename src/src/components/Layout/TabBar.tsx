@@ -14,7 +14,6 @@ const kindIcon: Record<ViewKind, React.ReactNode> = {
   logs: <FileText size={13} />,
   composeLogs: <FileText size={13} />,
   terminal: <Term size={13} />,
-  settings: <FileText size={13} />,
 };
 
 export function TabBar() {
@@ -50,6 +49,10 @@ export function TabBar() {
           key={tab.id}
           className={`tab-item ${activeTabId === tab.id ? 'active' : ''}`}
           onClick={() => setActiveTab(tab.id)}
+          onAuxClick={(e) => {
+            // middle-click closes, like browser tabs
+            if (e.button === 1 && tab.closable !== false) closeTab(tab.id);
+          }}
           title={tab.title}
         >
           {kindIcon[tab.kind] || null}

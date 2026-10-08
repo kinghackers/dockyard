@@ -245,7 +245,7 @@ export function NetworkListPage({ hostId }: { hostId: string }) {
         >
           <Trash2 size={13} /> 删除
         </button>
-        {checked.size > 1 && (
+        {checked.size > 0 && (
           <>
             <div style={{ width: 1, height: 18, background: 'var(--border)', margin: '0 4px' }} />
             <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>已选 {checked.size}</span>

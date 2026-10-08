@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Plug, RefreshCw, ServerCrash } from 'lucide-react';
+import { Plug, ServerCrash } from 'lucide-react';
 import { useAppStore } from '../../stores/appStore';
 import { connectOnce } from '../../utils/connection';
 
@@ -100,17 +100,7 @@ export function HostGuard({
             </p>
             <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
               <button className="btn primary" onClick={() => void connect()} disabled={connecting}>
-                <Plug size={14} /> {connecting ? '连接中…' : '立即连接'}
-              </button>
-              <button
-                className="btn"
-                onClick={() => {
-                  attempted.current = true;
-                  void connect();
-                }}
-                disabled={connecting}
-              >
-                <RefreshCw size={14} /> 重试
+                <Plug size={14} /> {connecting ? '连接中…' : attempted.current || phase === 'error' ? '重试连接' : '立即连接'}
               </button>
             </div>
           </>

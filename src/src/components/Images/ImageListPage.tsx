@@ -370,15 +370,15 @@ export function ImageListPage({ hostId }: { hostId: string }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
       <div className="content-toolbar">
-        <button className="btn" onClick={load} disabled={loading}>
-          <RefreshCw size={14} className={loading ? 'spinner' : ''} /> 刷新
-        </button>
         <button
           className="btn primary"
           disabled={!selectedImage}
           onClick={() => selectedImage && runOne(selectedImage)}
         >
           <Play size={13} /> 运行
+        </button>
+        <button className="btn" onClick={load} disabled={loading}>
+          <RefreshCw size={14} className={loading ? 'spinner' : ''} /> 刷新
         </button>
         <button
           className="btn"
@@ -412,7 +412,7 @@ export function ImageListPage({ hostId }: { hostId: string }) {
         >
           <Trash2 size={13} /> 删除
         </button>
-        {checked.size > 1 && (
+        {checked.size > 0 && (
           <>
             <div style={{ width: 1, height: 18, background: 'var(--border)', margin: '0 4px' }} />
             <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>已选 {checked.size}</span>

@@ -136,7 +136,7 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
       containers: '容器',
       images: '镜像',
       networks: '网络',
-      volumes: '卷',
+      volumes: '数据卷',
       compose: 'Docker Compose',
       dashboard: '仪表板',
     };
@@ -392,7 +392,7 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
                       selectTree(pKey, conn.id);
                       openTab({
                         id: `composeProject:${conn.id}:${p.name}`,
-                        title: `Docker-compose: ${p.name}`,
+                        title: p.name,
                         kind: 'composeProject',
                         hostId: conn.id,
                         projectName: p.name,
@@ -411,7 +411,7 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
                     <span className="icon">
                       <Layers size={14} color="var(--compose)" />
                     </span>
-                    <span className="label">Docker-compose: {p.name}</span>
+                    <span className="label">{p.name}</span>
                     <span className="badge">
                       {p.running}/{p.total}
                     </span>
