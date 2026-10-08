@@ -113,16 +113,15 @@ function eventLabel(e: { type: string; action: string }) {
 }
 
 export function DashboardPage({ hostId }: { hostId?: string }) {
-  const {
-    connections,
-    statuses,
-    setRefreshing,
-    containersVersion,
-    recentEvents,
-    openTab,
-    containersByHost,
-    setContainers,
-  } = useAppStore();
+  // per-field selectors keep toasts / unrelated store writes from re-rendering the page
+  const connections = useAppStore((s) => s.connections);
+  const statuses = useAppStore((s) => s.statuses);
+  const setRefreshing = useAppStore((s) => s.setRefreshing);
+  const containersVersion = useAppStore((s) => s.containersVersion);
+  const recentEvents = useAppStore((s) => s.recentEvents);
+  const openTab = useAppStore((s) => s.openTab);
+  const containersByHost = useAppStore((s) => s.containersByHost);
+  const setContainers = useAppStore((s) => s.setContainers);
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [info, setInfo] = useState<DockerInfoLite | undefined>(undefined);
   const [loading, setLoading] = useState(false);
@@ -164,14 +163,23 @@ export function DashboardPage({ hostId }: { hostId?: string }) {
     let timer: ReturnType<typeof setTimeout> | null = null;
     const tick = async () => {
       if (stopped) return;
-      await load();
+      // skip polling while the window is minimized / in the background
+      if (!document.hidden) {
+        await load();
+      }
       const delay = failCount.current > 0 ? Math.min(10000 * failCount.current, 60000) : 10000;
       timer = setTimeout(() => void tick(), delay);
     };
     void tick();
+    // refresh promptly when the user comes back instead of waiting out the timer
+    const onVisible = () => {
+      if (!document.hidden && !stopped) void load();
+    };
+    document.addEventListener('visibilitychange', onVisible);
     return () => {
       stopped = true;
       if (timer) clearTimeout(timer);
+      document.removeEventListener('visibilitychange', onVisible);
     };
   }, [load]);
 

@@ -45,6 +45,9 @@ function isNoiseEvent(e: DockerEvent) {
   return NOISE_EVENT_PREFIXES.some((p) => e.action.startsWith(p));
 }
 
+/** Minimum interval between "event stream failed" toasts, per host. */
+const STREAM_ERROR_TOAST_MS = 60_000;
+
 /**
  * Subscribes to docker events for every connected host and bumps
  * `containersVersion` so list/tree views auto-refresh.
@@ -53,9 +56,9 @@ export function useDockerEvents() {
   const connections = useAppStore((s) => s.connections);
   const statuses = useAppStore((s) => s.statuses);
   const bumpContainers = useAppStore((s) => s.bumpContainers);
-  const noteEvent = useAppStore((s) => s.noteEvent);
   const pushEvent = useAppStore((s) => s.pushEvent);
   const openHostsRef = useRef<Set<string>>(new Set());
+  const streamErrorAtRef = useRef<Record<string, number>>({});
 
   const connectedIds = connections
     .filter((c) => statuses[c.id]?.connected)
@@ -70,7 +73,6 @@ export function useDockerEvents() {
 
     const handleEvent = (e: DockerEvent) => {
       if (!isNoiseEvent(e)) {
-        noteEvent(e.hostId, `${e.type}.${e.action}`);
         pushEvent({
           hostId: e.hostId,
           type: e.type,
@@ -84,8 +86,19 @@ export function useDockerEvents() {
       }
     };
 
+    // the stream auto-reconnects; only tell the user when failures persist
+    const handleStreamError = ({ hostId, error }: { hostId: string; error: string }) => {
+      const last = streamErrorAtRef.current[hostId] || 0;
+      const now = Date.now();
+      if (now - last < STREAM_ERROR_TOAST_MS) return;
+      streamErrorAtRef.current[hostId] = now;
+      const name = useAppStore.getState().connections.find((c) => c.id === hostId)?.name || hostId;
+      useAppStore.getState().toast(`事件流中断，正在自动重连（${name}）：${error}`, 'error');
+    };
+
     // one shared listener — openEvents streams all feed the same channel
     const off = window.dockerApi.onDockerEvent(handleEvent);
+    const offErr = window.dockerApi.onEventError(handleStreamError);
 
     (async () => {
       for (const id of wanted) {
@@ -117,9 +130,10 @@ export function useDockerEvents() {
     return () => {
       cancelled = true;
       off();
+      offErr();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [connectedIds, bumpContainers, noteEvent, pushEvent]);
+  }, [connectedIds, bumpContainers, pushEvent]);
 
   // close every event stream when the app unmounts
   useEffect(() => {

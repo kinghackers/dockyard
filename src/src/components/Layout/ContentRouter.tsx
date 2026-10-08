@@ -56,7 +56,9 @@ function renderView(view: OpenTab) {
 }
 
 export function ContentRouter() {
-  const { tabs, activeTabId, mainView } = useAppStore();
+  const tabs = useAppStore((s) => s.tabs);
+  const activeTabId = useAppStore((s) => s.activeTabId);
+  const mainView = useAppStore((s) => s.mainView);
 
   // Session tab (logs/terminal) wins when active; otherwise the primary surface.
   const sessionTab = tabs.find((t) => t.id === activeTabId);

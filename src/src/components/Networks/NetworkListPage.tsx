@@ -13,7 +13,8 @@ import { ContextMenu, useContextMenu, type ContextMenuItem } from '../common/Con
 type SortKey = 'name' | 'id' | 'driver' | 'scope' | 'subnet';
 
 export function NetworkListPage({ hostId }: { hostId: string }) {
-  const { toast, containersVersion } = useAppStore();
+  const toast = useAppStore((s) => s.toast);
+  const containersVersion = useAppStore((s) => s.containersVersion);
   const [list, setList] = useState<NetworkSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState(() => loadUiPref('networks.filter', ''));

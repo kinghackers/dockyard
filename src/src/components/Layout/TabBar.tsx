@@ -18,7 +18,11 @@ const kindIcon: Record<ViewKind, React.ReactNode> = {
 };
 
 export function TabBar() {
-  const { tabs, activeTabId, setActiveTab, closeTab, mainView } = useAppStore();
+  const tabs = useAppStore((s) => s.tabs);
+  const activeTabId = useAppStore((s) => s.activeTabId);
+  const setActiveTab = useAppStore((s) => s.setActiveTab);
+  const closeTab = useAppStore((s) => s.closeTab);
+  const mainView = useAppStore((s) => s.mainView);
   const mainActive = activeTabId === MAIN_VIEW_ID || activeTabId === null;
 
   return (

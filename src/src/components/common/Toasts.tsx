@@ -2,7 +2,8 @@ import { X } from 'lucide-react';
 import { useAppStore } from '../../stores/appStore';
 
 export function Toasts() {
-  const { toasts, dismissToast } = useAppStore();
+  const toasts = useAppStore((s) => s.toasts);
+  const dismissToast = useAppStore((s) => s.dismissToast);
   return (
     <div className="toasts">
       {toasts.map((t) => (

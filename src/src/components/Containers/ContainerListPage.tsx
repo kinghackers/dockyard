@@ -33,8 +33,15 @@ import { ContextMenu, useContextMenu, type ContextMenuItem } from '../common/Con
 
 type SortKey = 'name' | 'state' | 'image' | 'project' | 'created';
 
+/** stable empty list so the store selector returns the same reference when a host has no data yet */
+const EMPTY_LIST: ContainerSummary[] = [];
+
 export function ContainerListPage({ hostId }: { hostId: string }) {
-  const { openTab, toast, setContainers, containersByHost, containersVersion } = useAppStore();
+  const openTab = useAppStore((s) => s.openTab);
+  const toast = useAppStore((s) => s.toast);
+  const setContainers = useAppStore((s) => s.setContainers);
+  const list = useAppStore((s) => s.containersByHost[hostId] || EMPTY_LIST);
+  const containersVersion = useAppStore((s) => s.containersVersion);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState(() => loadUiPref('containers.filter', ''));
   const [stateFilter, setStateFilter] = useState<'all' | 'running' | 'exited' | 'paused' | 'restarting'>(
@@ -49,7 +56,6 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
   const [confirmDialog, confirm] = useConfirm();
   const ctx = useContextMenu();
   const filterRef = useRef<HTMLInputElement>(null);
-  const list = containersByHost[hostId] || [];
 
   const load = useCallback(async () => {
     setLoading(true);

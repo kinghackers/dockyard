@@ -69,12 +69,9 @@ interface AppState {
   setContainers: (hostId: string, list: ContainerSummary[]) => void;
   setRefreshing: (v: boolean) => void;
 
-  /** bumped whenever a docker event suggests lists should re-fetch */
+  /** bumped (debounced) whenever docker events suggest lists should re-fetch */
   containersVersion: number;
   bumpContainers: () => void;
-  /** per-host last event action, useful for subtle live badges */
-  lastEventByHost: Record<string, string>;
-  noteEvent: (hostId: string, action: string) => void;
   /** rolling event feed for the dashboard */
   recentEvents: { id: string; hostId: string; type: string; action: string; name?: string; time: number }[];
   pushEvent: (e: {
@@ -85,6 +82,10 @@ interface AppState {
     time: number;
   }) => void;
 }
+
+// Docker events arrive in bursts (a compose up fires dozens within a second);
+// one version bump per burst is enough and avoids N× full refetch storms.
+let bumpDebounce: ReturnType<typeof setTimeout> | null = null;
 
 export const useAppStore = create<AppState>((set, get) => ({
   connections: [],
@@ -222,10 +223,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   setRefreshing: (v) => set({ refreshing: v }),
 
   containersVersion: 0,
-  bumpContainers: () => set({ containersVersion: get().containersVersion + 1 }),
-  lastEventByHost: {},
-  noteEvent: (hostId, action) =>
-    set({ lastEventByHost: { ...get().lastEventByHost, [hostId]: action } }),
+  bumpContainers: () => {
+    if (bumpDebounce) clearTimeout(bumpDebounce);
+    bumpDebounce = setTimeout(() => {
+      bumpDebounce = null;
+      set({ containersVersion: get().containersVersion + 1 });
+    }, 300);
+  },
   recentEvents: [],
   pushEvent: (e) => {
     const item = {

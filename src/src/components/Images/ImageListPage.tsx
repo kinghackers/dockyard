@@ -42,7 +42,8 @@ function tagsLabel(img: ImageSummary): string {
 }
 
 export function ImageListPage({ hostId }: { hostId: string }) {
-  const { toast, containersVersion } = useAppStore();
+  const toast = useAppStore((s) => s.toast);
+  const containersVersion = useAppStore((s) => s.containersVersion);
   const [list, setList] = useState<ImageSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState(() => loadUiPref('images.filter', ''));

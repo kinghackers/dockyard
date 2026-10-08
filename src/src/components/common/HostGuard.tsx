@@ -17,8 +17,9 @@ export function HostGuard({
   hostId: string;
   children: React.ReactNode;
 }) {
-  const { connections, statuses, setStatus, toast } = useAppStore();
-  const status = statuses[hostId];
+  const connections = useAppStore((s) => s.connections);
+  const status = useAppStore((s) => s.statuses[hostId]);
+  const setStatus = useAppStore((s) => s.setStatus);
   const conn = connections.find((c) => c.id === hostId);
   const [phase, setPhase] = useState<Phase>(status?.connected ? 'ready' : 'connecting');
   const [error, setError] = useState<string | null>(status?.error || null);

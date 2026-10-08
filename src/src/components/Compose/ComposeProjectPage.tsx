@@ -31,7 +31,9 @@ import { ContextMenu, useContextMenu, type ContextMenuItem } from '../common/Con
 type SortKey = 'service' | 'name' | 'state' | 'image';
 
 export function ComposeProjectPage({ hostId, projectName }: { hostId: string; projectName: string }) {
-  const { toast, openTab, containersVersion } = useAppStore();
+  const toast = useAppStore((s) => s.toast);
+  const openTab = useAppStore((s) => s.openTab);
+  const containersVersion = useAppStore((s) => s.containersVersion);
   const [containers, setContainers] = useState<ContainerSummary[]>([]);
   const [project, setProject] = useState<ComposeProject | null>(null);
   const [loading, setLoading] = useState(false);
@@ -60,7 +62,10 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
 
   useEffect(() => {
     void load();
-    const t = setInterval(() => void load(), 8000);
+    // fallback poll only — docker events drive most reloads; skip while backgrounded
+    const t = setInterval(() => {
+      if (!document.hidden) void load();
+    }, 30000);
     return () => clearInterval(t);
   }, [load]);
 

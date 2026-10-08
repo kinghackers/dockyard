@@ -8,7 +8,9 @@ import { localizeStatusChip, localizeContainerStatus, localizeContainerState } f
 import { ComposeUpDialog } from './ComposeUpDialog';
 
 export function ComposeListPage({ hostId }: { hostId: string }) {
-  const { toast, openTab, containersVersion } = useAppStore();
+  const toast = useAppStore((s) => s.toast);
+  const openTab = useAppStore((s) => s.openTab);
+  const containersVersion = useAppStore((s) => s.containersVersion);
   const [projects, setProjects] = useState<ComposeProject[]>([]);
   const [loading, setLoading] = useState(false);
   const [upOpen, setUpOpen] = useState(false);

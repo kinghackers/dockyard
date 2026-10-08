@@ -10,15 +10,13 @@ import { useDockerEvents } from './utils/useDockerEvents';
 import type { DockerConnectionConfig } from './types/docker';
 
 export default function App() {
-  const {
-    setConnections,
-    setGroups,
-    setAllStatuses,
-    setMainView,
-    toast,
-    connections,
-    statuses,
-  } = useAppStore();
+  // actions only — subscribing to data here would re-render the whole tree
+  // on every store change (toasts, events, container lists)
+  const setConnections = useAppStore((s) => s.setConnections);
+  const setGroups = useAppStore((s) => s.setGroups);
+  const setAllStatuses = useAppStore((s) => s.setAllStatuses);
+  const setMainView = useAppStore((s) => s.setMainView);
+  const toast = useAppStore((s) => s.toast);
 
   const [connDialogOpen, setConnDialogOpen] = useState(false);
   const [editingConn, setEditingConn] = useState<DockerConnectionConfig | null>(null);
@@ -83,7 +81,8 @@ export default function App() {
       const status = await window.dockerApi.connect(id);
       useAppStore.getState().setStatus(status);
       if (status.connected) {
-        toast(`已连接 ${connections.find((c) => c.id === id)?.name || id}`, 'success');
+        const name = useAppStore.getState().connections.find((c) => c.id === id)?.name || id;
+        toast(`已连接 ${name}`, 'success');
       } else {
         toast(status.error || '连接失败', 'error');
       }

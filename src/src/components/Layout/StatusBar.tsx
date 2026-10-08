@@ -2,7 +2,9 @@ import { useAppStore } from '../../stores/appStore';
 import { formatBuildLabel } from '../../utils/buildInfo';
 
 export function StatusBar() {
-  const { connections, statuses, refreshing } = useAppStore();
+  const connections = useAppStore((s) => s.connections);
+  const statuses = useAppStore((s) => s.statuses);
+  const refreshing = useAppStore((s) => s.refreshing);
   const online = connections.filter((c) => statuses[c.id]?.connected).length;
 
   return (

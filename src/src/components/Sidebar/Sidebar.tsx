@@ -40,24 +40,24 @@ function newGroupId() {
 }
 
 export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDisconnect }: Props) {
-  const {
-    connections,
-    groups,
-    statuses,
-    expandedHosts,
-    expandedGroups,
-    expandedCompose,
-    selectedTreeKey,
-    toggleHost,
-    toggleGroup,
-    toggleCompose,
-    selectTree,
-    openTab,
-    setContainers,
-    containersByHost,
-    containersVersion,
-    toast,
-  } = useAppStore();
+  // per-field selectors: any unrelated store change (toasts, other hosts'
+  // containers) must not re-render the whole sidebar tree
+  const connections = useAppStore((s) => s.connections);
+  const groups = useAppStore((s) => s.groups);
+  const statuses = useAppStore((s) => s.statuses);
+  const expandedHosts = useAppStore((s) => s.expandedHosts);
+  const expandedGroups = useAppStore((s) => s.expandedGroups);
+  const expandedCompose = useAppStore((s) => s.expandedCompose);
+  const selectedTreeKey = useAppStore((s) => s.selectedTreeKey);
+  const toggleHost = useAppStore((s) => s.toggleHost);
+  const toggleGroup = useAppStore((s) => s.toggleGroup);
+  const toggleCompose = useAppStore((s) => s.toggleCompose);
+  const selectTree = useAppStore((s) => s.selectTree);
+  const openTab = useAppStore((s) => s.openTab);
+  const setContainers = useAppStore((s) => s.setContainers);
+  const containersByHost = useAppStore((s) => s.containersByHost);
+  const containersVersion = useAppStore((s) => s.containersVersion);
+  const toast = useAppStore((s) => s.toast);
 
   const [hostProjects, setHostProjects] = useState<Record<string, ComposeProject[]>>({});
   const [hostLoose, setHostLoose] = useState<Record<string, ContainerSummary[]>>({});

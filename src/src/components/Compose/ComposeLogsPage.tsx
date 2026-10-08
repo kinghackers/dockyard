@@ -24,7 +24,7 @@ function serviceOf(c: ContainerSummary): string {
  * view with a [service] prefix, filterable by service name.
  */
 export function ComposeLogsPage({ hostId, projectName }: { hostId: string; projectName: string }) {
-  const { toast } = useAppStore();
+  const toast = useAppStore((s) => s.toast);
   const [containers, setContainers] = useState<ContainerSummary[]>([]);
   const [lines, setLines] = useState<Line[]>([]);
   const [paused, setPaused] = useState(false);

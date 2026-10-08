@@ -34,7 +34,11 @@ function fmtBytes(n: number | undefined): string {
 }
 
 export function ContainerDetailPage({ hostId, containerId }: { hostId: string; containerId: string }) {
-  const { toast, openTab, setMainView, containersVersion, connections } = useAppStore();
+  const toast = useAppStore((s) => s.toast);
+  const openTab = useAppStore((s) => s.openTab);
+  const setMainView = useAppStore((s) => s.setMainView);
+  const containersVersion = useAppStore((s) => s.containersVersion);
+  const connections = useAppStore((s) => s.connections);
   const [detail, setDetail] = useState<ContainerDetail | null>(null);
   const [live, setLive] = useState<ContainerStatsSample | null>(null);
   const [loading, setLoading] = useState(false);
@@ -57,8 +61,11 @@ export function ContainerDetailPage({ hostId, containerId }: { hostId: string; c
 
   useEffect(() => {
     void load();
-    // slow fallback poll for static fields (state, exit code, mounts…)
-    const t = setInterval(() => void load(), 15000);
+    // slow fallback poll for static fields (state, exit code, mounts…);
+    // docker events drive most reloads, and skip it while backgrounded
+    const t = setInterval(() => {
+      if (!document.hidden) void load();
+    }, 30000);
     return () => clearInterval(t);
   }, [load]);
 

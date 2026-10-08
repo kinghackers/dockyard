@@ -7,7 +7,7 @@ const MAX_LINES = 5000;
 const TAIL_LINES = 500;
 
 export function LogViewerPage({ hostId, containerId }: { hostId: string; containerId: string }) {
-  const { toast } = useAppStore();
+  const toast = useAppStore((s) => s.toast);
   const [lines, setLines] = useState<string[]>([]);
   const [paused, setPaused] = useState(false);
   const [status, setStatus] = useState<'connecting' | 'live' | 'ended' | 'error'>('connecting');
