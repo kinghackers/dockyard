@@ -14,6 +14,21 @@ export interface SshAuthOptions {
 export interface SshTunnel {
   localPort: number;
   close: () => Promise<void>;
+  /** Open an interactive shell on the SSH host (for host terminals). */
+  openShell?: (
+    cols: number,
+    rows: number,
+    cb: (err: Error | null, stream?: NodeJS.ReadWriteStream) => void
+  ) => void;
+}
+
+/** Bridge an ssh2 shell stream through the shared callback shape. */
+function shellOpener(conn: Client): SshTunnel['openShell'] {
+  return (cols, rows, cb) => {
+    conn.shell({ term: 'xterm-256color', cols, rows }, (err, stream) => {
+      cb(err ?? null, stream ? (stream as unknown as NodeJS.ReadWriteStream) : undefined);
+    });
+  };
 }
 
 function buildSshConfig(opts: SshAuthOptions): ConnectConfig {
@@ -113,6 +128,7 @@ export async function createSshDockerTunnel(
           resolve({
             localPort: addr.port,
             close: async () => cleanup(),
+            openShell: shellOpener(conn),
           });
         }
       });

@@ -8,7 +8,7 @@ function newSessionId() {
   return `exec-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
-export function TerminalPage({ hostId, containerId }: { hostId: string; containerId: string }) {
+export function TerminalPage({ hostId, containerId }: { hostId: string; containerId?: string }) {
   const [sessionId] = useState(newSessionId);
   const [status, setStatus] = useState<'connecting' | 'open' | 'closed' | 'error'>('connecting');
   const [error, setError] = useState<string | null>(null);
@@ -82,7 +82,12 @@ export function TerminalPage({ hostId, containerId }: { hostId: string; containe
     cleanupRef.current = cleanup;
 
     try {
-      await window.dockerApi.openExec(hostId, containerId, sessionId);
+      // containerId present → exec inside the container; otherwise an SSH host shell
+      if (containerId) {
+        await window.dockerApi.openExec(hostId, containerId, sessionId);
+      } else {
+        await window.dockerApi.openHostExec(sessionId, hostId);
+      }
       // if unmounted while opening, abort the session we just created
       if (cleanupRef.current !== cleanup) {
         cleanup();
@@ -146,7 +151,7 @@ export function TerminalPage({ hostId, containerId }: { hostId: string; containe
         <div style={{ flex: 1 }} />
         <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
           {status === 'connecting' && '连接中…'}
-          {status === 'open' && '已连接 · /bin/sh'}
+          {status === 'open' && (containerId ? '已连接 · /bin/sh' : '已连接 · 主机 shell')}
           {status === 'closed' && '已断开'}
           {status === 'error' && `错误: ${error || '未知'}`}
         </span>

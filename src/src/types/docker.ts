@@ -341,6 +341,7 @@ declare global {
       onLogEnd(cb: (p: { key: string }) => void): () => void;
 
       openExec(hostId: string, containerId: string, sessionId: string): Promise<boolean>;
+      openHostExec(sessionId: string, hostId: string): Promise<boolean>;
       execInput(sessionId: string, data: string): Promise<boolean>;
       execResize(sessionId: string, h: number, w: number): Promise<boolean>;
       closeExec(sessionId: string): Promise<boolean>;

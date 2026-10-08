@@ -327,6 +327,41 @@ export function registerIpc(manager: DockerConnectionManager, getWindows: () => 
     }
   );
 
+  // ---- host terminal (SSH shell reusing the exec session channel) ----
+  ipcMain.handle('docker:openHostExec', async (e: IpcMainInvokeEvent, sessionId: string, hostId: string) => {
+    const win = BrowserWindow.fromWebContents(e.sender);
+    const stream = await manager.openHostShellStream(hostId);
+    stream.on('data', (buf: Buffer) => {
+      win?.webContents.send('docker:execData', { sessionId, data: buf.toString('utf8') });
+    });
+    stream.on('error', (err: Error) => {
+      win?.webContents.send('docker:execError', { sessionId, error: err.message });
+    });
+    stream.on('close', () => {
+      win?.webContents.send('docker:execEnd', { sessionId });
+      execSessions.delete(sessionId);
+    });
+    execSessions.set(sessionId, {
+      write: (chunk: string) => {
+        stream.write(chunk);
+      },
+      resize: (h: number, w: number) => {
+        (stream as unknown as {
+          setWindow?: (rows: number, cols: number, height: number, width: number) => void;
+        }).setWindow?.(h, w, 480, 640);
+      },
+      kill: () => {
+        try {
+          stream.end();
+        } catch {
+          /* ignore */
+        }
+        execSessions.delete(sessionId);
+      },
+    });
+    return true;
+  });
+
   ipcMain.handle('docker:execInput', (_e, sessionId: string, data: string) => {
     execSessions.get(sessionId)?.write(data);
     return true;

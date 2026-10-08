@@ -48,6 +48,7 @@ export interface DockerApi {
   onLogEnd(cb: (payload: { key: string }) => void): () => void;
 
   openExec(hostId: string, containerId: string, sessionId: string): Promise<boolean>;
+  openHostExec(sessionId: string, hostId: string): Promise<boolean>;
   execInput(sessionId: string, data: string): Promise<boolean>;
   execResize(sessionId: string, h: number, w: number): Promise<boolean>;
   closeExec(sessionId: string): Promise<boolean>;
@@ -199,6 +200,7 @@ const api: DockerApi = {
   onLogEnd: (cb) => subscribe('docker:logEnd', cb),
 
   openExec: (hostId, containerId, sessionId) => ipcRenderer.invoke('docker:openExec', hostId, containerId, sessionId),
+  openHostExec: (sessionId, hostId) => ipcRenderer.invoke('docker:openHostExec', sessionId, hostId),
   execInput: (sessionId, data) => ipcRenderer.invoke('docker:execInput', sessionId, data),
   execResize: (sessionId, h, w) => ipcRenderer.invoke('docker:execResize', sessionId, h, w),
   closeExec: (sessionId) => ipcRenderer.invoke('docker:closeExec', sessionId),

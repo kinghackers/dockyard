@@ -980,7 +980,8 @@ export class DockerConnectionManager {
   }
 
   startExec(execId: string, hostId: string): Promise<NodeJS.ReadWriteStream> {
-    const docker = this.dockerOf(hostId);    const exec = docker.getExec(execId);
+    const docker = this.dockerOf(hostId);
+    const exec = docker.getExec(execId);
     return new Promise((resolve, reject) => {
       exec.start({ hijack: true, stdin: true, Tty: true }, (err: Error | null, stream?: NodeJS.ReadWriteStream) => {
         if (err) return reject(err);
@@ -995,6 +996,23 @@ export class DockerConnectionManager {
   async resizeExec(execId: string, hostId: string, h: number, w: number) {
     const docker = this.dockerOf(hostId);
     await docker.getExec(execId).resize({ h, w });
+  }
+
+  /** Open an interactive shell on the SSH host behind this connection. */
+  async openHostShellStream(hostId: string): Promise<NodeJS.ReadWriteStream> {
+    const managed = this.connections.get(hostId);
+    const tunnel = managed?.tunnel;
+    if (!managed) throw new Error(`未找到连接配置: ${hostId}`);
+    if (managed.config.kind !== 'ssh') {
+      throw new Error('仅 SSH 连接支持主机终端');
+    }
+    if (!tunnel?.openShell) throw new Error('主机终端不可用：SSH 通道未就绪，请重新连接');
+    return await new Promise((resolve, reject) => {
+      tunnel.openShell!(120, 30, (err, stream) => {
+        if (err || !stream) reject(err || new Error('主机 shell 不可用'));
+        else resolve(stream);
+      });
+    });
   }
 
   // ---------- images ----------

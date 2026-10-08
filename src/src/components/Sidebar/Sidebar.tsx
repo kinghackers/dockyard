@@ -570,6 +570,22 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
           icon: <Box size={13} />,
           onSelect: () => openView(conn.id, 'containers'),
         },
+        ...(conn.kind === 'ssh' && st?.connected
+          ? [
+              {
+                key: 'hostterm' as const,
+                label: '打开主机终端',
+                icon: <TermIcon size={13} />,
+                onSelect: () =>
+                  openTab({
+                    id: `hostterm:${conn.id}`,
+                    title: `主机终端 · ${conn.name}`,
+                    kind: 'terminal' as const,
+                    hostId: conn.id,
+                  }),
+              },
+            ]
+          : []),
         { key: 'sep2', label: '', separator: true, onSelect: () => {} },
         {
           key: 'move',

@@ -47,9 +47,8 @@ function renderView(view: OpenTab) {
         <ComposeLogsPage hostId={view.hostId} projectName={view.projectName} />
       ) : null;
     case 'terminal':
-      return view.containerId ? (
-        <TerminalPage hostId={view.hostId} containerId={view.containerId} />
-      ) : null;
+      // no containerId → SSH host shell
+      return <TerminalPage hostId={view.hostId} containerId={view.containerId} />;
     default:
       return null;
   }
