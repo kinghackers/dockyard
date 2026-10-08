@@ -27,6 +27,17 @@ function requireUserSelected(filePath: string) {
   }
 }
 
+/**
+ * Send to a captured window only if it is still alive. Streams (logs, stats,
+ * exec, pull/push progress, events) keep firing after the user closes the
+ * window — `win?.webContents.send` alone does NOT protect against a
+ * destroyed-but-non-null BrowserWindow and crashes the main process
+ * ("Object has been destroyed") on quit.
+ */
+function safeSend(win: BrowserWindow | null | undefined, channel: string, payload: unknown) {
+  if (win && !win.isDestroyed()) win.webContents.send(channel, payload);
+}
+
 export function registerIpc(manager: DockerConnectionManager, getWindows: () => BrowserWindow[]) {
   // ---- connection config ----
   ipcMain.handle('docker:listConnections', () => manager.listConfigs());
@@ -204,7 +215,7 @@ export function registerIpc(manager: DockerConnectionManager, getWindows: () => 
         if (rawMode) {
           text = residual.toString('utf8');
           residual = Buffer.alloc(0);
-          if (text) win?.webContents.send('docker:logData', { key, data: text });
+          if (text) safeSend(win, 'docker:logData', { key, data: text });
           return;
         }
 
@@ -245,7 +256,7 @@ export function registerIpc(manager: DockerConnectionManager, getWindows: () => 
         }
         residual = residual.slice(offset);
         if (text) {
-          win?.webContents.send('docker:logData', { key, data: text });
+          safeSend(win, 'docker:logData', { key, data: text });
         }
       };
 
@@ -253,15 +264,15 @@ export function registerIpc(manager: DockerConnectionManager, getWindows: () => 
       // ensure flowing mode even if the underlying stream was paused
       destroyable.resume?.();
       destroyable.on('error', (err: Error) => {
-        win?.webContents.send('docker:logError', { key, error: err.message });
+        safeSend(win, 'docker:logError', { key, error: err.message });
       });
       destroyable.on('end', () => {
         // flush any residual as plain text
         if (residual.length > 0) {
-          win?.webContents.send('docker:logData', { key, data: residual.toString('utf8') });
+          safeSend(win, 'docker:logData', { key, data: residual.toString('utf8') });
           residual = Buffer.alloc(0);
         }
-        win?.webContents.send('docker:logEnd', { key });
+        safeSend(win, 'docker:logEnd', { key });
         logStreams.delete(key);
       });
 
@@ -297,14 +308,14 @@ export function registerIpc(manager: DockerConnectionManager, getWindows: () => 
       const stream = await manager.startExec(exec.id, hostId);
 
       const onData = (buf: Buffer) => {
-        win?.webContents.send('docker:execData', { sessionId, data: buf.toString('utf8') });
+        safeSend(win, 'docker:execData', { sessionId, data: buf.toString('utf8') });
       };
       stream.on('data', onData);
       stream.on('error', (err: Error) => {
-        win?.webContents.send('docker:execError', { sessionId, error: err.message });
+        safeSend(win, 'docker:execError', { sessionId, error: err.message });
       });
       stream.on('end', () => {
-        win?.webContents.send('docker:execEnd', { sessionId });
+        safeSend(win, 'docker:execEnd', { sessionId });
         execSessions.delete(sessionId);
       });
 
@@ -344,14 +355,14 @@ export function registerIpc(manager: DockerConnectionManager, getWindows: () => 
     };
 
     safeStream.on('data', (buf: Buffer) => {
-      win?.webContents.send('docker:execData', { sessionId, data: buf.toString('utf8') });
+      safeSend(win, 'docker:execData', { sessionId, data: buf.toString('utf8') });
     });
     safeStream.on('error', (err: Error) => {
-      win?.webContents.send('docker:execError', { sessionId, error: err.message });
+      safeSend(win, 'docker:execError', { sessionId, error: err.message });
     });
     safeStream.on('close', () => {
       closed = true;
-      win?.webContents.send('docker:execEnd', { sessionId });
+      safeSend(win, 'docker:execEnd', { sessionId });
       execSessions.delete(sessionId);
     });
 
@@ -459,14 +470,14 @@ export function registerIpc(manager: DockerConnectionManager, getWindows: () => 
   ipcMain.handle('docker:pullImage', async (e, hostId: string, name: string) => {
     const win = BrowserWindow.fromWebContents(e.sender);
     await manager.pullImage(hostId, name, (msg) => {
-      win?.webContents.send('docker:pullProgress', { name, message: msg });
+      safeSend(win, 'docker:pullProgress', { name, message: msg });
     });
     return true;
   });
   ipcMain.handle('docker:pushImage', async (e, hostId: string, name: string) => {
     const win = BrowserWindow.fromWebContents(e.sender);
     await manager.pushImage(hostId, name, (msg) => {
-      win?.webContents.send('docker:pushProgress', { name, message: msg });
+      safeSend(win, 'docker:pushProgress', { name, message: msg });
     });
     return true;
   });
@@ -556,10 +567,10 @@ export function registerIpc(manager: DockerConnectionManager, getWindows: () => 
         hostId,
         containerId,
         (sample) => {
-          win?.webContents.send('docker:statsData', { key, hostId, containerId, sample });
+          safeSend(win, 'docker:statsData', { key, hostId, containerId, sample });
         },
         (err) => {
-          win?.webContents.send('docker:statsError', { key, error: err.message });
+          safeSend(win, 'docker:statsError', { key, error: err.message });
         }
       );
       statsStreams.set(key, { abort });
@@ -582,10 +593,10 @@ export function registerIpc(manager: DockerConnectionManager, getWindows: () => 
     const abort = manager.streamEvents(
       hostId,
       (event) => {
-        win?.webContents.send('docker:event', event);
+        safeSend(win, 'docker:event', event);
       },
       (err) => {
-        win?.webContents.send('docker:eventError', { hostId, error: err.message });
+        safeSend(win, 'docker:eventError', { hostId, error: err.message });
       }
     );
     eventStreams.set(hostId, { abort });
@@ -600,17 +611,22 @@ export function registerIpc(manager: DockerConnectionManager, getWindows: () => 
 
   // cleanup all streams
   ipcMain.handle('docker:cleanupAll', async () => {
-    for (const { abort } of logStreams.values()) abort();
-    logStreams.clear();
-    for (const s of execSessions.values()) s.kill();
-    execSessions.clear();
-    for (const { abort } of eventStreams.values()) abort();
-    eventStreams.clear();
-    for (const { abort } of statsStreams.values()) abort();
-    statsStreams.clear();
+    abortAllStreams();
     await manager.disconnectAll();
     return true;
   });
+}
+
+/** Abort every live stream / exec session (also invoked on app quit). */
+export function abortAllStreams() {
+  for (const { abort } of logStreams.values()) abort();
+  logStreams.clear();
+  for (const s of execSessions.values()) s.kill();
+  execSessions.clear();
+  for (const { abort } of eventStreams.values()) abort();
+  eventStreams.clear();
+  for (const { abort } of statsStreams.values()) abort();
+  statsStreams.clear();
 }
 
 export function broadcastToAll(windows: BrowserWindow[], channel: string, payload: unknown) {

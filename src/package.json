@@ -62,9 +62,10 @@
     "productName": "Docker 管理器",
     "copyright": "Copyright © 2026 Dockyard",
     "electronDist": "node_modules/electron/dist",
-    "npmRebuild": true,
+    "npmRebuild": false,
+    "asar": false,
     "directories": {
-      "output": "release",
+      "output": "out",
       "buildResources": "build"
     },
     "files": [

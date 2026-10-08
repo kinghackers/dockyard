@@ -1,7 +1,8 @@
 import { app, BrowserWindow, shell, Menu, ipcMain, Notification } from 'electron';
 import * as path from 'path';
+import * as fs from 'fs';
 import { DockerConnectionManager } from './docker/connectionManager';
-import { registerIpc } from './docker/ipcHandlers';
+import { registerIpc, abortAllStreams } from './docker/ipcHandlers';
 
 const isDev = process.env.NODE_ENV === 'development';
 
@@ -79,7 +80,19 @@ app.whenReady().then(() => {
     // required for toast notifications to attribute to this app
     app.setAppUserModelId('com.dockyard.docker-manager');
   }
-  manager = new DockerConnectionManager(path.join(app.getPath('userData'), 'idea-docker'));
+  // 数据目录（旧构建曾写死为 'idea-docker'，已改名 'config'）
+  const dataDir = path.join(app.getPath('userData'), 'config');
+  // 一次性迁移：将旧的 'idea-docker' 目录改名为 'config'，保留已有连接数据
+  const legacyDir = path.join(app.getPath('userData'), 'idea-docker');
+  if (!fs.existsSync(dataDir) && fs.existsSync(legacyDir)) {
+    try {
+      fs.renameSync(legacyDir, dataDir);
+      console.log(`[main] 已迁移旧数据目录 ${legacyDir} -> ${dataDir}`);
+    } catch (err) {
+      console.error(`[main] 迁移旧数据目录失败（将以空配置启动）:`, err);
+    }
+  }
+  manager = new DockerConnectionManager(dataDir);
   registerIpc(manager, () => (mainWindow ? [mainWindow] : []));
 
   // OS notification bridge for the renderer (e.g. abnormal container exits)
@@ -107,5 +120,8 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
+  // kill live log/stats/exec/event streams first so their HTTP responses
+  // cannot fire after the window is destroyed
+  abortAllStreams();
   void manager?.disconnectAll();
 });
