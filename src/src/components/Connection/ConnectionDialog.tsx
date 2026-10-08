@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import type { ConnectionGroup, ConnectionKind, DockerConnectionConfig } from '../../types/docker';
+import { useModalKeys } from '../../utils/useModalKeys';
 
 interface Props {
   initial: DockerConnectionConfig | null;
@@ -121,6 +122,8 @@ export function ConnectionDialog({ initial, defaultGroupId, onClose, onSaved }: 
     }
   };
 
+  useModalKeys({ onCancel: onClose, onSubmit: () => void handleSave(), disabled: saving });
+
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 560 }}>
@@ -137,6 +140,7 @@ export function ConnectionDialog({ initial, defaultGroupId, onClose, onSaved }: 
               <label>名称</label>
               <input
                 value={name}
+                autoFocus
                 onChange={(e) => setName(e.target.value)}
                 placeholder="可选，留空自动生成（如 ssh-192.168.1.68）"
               />

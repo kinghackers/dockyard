@@ -7,6 +7,7 @@ import type {
   PortMapping,
   VolumeMountSpec,
 } from '../../types/docker';
+import { useModalKeys } from '../../utils/useModalKeys';
 
 interface Props {
   hostId: string;
@@ -127,6 +128,8 @@ export function RunContainerDialog({ hostId, initialImage, onClose, onCreated }:
       setSaving(false);
     }
   };
+
+  useModalKeys({ onCancel: onClose, onSubmit: () => void handleCreate(), disabled: saving });
 
   return (
     <div className="modal-backdrop" onClick={onClose}>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X } from 'lucide-react';
 import type { CreateVolumeOptions } from '../../types/docker';
+import { useModalKeys } from '../../utils/useModalKeys';
 
 interface Props {
   hostId: string;
@@ -34,6 +35,8 @@ export function CreateVolumeDialog({ hostId, onClose, onCreated }: Props) {
       setSaving(false);
     }
   };
+
+  useModalKeys({ onCancel: onClose, onSubmit: () => void handleCreate(), disabled: saving });
 
   return (
     <div className="modal-backdrop" onClick={onClose}>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { X, Loader2, Copy, Check } from 'lucide-react';
 import type { ImageDetail } from '../../types/docker';
 import { reportError } from '../../utils/connection';
+import { useModalKeys } from '../../utils/useModalKeys';
 
 function fmtBytes(n?: number): string {
   if (n == null || n < 0) return '-';
@@ -29,6 +30,8 @@ export function ImageHistoryDialog({ hostId, imageId, title, onClose, toast }: P
   const [detail, setDetail] = useState<ImageDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  useModalKeys({ onCancel: onClose });
 
   useEffect(() => {
     let cancelled = false;

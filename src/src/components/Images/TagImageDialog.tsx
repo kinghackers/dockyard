@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { X } from 'lucide-react';
+import { useModalKeys } from '../../utils/useModalKeys';
 
 interface Props {
   initialRepo?: string;
@@ -26,6 +27,8 @@ export function TagImageDialog({ initialRepo = '', initialTag = 'latest', onClos
     }
   };
 
+  useModalKeys({ onCancel: onClose, onSubmit: () => void submit(), disabled: saving });
+
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 420 }}>
@@ -44,9 +47,6 @@ export function TagImageDialog({ initialRepo = '', initialTag = 'latest', onClos
                 autoFocus
                 placeholder="myapp 或 registry.example.com/myapp"
                 onChange={(e) => setRepo(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') void submit();
-                }}
               />
             </div>
             <div className="form-row">
@@ -55,9 +55,6 @@ export function TagImageDialog({ initialRepo = '', initialTag = 'latest', onClos
                 value={tag}
                 placeholder="latest"
                 onChange={(e) => setTag(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') void submit();
-                }}
               />
             </div>
           </div>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X, FolderOpen, Loader2, Play } from 'lucide-react';
 import { reportError } from '../../utils/connection';
+import { useModalKeys } from '../../utils/useModalKeys';
 
 interface Props {
   hostId: string;
@@ -14,6 +15,13 @@ export function ComposeUpDialog({ hostId, onClose, onDeployed, toast }: Props) {
   const [filePath, setFilePath] = useState('');
   const [output, setOutput] = useState('');
   const [busy, setBusy] = useState(false);
+
+  // Esc/backdrop must not dismiss a deploy in flight
+  useModalKeys({
+    onCancel: onClose,
+    onSubmit: () => void deploy(),
+    disabled: busy || !filePath.trim(),
+  });
 
   const pick = async () => {
     const p = await window.dockerApi.selectFile([
@@ -44,7 +52,7 @@ export function ComposeUpDialog({ hostId, onClose, onDeployed, toast }: Props) {
   };
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div className="modal-backdrop" onClick={busy ? undefined : onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 640, maxWidth: '92vw' }}>
         <div className="modal-header">
           <span>从 Compose 文件部署</span>

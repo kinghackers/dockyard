@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { X } from 'lucide-react';
+import { useModalKeys } from '../../utils/useModalKeys';
 
 interface Props {
   title: string;
@@ -24,6 +25,8 @@ export function GroupNameDialog({ title, initialName = '', onClose, onSubmit }: 
     }
   };
 
+  useModalKeys({ onCancel: onClose, onSubmit: () => void submit(), disabled: saving });
+
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 380 }}>
@@ -41,9 +44,6 @@ export function GroupNameDialog({ title, initialName = '', onClose, onSubmit }: 
               autoFocus
               placeholder="例如：生产环境"
               onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') void submit();
-              }}
             />
           </div>
         </div>

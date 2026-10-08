@@ -22,22 +22,23 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
 }: Props) {
-  const confirmRef = useRef<HTMLButtonElement>(null);
+  const initialFocusRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    confirmRef.current?.focus();
+    // destructive confirms focus Cancel so a stray Enter cannot fire them
+    initialFocusRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
         onCancel();
-      } else if (e.key === 'Enter') {
+      } else if (e.key === 'Enter' && !danger) {
         e.preventDefault();
         void onConfirm();
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onCancel, onConfirm]);
+  }, [onCancel, onConfirm, danger]);
 
   return (
     <div className="modal-backdrop" onClick={onCancel}>
@@ -61,11 +62,15 @@ export function ConfirmDialog({
           {message}
         </div>
         <div className="modal-footer">
-          <button className="btn" onClick={onCancel}>
+          <button
+            ref={danger ? initialFocusRef : undefined}
+            className="btn"
+            onClick={onCancel}
+          >
             取消
           </button>
           <button
-            ref={confirmRef}
+            ref={danger ? undefined : initialFocusRef}
             className={`btn ${danger ? 'danger' : 'primary'}`}
             onClick={() => void onConfirm()}
           >

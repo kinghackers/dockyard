@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { X, Download, Upload, Loader2 } from 'lucide-react';
 import type { ConnectionGroup, DockerConnectionConfig } from '../../types/docker';
 import { reportError } from '../../utils/connection';
+import { useModalKeys } from '../../utils/useModalKeys';
 
 interface Props {
   connections: DockerConnectionConfig[];
@@ -43,6 +44,8 @@ export function ConnectionBackupDialog({
 }: Props) {
   const [includeSecrets, setIncludeSecrets] = useState(false);
   const [busy, setBusy] = useState(false);
+
+  useModalKeys({ onCancel: onClose, disabled: busy });
 
   const exportJson = () => {
     const payload: BackupFile = {
@@ -99,7 +102,7 @@ export function ConnectionBackupDialog({
   };
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div className="modal-backdrop" onClick={busy ? undefined : onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 480 }}>
         <div className="modal-header">
           <span>连接配置备份</span>
