@@ -27,6 +27,9 @@ import {
   Info,
   Play,
   Square,
+  RotateCw,
+  Skull,
+  Copy,
   Download,
   ArrowRight,
 } from 'lucide-react';
@@ -305,6 +308,15 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
           }),
       },
       {
+        key: 'restart',
+        label: '重启全部',
+        icon: <RotateCw size={13} />,
+        onSelect: () =>
+          void runSidebarAction(`正在重启项目 ${p.name}…`, `项目 ${p.name} 已重启`, async () => {
+            for (const c of p.containers) await window.dockerApi.restartContainer(conn.id, c.id);
+          }),
+      },
+      {
         key: 'pull',
         label: '更新镜像',
         icon: <Download size={13} />,
@@ -387,7 +399,7 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
             }),
         },
       ];
-      if (a.canStart || a.canStop) {
+      if (a.canStart || a.canStop || a.canRestart || a.canKill) {
         items.push({ key: 'sep', label: '', separator: true, onSelect: () => {} });
         if (a.canStart) {
           items.push({
@@ -415,6 +427,63 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
               ),
           });
         }
+        if (a.canRestart) {
+          items.push({
+            key: 'restart',
+            label: '重启',
+            icon: <RotateCw size={13} />,
+            onSelect: () =>
+              void runSidebarAction(
+                `正在重启 ${name}…`,
+                `已重启 ${name}`,
+                () => window.dockerApi.restartContainer(conn.id, id)
+              ),
+          });
+        }
+        if (a.canKill) {
+          items.push({
+            key: 'kill',
+            label: '强制终止',
+            icon: <Skull size={13} />,
+            onSelect: () =>
+              void runSidebarAction(
+                `正在强制终止 ${name}…`,
+                `已强制终止 ${name}`,
+                () => window.dockerApi.killContainer(conn.id, id)
+              ),
+          });
+        }
+      }
+      items.push({ key: 'sep2', label: '', separator: true, onSelect: () => {} });
+      items.push({
+        key: 'copy',
+        label: '复制容器 ID',
+        icon: <Copy size={13} />,
+        onSelect: () => {
+          void navigator.clipboard?.writeText(id);
+          useAppStore.getState().toast('已复制容器 ID', 'info');
+        },
+      });
+      if (a.canRemove) {
+        items.push({
+          key: 'del',
+          label: '删除…',
+          icon: <Trash2 size={13} />,
+          danger: true,
+          onSelect: () =>
+            void (async () => {
+              const ok = await confirm({
+                title: '删除容器',
+                message: `确认删除容器「${name}」？数据卷将一并移除。`,
+                confirmLabel: '删除',
+                danger: true,
+              });
+              if (!ok) return;
+              await runSidebarAction(`正在删除 ${name}…`, '已删除', () =>
+                window.dockerApi.removeContainer(conn.id, id, true)
+              );
+            })(),
+        });
       }
       return items;
     };
