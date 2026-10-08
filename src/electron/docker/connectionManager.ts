@@ -1007,12 +1007,28 @@ export class DockerConnectionManager {
       throw new Error('仅 SSH 连接支持主机终端');
     }
     if (!tunnel?.openShell) throw new Error('主机终端不可用：SSH 通道未就绪，请重新连接');
-    return await new Promise((resolve, reject) => {
-      tunnel.openShell!(120, 30, (err, stream) => {
-        if (err || !stream) reject(err || new Error('主机 shell 不可用'));
-        else resolve(stream);
+
+    const open = () =>
+      new Promise<NodeJS.ReadWriteStream>((resolve, reject) => {
+        tunnel.openShell!(120, 30, (err, stream) => {
+          if (err || !stream) reject(err || new Error('主机 shell 不可用'));
+          else resolve(stream);
+        });
       });
-    });
+
+    // rapid open/close sequences (e.g. dev-mode double mounts) can make the
+    // server transiently reject a channel open — back off and retry
+    const RETRIES = 3;
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return await open();
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        const transient = /channel open failure|open failed/i.test(msg);
+        if (!transient || attempt >= RETRIES) throw err;
+        await new Promise((r) => setTimeout(r, 350 * attempt));
+      }
+    }
   }
 
   // ---------- images ----------
