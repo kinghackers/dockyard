@@ -111,6 +111,7 @@ export interface DockerApi {
   onEventError(cb: (p: { hostId: string; error: string }) => void): () => void;
 
   cleanupAll(): Promise<boolean>;
+  notify(title: string, body: string): void;
 }
 
 function subscribe<T>(channel: string, cb: (payload: T) => void): () => void {
@@ -209,6 +210,7 @@ const api: DockerApi = {
   onEventError: (cb) => subscribe('docker:eventError', cb),
 
   cleanupAll: () => ipcRenderer.invoke('docker:cleanupAll'),
+  notify: (title, body) => ipcRenderer.send('ui:notify', { title, body }),
 };
 
 contextBridge.exposeInMainWorld('dockerApi', api);

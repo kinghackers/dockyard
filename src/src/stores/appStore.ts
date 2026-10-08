@@ -11,6 +11,9 @@ import { loadUiPref, saveUiPref } from '../utils/uiPrefs';
 /** Stable id for the single primary content surface driven by the tree. */
 export const MAIN_VIEW_ID = '__main_view__';
 
+const EVENTS_PREF = 'events.recent';
+const MAX_RECENT_EVENTS = 40;
+
 interface Toast {
   id: string;
   message: string;
@@ -233,7 +236,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({ containersVersion: get().containersVersion + 1 });
     }, 300);
   },
-  recentEvents: [],
+  recentEvents: loadUiPref<AppState['recentEvents']>(EVENTS_PREF, []).slice(0, MAX_RECENT_EVENTS),
   pushEvent: (e) => {
     const item = {
       id: `${e.time}-${Math.random().toString(36).slice(2, 7)}`,
@@ -244,6 +247,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       time: e.time,
     };
     const next = [item, ...get().recentEvents];
-    set({ recentEvents: next.length > 40 ? next.slice(0, 40) : next });
+    const capped = next.length > MAX_RECENT_EVENTS ? next.slice(0, MAX_RECENT_EVENTS) : next;
+    set({ recentEvents: capped });
+    saveUiPref(EVENTS_PREF, capped);
   },
 }));

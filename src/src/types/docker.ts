@@ -411,6 +411,7 @@ declare global {
       onEventError(cb: (p: { hostId: string; error: string }) => void): () => void;
 
       cleanupAll(): Promise<boolean>;
+      notify(title: string, body: string): void;
     };
   }
 }

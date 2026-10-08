@@ -5,6 +5,7 @@ import { ContentRouter } from './components/Layout/ContentRouter';
 import { StatusBar } from './components/Layout/StatusBar';
 import { ConnectionDialog } from './components/Connection/ConnectionDialog';
 import { Toasts } from './components/common/Toasts';
+import { CommandPalette } from './components/common/CommandPalette';
 import { useAppStore } from './stores/appStore';
 import { useDockerEvents } from './utils/useDockerEvents';
 import { loadUiPref, saveUiPref } from './utils/uiPrefs';
@@ -142,6 +143,7 @@ export default function App() {
         </div>
       </div>
       <StatusBar />
+      <CommandPalette />
       {connDialogOpen && (
         <ConnectionDialog
           initial={editingConn}

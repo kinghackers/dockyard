@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell, Menu } from 'electron';
+import { app, BrowserWindow, shell, Menu, ipcMain, Notification } from 'electron';
 import * as path from 'path';
 import { DockerConnectionManager } from './docker/connectionManager';
 import { registerIpc } from './docker/ipcHandlers';
@@ -75,8 +75,24 @@ function createWindow() {
 
 app.whenReady().then(() => {
   Menu.setApplicationMenu(null);
+  if (process.platform === 'win32') {
+    // required for toast notifications to attribute to this app
+    app.setAppUserModelId('com.dockyard.docker-manager');
+  }
   manager = new DockerConnectionManager(path.join(app.getPath('userData'), 'idea-docker'));
   registerIpc(manager, () => (mainWindow ? [mainWindow] : []));
+
+  // OS notification bridge for the renderer (e.g. abnormal container exits)
+  ipcMain.on('ui:notify', (_e, p: { title?: string; body?: string }) => {
+    try {
+      if (Notification.isSupported()) {
+        new Notification({ title: p.title || 'Docker 管理器', body: p.body || '' }).show();
+      }
+    } catch {
+      /* ignore */
+    }
+  });
+
   createWindow();
 
   app.on('activate', () => {

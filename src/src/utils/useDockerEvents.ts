@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useAppStore } from '../stores/appStore';
+import { loadUiPref } from './uiPrefs';
 import type { DockerEvent } from '../types/docker';
 
 /** Events that mean a list (containers / images / networks / volumes) should refresh. */
@@ -80,6 +81,17 @@ export function useDockerEvents() {
           name: e.name,
           time: e.time || Date.now(),
         });
+      }
+      // OS notification when a container exits abnormally (opt-out in settings)
+      if (
+        e.type === 'container' &&
+        e.action === 'die' &&
+        loadUiPref('settings.notifyAbnormalExit', true)
+      ) {
+        const exitCode = e.attributes?.exitCode;
+        if (exitCode !== undefined && String(exitCode) !== '0' && e.name) {
+          window.dockerApi.notify(`容器异常退出：${e.name}`, `退出码 ${exitCode}`);
+        }
       }
       if (REFRESH_ACTIONS.has(e.action) || REFRESH_ACTIONS.has(`${e.type}.${e.action}`)) {
         bumpContainers();
