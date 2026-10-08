@@ -7,6 +7,7 @@ import { ConnectionDialog } from './components/Connection/ConnectionDialog';
 import { Toasts } from './components/common/Toasts';
 import { useAppStore } from './stores/appStore';
 import { useDockerEvents } from './utils/useDockerEvents';
+import { loadUiPref, saveUiPref } from './utils/uiPrefs';
 import type { DockerConnectionConfig } from './types/docker';
 
 export default function App() {
@@ -61,8 +62,32 @@ export default function App() {
     void loadConnections();
     // default primary surface
     setMainView({ title: '仪表板', kind: 'dashboard' });
+    // restore sidebar width across sessions
+    const w = loadUiPref<number | null>('sidebar.width', null);
+    if (typeof w === 'number' && w >= 220 && w <= 480) {
+      document.documentElement.style.setProperty('--sidebar-width', `${w}px`);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const startSidebarResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const clamp = (x: number) => Math.min(480, Math.max(220, x));
+    const onMove = (ev: MouseEvent) => {
+      document.documentElement.style.setProperty('--sidebar-width', `${clamp(ev.clientX)}px`);
+    };
+    const onUp = (ev: MouseEvent) => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      saveUiPref('sidebar.width', clamp(ev.clientX));
+    };
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  };
 
   const handleAddConnection = (groupId?: string) => {
     setEditingConn(null);
@@ -110,6 +135,7 @@ export default function App() {
           onConnect={handleConnect}
           onDisconnect={handleDisconnect}
         />
+        <div className="sidebar-resizer" onMouseDown={startSidebarResize} />
         <div className="main-area">
           <TabBar />
           <ContentRouter />

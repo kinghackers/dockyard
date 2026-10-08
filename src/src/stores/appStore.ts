@@ -93,7 +93,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   statuses: {},
   expandedHosts: loadUiPref('sidebar.expandedHosts', {}),
   expandedGroups: loadUiPref('sidebar.expandedGroups', {}),
-  expandedCompose: {},
+  expandedCompose: loadUiPref('sidebar.expandedCompose', {}),
   selectedTreeKey: null,
   selectedHostId: null,
   mainView: defaultMainView,
@@ -157,8 +157,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ expandedGroups });
   },
 
-  toggleCompose: (key) =>
-    set({ expandedCompose: { ...get().expandedCompose, [key]: !get().expandedCompose[key] } }),
+  toggleCompose: (key) => {
+    const expandedCompose = { ...get().expandedCompose, [key]: !get().expandedCompose[key] };
+    saveUiPref('sidebar.expandedCompose', expandedCompose);
+    set({ expandedCompose });
+  },
 
   selectTree: (key, hostId) =>
     set({

@@ -11,6 +11,7 @@ import {
   Copy,
   Skull,
   Info,
+  ArrowLeft,
   ArrowUp,
   ArrowDown,
   Download,
@@ -343,6 +344,21 @@ export function ComposeProjectPage({ hostId, projectName }: { hostId: string; pr
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div className="content-toolbar">
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginRight: 8 }}>
+          <button
+            className="btn ghost icon-btn"
+            title="返回项目列表"
+            onClick={() => {
+              const conn = useAppStore.getState().connections.find((c) => c.id === hostId);
+              openTab({
+                id: `compose:${hostId}`,
+                title: `Docker Compose · ${conn?.name || hostId}`,
+                kind: 'compose',
+                hostId,
+              });
+            }}
+          >
+            <ArrowLeft size={14} />
+          </button>
           <Layers size={18} color="var(--compose)" />
           <div>
             <div style={{ fontWeight: 600, color: 'var(--text-bright)' }}>{projectName}</div>
