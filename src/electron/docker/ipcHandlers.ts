@@ -375,7 +375,12 @@ export function registerIpc(manager: DockerConnectionManager, getWindows: () => 
       kill: () => {
         if (!closed) {
           try {
-            safeStream.end();
+            // end() only EOFs a PTY channel — bash keeps the sshd session
+            // slot alive (until MaxSessions blocks new channels); close()
+            // actually tears the channel down
+            const ch = safeStream as unknown as { close?: () => void };
+            if (typeof ch.close === 'function') ch.close();
+            else safeStream.end();
           } catch {
             /* ignore */
           }
