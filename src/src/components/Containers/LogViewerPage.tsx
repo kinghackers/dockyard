@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, memo, type ReactNode
 import { RefreshCw, Download, Trash2, Radio, Search, X } from 'lucide-react';
 import { useAppStore } from '../../stores/appStore';
 import { useHotkeys } from '../../utils/useHotkeys';
+import { detectLogLevel } from '../../utils/logLevel';
 
 const MAX_LINES = 5000;
 const TAIL_LINES = 500;
@@ -39,7 +40,7 @@ const LogLine = memo(function LogLine({ line, q }: { line: string; q: string }) 
   }
 
   return (
-    <div>
+    <div className={detectLogLevel(line) ? `log-line log-line-${detectLogLevel(line)}` : undefined}>
       {ts && <span className="log-line-ts">{ts} </span>}
       {body}
     </div>
@@ -183,20 +184,36 @@ export function LogViewerPage({ hostId, containerId }: { hostId: string; contain
   };
 
   const exportLog = () => {
-    const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+    // export what the current filter shows, not the whole buffer
+    const blob = new Blob([visibleLines.join('\n')], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = `${containerId.slice(0, 12)}.log`;
     a.click();
     URL.revokeObjectURL(url);
-    toast(`已导出 ${lines.length} 行日志`, 'success');
+    toast(
+      logFilter.trim()
+        ? `已按当前过滤导出 ${visibleLines.length}/${lines.length} 行`
+        : `已导出 ${lines.length} 行日志`,
+      'success'
+    );
   };
 
   const visibleLines = useMemo(() => {
-    if (!logFilter.trim()) return lines;
-    const q = logFilter.trim().toLowerCase();
-    return lines.filter((l) => l.toLowerCase().includes(q));
+    const q = logFilter.trim();
+    if (!q) return lines;
+    // /pattern/ filters by regex, anything else by substring
+    if (q.length > 2 && q.startsWith('/') && q.endsWith('/')) {
+      try {
+        const re = new RegExp(q.slice(1, -1), 'i');
+        return lines.filter((l) => re.test(l));
+      } catch {
+        // invalid regex — fall through to substring
+      }
+    }
+    const lower = q.toLowerCase();
+    return lines.filter((l) => l.toLowerCase().includes(lower));
   }, [lines, logFilter]);
 
   const matchCount = logFilter.trim() ? visibleLines.length : lines.length;
@@ -241,7 +258,7 @@ export function LogViewerPage({ hostId, containerId }: { hostId: string; contain
             ref={filterRef}
             className="search-input"
             style={{ paddingLeft: 26, width: 180 }}
-            placeholder="过滤日志（Ctrl+F）"
+            placeholder="过滤日志，支持 /正则/（Ctrl+F）"
             value={logFilter}
             onChange={(e) => setLogFilter(e.target.value)}
             onKeyDown={(e) => {

@@ -788,6 +788,14 @@ textarea:focus {
   color: #6e6e6e;
 }
 
+.log-line-error {
+  color: #e06c66;
+}
+
+.log-line-warn {
+  color: #d9a406;
+}
+
 .log-svc {
   color: #c678dd;
   font-weight: 500;

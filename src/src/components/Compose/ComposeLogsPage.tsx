@@ -4,6 +4,7 @@ import type { ContainerSummary } from '../../types/docker';
 import { useAppStore } from '../../stores/appStore';
 import { reportError } from '../../utils/connection';
 import { useHotkeys } from '../../utils/useHotkeys';
+import { detectLogLevel } from '../../utils/logLevel';
 
 const MAX_LINES = 8000;
 const TAIL_LINES = 200;
@@ -29,8 +30,9 @@ const ComposeLogLine = memo(function ComposeLogLine({
   ts?: string;
   text: string;
 }) {
+  const lvl = detectLogLevel(text);
   return (
-    <div>
+    <div className={lvl ? `log-line log-line-${lvl}` : undefined}>
       <span className="log-svc">[{service}]</span>
       {ts && <span className="log-line-ts"> {ts} </span>}
       <span> {text || ' '}</span>
@@ -175,10 +177,21 @@ export function ComposeLogsPage({ hostId, projectName }: { hostId: string; proje
   );
 
   const visible = useMemo(() => {
-    const q = filter.trim().toLowerCase();
+    const raw = filter.trim();
+    // /pattern/ filters by regex over the line text, anything else by substring
+    let re: RegExp | null = null;
+    if (raw.length > 2 && raw.startsWith('/') && raw.endsWith('/')) {
+      try {
+        re = new RegExp(raw.slice(1, -1), 'i');
+      } catch {
+        re = null;
+      }
+    }
+    const q = raw.toLowerCase();
     return lines.filter((l) => {
       if (serviceFilter && l.service !== serviceFilter) return false;
-      if (!q) return true;
+      if (!raw) return true;
+      if (re) return re.test(l.text) || re.test(l.service);
       return l.text.toLowerCase().includes(q) || l.service.toLowerCase().includes(q);
     });
   }, [lines, filter, serviceFilter]);
@@ -263,7 +276,7 @@ export function ComposeLogsPage({ hostId, projectName }: { hostId: string; proje
             ref={filterRef}
             className="search-input"
             style={{ paddingLeft: 26, width: 180 }}
-            placeholder="过滤日志（Ctrl+F）"
+            placeholder="过滤日志，支持 /正则/（Ctrl+F）"
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
           />
