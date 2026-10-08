@@ -1,8 +1,9 @@
-import { X, LayoutDashboard, Boxes, Image, Network, Database, Layers, FileText, Terminal as Term, Settings, LayoutGrid } from 'lucide-react';
+import { X, LayoutDashboard, Boxes, Image, Network, Database, Layers, FileText, Terminal as Term, Settings, LayoutGrid, Home } from 'lucide-react';
 import { useAppStore, MAIN_VIEW_ID } from '../../stores/appStore';
 import type { ViewKind } from '../../types/docker';
 
 const kindIcon: Record<ViewKind, React.ReactNode> = {
+  home: <Home size={13} />,
   dashboard: <LayoutDashboard size={13} />,
   containers: <Boxes size={13} />,
   images: <Image size={13} />,

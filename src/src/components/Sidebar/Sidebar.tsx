@@ -82,7 +82,6 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
   const toggleGroup = useAppStore((s) => s.toggleGroup);
   const toggleCompose = useAppStore((s) => s.toggleCompose);
   const selectTree = useAppStore((s) => s.selectTree);
-  const setMainView = useAppStore((s) => s.setMainView);
   const openTab = useAppStore((s) => s.openTab);
   const setContainers = useAppStore((s) => s.setContainers);
   const containersByHost = useAppStore((s) => s.containersByHost);
@@ -952,7 +951,7 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
           title="所有主机的容器（聚合视图）"
           onClick={() => {
             selectTree(null, null);
-            setMainView({ title: '所有容器', kind: 'aggregateContainers' });
+            openTab({ id: 'aggregateContainers', title: '所有容器', kind: 'aggregateContainers' });
           }}
         >
           <Boxes size={15} />
@@ -962,7 +961,7 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
           title="设置"
           onClick={() => {
             selectTree(null, null);
-            setMainView({ title: '设置', kind: 'settings' });
+            openTab({ id: 'settings', title: '设置', kind: 'settings' });
           }}
         >
           <Settings size={15} />

@@ -1,7 +1,8 @@
-import { useRef, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { useAppStore } from '../../stores/appStore';
 import type { OpenTab } from '../../types/docker';
 import { HostGuard } from '../common/HostGuard';
+import { HomePage } from '../Home/HomePage';
 import { DashboardPage } from '../Dashboard/DashboardPage';
 import { ContainerListPage } from '../Containers/ContainerListPage';
 import { ContainerDetailPage } from '../Containers/ContainerDetailPage';
@@ -16,9 +17,12 @@ import { TerminalPage } from '../Containers/TerminalPage';
 import { AggregateContainersPage } from '../Containers/AggregateContainersPage';
 import { SettingsPage } from '../Settings/SettingsPage';
 
-function renderView(view: OpenTab) {
+function renderView(view: OpenTab, active = true) {
+  if (view.kind === 'home') {
+    return <HomePage />;
+  }
   if (view.kind === 'dashboard') {
-    return <DashboardPage hostId={view.hostId} />;
+    return <DashboardPage hostId={view.hostId} active={active} />;
   }
   if (view.kind === 'aggregateContainers') {
     return <AggregateContainersPage />;
@@ -83,19 +87,10 @@ export function ContentRouter() {
   const tabs = useAppStore((s) => s.tabs);
   const activeTabId = useAppStore((s) => s.activeTabId);
   const mainView = useAppStore((s) => s.mainView);
+  const hostViews = useAppStore((s) => s.hostViews);
 
   const sessionTab = tabs.find((t) => t.id === activeTabId) ?? null;
   const mainActive = !sessionTab;
-
-  // ---- keep-alive surfaces ----
-  // Session tabs (logs / terminals) stay mounted but hidden while inactive so
-  // streams and scrollback survive tab switches. The dashboard is kept alive
-  // too: switching back shows the previous content without a reload, and its
-  // polling pauses while it is not the visible surface.
-  const lastDashboardRef = useRef<OpenTab | null>(null);
-  if (mainView.kind === 'dashboard') lastDashboardRef.current = mainView;
-  const dashboardView = mainView.kind === 'dashboard' ? mainView : lastDashboardRef.current;
-  const dashboardVisible = mainActive && mainView.kind === 'dashboard';
 
   const mainKey = `main:${mainView.kind}:${mainView.hostId ?? ''}:${mainView.containerId ?? ''}:${mainView.projectName ?? ''}`;
 
@@ -107,19 +102,22 @@ export function ContentRouter() {
 
   return (
     <>
-      {dashboardView &&
-        wrap(
-          `dash:${dashboardView.hostId ?? 'overview'}`,
-          'dashboard',
-          dashboardVisible,
-          <DashboardPage hostId={dashboardView.hostId} active={dashboardVisible} />,
-          dashboardView.hostId
-        )}
+      {wrap(mainKey, mainView.kind, mainActive, renderView(mainView, mainActive), mainView.hostId)}
 
-      {mainView.kind !== 'dashboard' &&
-        wrap(mainKey, mainView.kind, mainActive, renderView(mainView), mainView.hostId)}
-
-      {tabs.map((tab) => wrap(tab.id, tab.kind, tab.id === activeTabId, renderView(tab), tab.hostId))}
+      {tabs.map((tab) => {
+        // host tab: the page shown inside comes from hostViews (default: dashboard)
+        const inner =
+          tab.kind === 'dashboard' && tab.hostId
+            ? hostViews[tab.hostId] ?? { ...tab, closable: false }
+            : tab;
+        return wrap(
+          tab.id,
+          inner.kind,
+          tab.id === activeTabId,
+          renderView(inner, tab.id === activeTabId),
+          tab.hostId
+        );
+      })}
     </>
   );
 }

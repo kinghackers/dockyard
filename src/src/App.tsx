@@ -61,8 +61,8 @@ export default function App() {
 
   useEffect(() => {
     void loadConnections();
-    // default primary surface
-    setMainView({ title: '仪表板', kind: 'dashboard' });
+    // default primary surface — per-host pages live inside each host's tab
+    setMainView({ title: '主页', kind: 'home' });
     // restore sidebar width and theme across sessions
     const w = loadUiPref<number | null>('sidebar.width', null);
     if (typeof w === 'number' && w >= 220 && w <= 480) {

@@ -20,10 +20,33 @@ interface Toast {
   type: 'info' | 'success' | 'error';
 }
 
+/** Kinds that render as closable session tabs instead of the main surface.
+ *  Per-host dashboards join them via the hostId check in openTab. */
+const SESSION_TAB_KINDS: ReadonlySet<OpenTab['kind']> = new Set([
+  'logs',
+  'terminal',
+  'composeLogs',
+  'aggregateContainers',
+  'settings',
+]);
+
+/** Host-scoped page kinds: they switch inside the host's own tab
+ *  (driven by hostViews) instead of spawning separate tabs. */
+const HOST_PAGE_KINDS: ReadonlySet<OpenTab['kind']> = new Set([
+  'dashboard',
+  'containers',
+  'images',
+  'networks',
+  'volumes',
+  'compose',
+  'composeProject',
+  'containerDetail',
+]);
+
 const defaultMainView: OpenTab = {
   id: MAIN_VIEW_ID,
-  title: '仪表板',
-  kind: 'dashboard',
+  title: '主页',
+  kind: 'home',
   closable: false,
 };
 
@@ -61,7 +84,11 @@ interface AppState {
 
   /** Switch the primary content surface (tree navigation). Does not create tabs. */
   setMainView: (view: Omit<OpenTab, 'id' | 'closable'>) => void;
-  /** Open a session tab (logs / terminal only). */
+  /** Current in-tab view per host tab — pages switch inside the host's tab. */
+  hostViews: Record<string, OpenTab>;
+  /** Open (or focus) a host's tab and switch the page shown inside it. */
+  openHostView: (hostId: string, view: Omit<OpenTab, 'id' | 'closable'>) => void;
+  /** Open a session tab (logs / terminal / aggregate / settings). */
   openTab: (tab: OpenTab) => void;
   closeTab: (id: string) => void;
   setActiveTab: (id: string) => void;
@@ -116,9 +143,20 @@ export const useAppStore = create<AppState>((set, get) => ({
   removeConnectionLocal: (id) => {
     const statuses = { ...get().statuses };
     delete statuses[id];
+    // drop session tabs (dashboard / logs / terminal) scoped to the removed host
+    const tabs = get().tabs.filter((t) => t.hostId !== id);
+    let activeTabId = get().activeTabId;
+    if (activeTabId && tabs.every((t) => t.id !== activeTabId)) {
+      activeTabId = tabs.length ? tabs[tabs.length - 1].id : MAIN_VIEW_ID;
+    }
+    const hostViews = { ...get().hostViews };
+    delete hostViews[id];
     set({
       connections: get().connections.filter((c) => c.id !== id),
       statuses,
+      tabs,
+      activeTabId,
+      hostViews,
     });
   },
 
@@ -184,9 +222,37 @@ export const useAppStore = create<AppState>((set, get) => ({
     });
   },
 
+  hostViews: {},
+
+  openHostView: (hostId, view) => {
+    const tabId = `dashboard:${hostId}`;
+    set({
+      hostViews: { ...get().hostViews, [hostId]: { ...view, id: tabId, closable: false } },
+    });
+    const tabs = get().tabs;
+    if (tabs.some((t) => t.id === tabId)) {
+      set({ activeTabId: tabId });
+      return;
+    }
+    const conn = get().connections.find((c) => c.id === hostId);
+    set({
+      tabs: [
+        ...tabs,
+        { id: tabId, title: conn?.name || hostId, kind: 'dashboard', hostId, closable: true },
+      ],
+      activeTabId: tabId,
+    });
+  },
+
   openTab: (tab) => {
-    // session tabs only — list/detail views belong to the main surface
-    if (tab.kind !== 'logs' && tab.kind !== 'terminal' && tab.kind !== 'composeLogs') {
+    // host-scoped pages (dashboard / lists / details) switch inside the
+    // host's own tab — one tab per Docker connection
+    if (tab.hostId && HOST_PAGE_KINDS.has(tab.kind)) {
+      get().openHostView(tab.hostId, tab);
+      return;
+    }
+    // remaining session tabs (logs / terminal / aggregate / settings)
+    if (!SESSION_TAB_KINDS.has(tab.kind)) {
       get().setMainView(tab);
       return;
     }

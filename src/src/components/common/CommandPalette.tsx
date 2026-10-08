@@ -45,8 +45,10 @@ export function CommandPalette() {
 
   const items = useMemo<Item[]>(() => {
     const out: Item[] = [];
+    // per-host dashboards become closable session tabs; list/detail views are
+    // routed to the main surface (closable forced off there) inside openTab
     const go = (tab: Omit<OpenTab, 'closable'>) =>
-      useAppStore.getState().openTab({ ...tab, closable: false } as OpenTab);
+      useAppStore.getState().openTab(tab as OpenTab);
 
     const nav: { kind: OpenTab['kind']; label: string; icon: ReactNode }[] = [
       { kind: 'dashboard', label: '仪表板', icon: <LayoutDashboard size={14} /> },

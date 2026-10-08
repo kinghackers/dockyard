@@ -41,7 +41,6 @@ function fmtBytes(n: number | undefined): string {
 export function ContainerDetailPage({ hostId, containerId }: { hostId: string; containerId: string }) {
   const toast = useAppStore((s) => s.toast);
   const openTab = useAppStore((s) => s.openTab);
-  const setMainView = useAppStore((s) => s.setMainView);
   const containersVersion = useAppStore((s) => s.containersVersion);
   const connections = useAppStore((s) => s.connections);
   const [detail, setDetail] = useState<ContainerDetail | null>(null);
@@ -200,17 +199,19 @@ export function ContainerDetailPage({ hostId, containerId }: { hostId: string; c
     }
   };
 
-  /** Return to the list we most likely came from. */
+  /** Return to the list we most likely came from — inside the host's own tab. */
   const goBack = () => {
     if (detail?.composeProject) {
-      setMainView({
+      openTab({
+        id: `composeProject:${hostId}:${detail.composeProject}`,
         title: `Docker-compose: ${detail.composeProject}`,
         kind: 'composeProject',
         hostId,
         projectName: detail.composeProject,
       });
     } else {
-      setMainView({
+      openTab({
+        id: `containers:${hostId}`,
         title: `容器 · ${connections.find((c) => c.id === hostId)?.name || hostId}`,
         kind: 'containers',
         hostId,
@@ -404,8 +405,13 @@ export function ContainerDetailPage({ hostId, containerId }: { hostId: string; c
               if (!ok) return;
               void action(async () => {
                 await window.dockerApi.removeContainer(hostId, containerId, true);
-                // back to the container list on the primary surface
-                setMainView({ title: `容器 · ${detail?.name || hostId}`, kind: 'containers', hostId });
+                // back to the container list inside the host's tab
+                openTab({
+                  id: `containers:${hostId}`,
+                  title: `容器 · ${detail?.name || hostId}`,
+                  kind: 'containers',
+                  hostId,
+                });
               }, '已删除');
             })();
           }}

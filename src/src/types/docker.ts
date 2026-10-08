@@ -269,6 +269,7 @@ export interface DockerEvent {
 }
 
 export type ViewKind =
+  | 'home'
   | 'dashboard'
   | 'containers'
   | 'images'
