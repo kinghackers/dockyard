@@ -49,6 +49,31 @@
   --caption-width: 138px;
 }
 
+/* Light theme: only surface/text variables flip; accents stay the same so
+   status colors keep their meaning. Consoles (log/terminal) stay dark. */
+html[data-theme='light'] {
+  --bg-app: #f4f5f7;
+  --bg-panel: #ffffff;
+  --bg-panel-alt: #ebedf0;
+  --bg-elevated: #e4e7ea;
+  --bg-input: #ffffff;
+  --bg-hover: #dde2e8;
+  --bg-selected: #c9dcf2;
+  --bg-selected-soft: #dfeaf8;
+  --bg-toolbar: #ebedf0;
+  --bg-header: #ebedf0;
+
+  --border: #d3d7dc;
+  --border-strong: #aab1b9;
+  --border-focus: #3d6bc4;
+
+  --text: #26292c;
+  --text-bright: #101315;
+  --text-dim: #5b6167;
+  --text-muted: #8b9299;
+  --text-link: #1f6fd4;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;

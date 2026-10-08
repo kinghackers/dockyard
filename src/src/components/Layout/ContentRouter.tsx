@@ -12,10 +12,18 @@ import { ComposeProjectPage } from '../Compose/ComposeProjectPage';
 import { LogViewerPage } from '../Containers/LogViewerPage';
 import { ComposeLogsPage } from '../Compose/ComposeLogsPage';
 import { TerminalPage } from '../Containers/TerminalPage';
+import { AggregateContainersPage } from '../Containers/AggregateContainersPage';
+import { SettingsPage } from '../Settings/SettingsPage';
 
 function renderView(view: OpenTab) {
   if (view.kind === 'dashboard') {
     return <DashboardPage hostId={view.hostId} />;
+  }
+  if (view.kind === 'aggregateContainers') {
+    return <AggregateContainersPage />;
+  }
+  if (view.kind === 'settings') {
+    return <SettingsPage />;
   }
   if (!view.hostId) return null;
 

@@ -63,10 +63,13 @@ export default function App() {
     void loadConnections();
     // default primary surface
     setMainView({ title: '仪表板', kind: 'dashboard' });
-    // restore sidebar width across sessions
+    // restore sidebar width and theme across sessions
     const w = loadUiPref<number | null>('sidebar.width', null);
     if (typeof w === 'number' && w >= 220 && w <= 480) {
       document.documentElement.style.setProperty('--sidebar-width', `${w}px`);
+    }
+    if (loadUiPref<'dark' | 'light'>('settings.theme', 'dark') === 'light') {
+      document.documentElement.dataset.theme = 'light';
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

@@ -279,7 +279,9 @@ export type ViewKind =
   | 'containerDetail'
   | 'logs'
   | 'composeLogs'
-  | 'terminal';
+  | 'terminal'
+  | 'aggregateContainers'
+  | 'settings';
 
 export interface OpenTab {
   id: string;

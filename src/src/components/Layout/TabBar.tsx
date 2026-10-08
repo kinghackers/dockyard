@@ -1,4 +1,4 @@
-import { X, LayoutDashboard, Boxes, Image, Network, Database, Layers, FileText, Terminal as Term } from 'lucide-react';
+import { X, LayoutDashboard, Boxes, Image, Network, Database, Layers, FileText, Terminal as Term, Settings, LayoutGrid } from 'lucide-react';
 import { useAppStore, MAIN_VIEW_ID } from '../../stores/appStore';
 import type { ViewKind } from '../../types/docker';
 
@@ -14,6 +14,8 @@ const kindIcon: Record<ViewKind, React.ReactNode> = {
   logs: <FileText size={13} />,
   composeLogs: <FileText size={13} />,
   terminal: <Term size={13} />,
+  aggregateContainers: <LayoutGrid size={13} />,
+  settings: <Settings size={13} />,
 };
 
 export function TabBar() {
