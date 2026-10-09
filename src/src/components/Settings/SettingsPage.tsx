@@ -1,25 +1,29 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Settings as SettingsIcon, Bell, Palette, Info, RefreshCw, ScrollText, List } from 'lucide-react';
 import { loadUiPref, saveUiPref } from '../../utils/uiPrefs';
 import { formatBuildLabel } from '../../utils/buildInfo';
 import { useAppStore } from '../../stores/appStore';
+import { applyTheme as applyThemePref, watchTheme, type ThemePref } from '../../utils/theme';
 
 /**
  * App settings: theme, notifications, polling & data limits. Values persist in
  * localStorage and apply immediately (theme) or on next trigger (the rest).
  */
 export function SettingsPage() {
-  const [theme, setTheme] = useState<'dark' | 'light'>(loadUiPref<'dark' | 'light'>('settings.theme', 'dark'));
+  const [theme, setTheme] = useState<ThemePref>(loadUiPref<ThemePref>('settings.theme', 'dark'));
   const [notifyExit, setNotifyExit] = useState(loadUiPref('settings.notifyAbnormalExit', true));
   const [pollIntervalMs, setPollIntervalMs] = useState(loadUiPref('settings.pollIntervalMs', 10000));
   const [logMaxLines, setLogMaxLines] = useState(loadUiPref('settings.logMaxLines', 8000));
   const [eventMaxCount, setEventMaxCount] = useState(loadUiPref('settings.eventMaxCount', 40));
 
-  const applyTheme = (next: 'dark' | 'light') => {
+  const applyTheme = (next: ThemePref) => {
     setTheme(next);
     saveUiPref('settings.theme', next);
-    document.documentElement.dataset.theme = next === 'light' ? 'light' : '';
+    applyThemePref(next);
   };
+
+  // follow OS scheme changes while the preference is 'auto'
+  useEffect(() => watchTheme(theme), [theme]);
 
   const applyNotify = (next: boolean) => {
     setNotifyExit(next);
@@ -46,9 +50,10 @@ export function SettingsPage() {
           <Palette size={14} />
           主题
         </label>
-        <select value={theme} onChange={(e) => applyTheme(e.target.value as 'dark' | 'light')}>
+        <select value={theme} onChange={(e) => applyTheme(e.target.value as ThemePref)}>
           <option value="dark">深色（默认）</option>
           <option value="light">浅色</option>
+          <option value="auto">跟随系统</option>
         </select>
         <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
           切换立即生效；日志与终端保持深色。重启后保留。

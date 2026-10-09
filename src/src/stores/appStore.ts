@@ -117,6 +117,9 @@ interface AppState {
   }) => void;
   /** apply a new eventMaxCount immediately (shrinking also trims stored history) */
   trimRecentEvents: (cap: number) => void;
+  /** rolling CPU/mem samples per host (sparkline data, cap 60 points) */
+  statsHistory: Record<string, { cpu: number; mem: number }[]>;
+  pushStatsPoint: (hostId: string, cpu: number, mem: number) => void;
 }
 
 // Docker events arrive in bursts (a compose up fires dozens within a second);
@@ -364,5 +367,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     const capped = get().recentEvents.slice(0, Math.floor(cap));
     set({ recentEvents: capped });
     saveUiPref(EVENTS_PREF, capped);
+  },
+  statsHistory: {},
+  pushStatsPoint: (hostId, cpu, mem) => {
+    const prev = get().statsHistory[hostId] || [];
+    const next = [...prev, { cpu, mem }].slice(-60);
+    set({ statsHistory: { ...get().statsHistory, [hostId]: next } });
   },
 }));

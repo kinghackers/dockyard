@@ -9,6 +9,7 @@ import { CommandPalette } from './components/common/CommandPalette';
 import { useAppStore } from './stores/appStore';
 import { useDockerEvents } from './utils/useDockerEvents';
 import { loadUiPref, saveUiPref } from './utils/uiPrefs';
+import { applyTheme as applyThemePref, type ThemePref } from './utils/theme';
 import type { DockerConnectionConfig } from './types/docker';
 
 export default function App() {
@@ -68,9 +69,8 @@ export default function App() {
     if (typeof w === 'number' && w >= 220 && w <= 480) {
       document.documentElement.style.setProperty('--sidebar-width', `${w}px`);
     }
-    if (loadUiPref<'dark' | 'light'>('settings.theme', 'dark') === 'light') {
-      document.documentElement.dataset.theme = 'light';
-    }
+    const themePref = loadUiPref<ThemePref>('settings.theme', 'dark');
+    applyThemePref(themePref);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

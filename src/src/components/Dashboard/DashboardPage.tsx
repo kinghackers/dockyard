@@ -102,6 +102,26 @@ function fmtEventTime(ts: number) {
   return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
+/** Tiny inline-SVG trend line for the rolling stats samples (0-100%). */
+function Sparkline({ points, color, height = 38 }: { points: number[]; color: string; height?: number }) {
+  if (points.length < 2) {
+    return (
+      <div style={{ height, fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}>
+        趋势采集中（需至少 2 次采样）…
+      </div>
+    );
+  }
+  const w = 100;
+  const step = w / (points.length - 1);
+  const y = (v: number) => height - 2 - (Math.min(Math.max(v, 0), 100) / 100) * (height - 4);
+  const d = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${(i * step).toFixed(2)},${y(p).toFixed(2)}`).join(' ');
+  return (
+    <svg viewBox={`0 0 ${w} ${height}`} preserveAspectRatio="none" style={{ width: '100%', height, display: 'block' }}>
+      <path d={d} fill="none" stroke={color} strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+    </svg>
+  );
+}
+
 function eventLabel(e: { type: string; action: string }) {
   const known = EVENT_LABEL[`${e.type}.${e.action}`];
   if (known) return known;
@@ -124,6 +144,8 @@ export function DashboardPage({ hostId, active = true }: { hostId?: string; acti
   const openTab = useAppStore((s) => s.openTab);
   const containersByHost = useAppStore((s) => s.containersByHost);
   const setContainers = useAppStore((s) => s.setContainers);
+  const pushStatsPoint = useAppStore((s) => s.pushStatsPoint);
+  const statsHistory = useAppStore((s) => s.statsHistory);
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [info, setInfo] = useState<DockerInfoLite | undefined>(undefined);
   const [loading, setLoading] = useState(false);
@@ -152,6 +174,7 @@ export function DashboardPage({ hostId, active = true }: { hostId?: string; acti
       setStats(s);
       setInfo(i);
       setContainers(targetHost, list);
+      pushStatsPoint(targetHost, s.cpuPercent, s.memPercent);
       failCount.current = 0;
     } catch (e) {
       failCount.current += 1;
@@ -362,6 +385,35 @@ export function DashboardPage({ hostId, active = true }: { hostId?: string; acti
             <div style={{ flex: 1, color: 'var(--text-dim)', fontSize: 12 }}>
               读 {fmtBytes(stats.blockRead)} &nbsp;&nbsp; 写 {fmtBytes(stats.blockWrite)}
             </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: 14, marginTop: 12, flexWrap: 'wrap' }}>
+            {(() => {
+              const hist = statsHistory[targetHost] || [];
+              const card = (label: string, color: string, pts: number[]) => (
+                <div
+                  style={{
+                    flex: 1,
+                    minWidth: 240,
+                    border: '1px solid var(--border)',
+                    borderRadius: 4,
+                    padding: '8px 10px 6px',
+                  }}
+                >
+                  <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 2 }}>
+                    <span style={{ color }}>●</span> {label}
+                    <span style={{ float: 'right' }}>近 {hist.length} 次采样</span>
+                  </div>
+                  <Sparkline points={pts} color={color} />
+                </div>
+              );
+              return (
+                <>
+                  {card('CPU 趋势', 'var(--accent)', hist.map((p) => p.cpu))}
+                  {card('内存趋势', 'var(--success)', hist.map((p) => p.mem))}
+                </>
+              );
+            })()}
           </div>
 
           <div className="section-title">
