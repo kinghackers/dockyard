@@ -96,12 +96,14 @@ export interface DockerApi {
       stoppedContainers?: boolean;
       unusedNetworks?: boolean;
       unusedVolumes?: boolean;
+      buildCache?: boolean;
     }
   ): Promise<{
     imagesDeleted: number;
     containersDeleted: number;
     networksDeleted: number;
     volumesDeleted: number;
+    buildCacheBytes: number;
   }>;
   systemStats(hostId: string): Promise<unknown>;
   systemInfo(hostId: string): Promise<unknown>;
@@ -139,6 +141,8 @@ export interface DockerApi {
 
   cleanupAll(): Promise<boolean>;
   notify(title: string, body: string): void;
+  setMinimizeToTray(v: boolean): void;
+  setAutoLaunch(v: boolean): void;
   listContainerFiles(
     hostId: string,
     containerId: string,
@@ -256,6 +260,8 @@ const api: DockerApi = {
 
   cleanupAll: () => ipcRenderer.invoke('docker:cleanupAll'),
   notify: (title, body) => ipcRenderer.send('ui:notify', { title, body }),
+  setMinimizeToTray: (v) => ipcRenderer.send('ui:setMinimizeToTray', v),
+  setAutoLaunch: (v) => ipcRenderer.send('ui:setAutoLaunch', v),
   listContainerFiles: (hostId, containerId, dirPath) =>
     ipcRenderer.invoke('docker:listContainerFiles', hostId, containerId, dirPath),
   downloadContainerFile: (hostId, containerId, filePath) =>

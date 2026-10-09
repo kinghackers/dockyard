@@ -1,8 +1,9 @@
 import { useCallback, useState } from 'react';
-import { Boxes, Cpu, Images, MemoryStick, Server, Settings, LayoutGrid } from 'lucide-react';
+import { Boxes, Cpu, Images, MemoryStick, Server, Settings, LayoutGrid, Trash2 } from 'lucide-react';
 import { useAppStore } from '../../stores/appStore';
 import { usePolling } from '../../hooks/usePolling';
 import { fmtBytes } from '../../utils/format';
+import { CleanupDialog } from '../Images/CleanupDialog';
 import type { ConnectionStatus, DockerInfoLite, DockerConnectionConfig } from '../../types/docker';
 import pkg from '../../../package.json';
 
@@ -100,6 +101,7 @@ export function HomePage({ active = true }: { active?: boolean }) {
   const openTab = useAppStore((s) => s.openTab);
   /** live info per connected host, refreshed below (status.info is connect-time only) */
   const [liveInfo, setLiveInfo] = useState<Record<string, DockerInfoLite>>({});
+  const [cleanupOpen, setCleanupOpen] = useState(false);
 
   const refresh = useCallback(async () => {
     const connected = useAppStore
@@ -134,6 +136,9 @@ export function HomePage({ active = true }: { active?: boolean }) {
         <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
           <button className="btn ghost" onClick={() => openTab({ id: 'aggregateContainers', title: '所有容器', kind: 'aggregateContainers' })}>
             <LayoutGrid size={14} /> 所有容器
+          </button>
+          <button className="btn ghost" onClick={() => setCleanupOpen(true)} title="docker system df + 按需清理">
+            <Trash2 size={14} /> 磁盘清理
           </button>
           <button className="btn ghost" onClick={() => openTab({ id: 'settings', title: '设置', kind: 'settings' })}>
             <Settings size={14} /> 设置
@@ -192,6 +197,9 @@ export function HomePage({ active = true }: { active?: boolean }) {
           </div>
         </div>
       </div>
+      {cleanupOpen && (
+        <CleanupDialog onClose={() => setCleanupOpen(false)} onDone={() => undefined} />
+      )}
     </div>
   );
 }

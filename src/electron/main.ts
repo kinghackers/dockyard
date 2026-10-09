@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell, Menu, ipcMain, Notification, session } from 'electron';
+import { app, BrowserWindow, shell, Menu, ipcMain, Notification, session, Tray, nativeImage } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
 import { DockerConnectionManager } from './docker/connectionManager';
@@ -8,8 +8,41 @@ const isDev = process.env.NODE_ENV === 'development';
 
 let mainWindow: BrowserWindow | null = null;
 let manager: DockerConnectionManager;
+let tray: Tray | null = null;
+let minimizeToTray = false;
+let quitting = false;
 
 const APP_DISPLAY_NAME = 'Docker 管理器';
+
+function showMainWindow() {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.show();
+    mainWindow.focus();
+  } else {
+    createWindow();
+  }
+}
+
+/** System tray: quick show/quit; keeps the app reachable while hidden. */
+function createTray() {
+  try {
+    const iconPath = path.join(__dirname, '../build/icon.ico');
+    const image = nativeImage.createFromPath(iconPath);
+    if (image.isEmpty()) return;
+    tray = new Tray(image);
+    tray.setToolTip(APP_DISPLAY_NAME);
+    tray.setContextMenu(
+      Menu.buildFromTemplate([
+        { label: '显示主窗口', click: () => showMainWindow() },
+        { type: 'separator' },
+        { label: '退出', click: () => app.quit() },
+      ])
+    );
+    tray.on('click', () => showMainWindow());
+  } catch (err) {
+    console.error('[main] tray init failed:', err);
+  }
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -68,6 +101,15 @@ function createWindow() {
   } else {
     void mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
   }
+
+  // close-to-tray: hide instead of quitting when enabled (real quit goes
+  // through the tray menu / a second close while already hidden)
+  mainWindow.on('close', (e) => {
+    if (minimizeToTray && !quitting && mainWindow && !mainWindow.isDestroyed()) {
+      e.preventDefault();
+      mainWindow.hide();
+    }
+  });
 
   mainWindow.on('closed', () => {
     mainWindow = null;
@@ -129,6 +171,22 @@ app.whenReady().then(() => {
     }
   });
 
+  // behavior toggles pushed from the renderer settings page (localStorage is
+  // renderer-only, so the values are mirrored here on change and at startup)
+  ipcMain.on('ui:setMinimizeToTray', (_e, v: boolean) => {
+    minimizeToTray = !!v;
+  });
+  ipcMain.on('ui:setAutoLaunch', (_e, v: boolean) => {
+    try {
+      if (app.isPackaged) {
+        app.setLoginItemSettings({ openAtLogin: !!v, path: process.execPath });
+      }
+    } catch (err) {
+      console.error('[main] setLoginItemSettings failed:', err);
+    }
+  });
+
+  createTray();
   createWindow();
 
   app.on('activate', () => {
@@ -143,6 +201,13 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
+  quitting = true;
+  try {
+    tray?.destroy();
+    tray = null;
+  } catch {
+    /* ignore */
+  }
   // kill live log/stats/exec/event streams first so their HTTP responses
   // cannot fire after the window is destroyed
   abortAllStreams();

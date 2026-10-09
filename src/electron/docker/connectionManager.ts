@@ -1519,13 +1519,31 @@ export class DockerConnectionManager {
     };
   }
 
-  /** Prune dangling images / stopped containers / unused networks / unused volumes. */
+  /** Prune dangling images / stopped containers / unused networks / volumes / build cache. */
   async pruneSystem(
     hostId: string,
-    opts: { danglingImages?: boolean; stoppedContainers?: boolean; unusedNetworks?: boolean; unusedVolumes?: boolean }
-  ): Promise<{ imagesDeleted: number; containersDeleted: number; networksDeleted: number; volumesDeleted: number }> {
+    opts: {
+      danglingImages?: boolean;
+      stoppedContainers?: boolean;
+      unusedNetworks?: boolean;
+      unusedVolumes?: boolean;
+      buildCache?: boolean;
+    }
+  ): Promise<{
+    imagesDeleted: number;
+    containersDeleted: number;
+    networksDeleted: number;
+    volumesDeleted: number;
+    buildCacheBytes: number;
+  }> {
     const docker = this.dockerOf(hostId);
-    const out = { imagesDeleted: 0, containersDeleted: 0, networksDeleted: 0, volumesDeleted: 0 };
+    const out = {
+      imagesDeleted: 0,
+      containersDeleted: 0,
+      networksDeleted: 0,
+      volumesDeleted: 0,
+      buildCacheBytes: 0,
+    };
     if (opts.danglingImages) {
       // no filters → dangling-only, matching the dialog's label
       const r = (await docker.pruneImages()) as { ImagesDeleted?: unknown[] } | undefined;
@@ -1542,6 +1560,10 @@ export class DockerConnectionManager {
     if (opts.unusedVolumes) {
       const r = (await docker.pruneVolumes()) as { VolumesDeleted?: unknown[] } | undefined;
       out.volumesDeleted = r?.VolumesDeleted?.length ?? 0;
+    }
+    if (opts.buildCache) {
+      const r = (await docker.pruneBuilder()) as { SpaceReclaimed?: number } | undefined;
+      out.buildCacheBytes = r?.SpaceReclaimed ?? 0;
     }
     return out;
   }

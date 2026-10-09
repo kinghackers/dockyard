@@ -536,6 +536,7 @@ export function registerIpc(manager: DockerConnectionManager, getWindows: () => 
       stoppedContainers?: boolean;
       unusedNetworks?: boolean;
       unusedVolumes?: boolean;
+      buildCache?: boolean;
     }) => manager.pruneSystem(hostId, opts)
   );
   ipcMain.handle('docker:systemStats', async (_e, hostId: string) => {

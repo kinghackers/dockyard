@@ -15,6 +15,9 @@ export function SettingsPage() {
   const [pollIntervalMs, setPollIntervalMs] = useState(loadUiPref('settings.pollIntervalMs', 10000));
   const [logMaxLines, setLogMaxLines] = useState(loadUiPref('settings.logMaxLines', 8000));
   const [eventMaxCount, setEventMaxCount] = useState(loadUiPref('settings.eventMaxCount', 40));
+  const [autoReconnect, setAutoReconnect] = useState(loadUiPref('settings.autoReconnect', true));
+  const [minimizeToTray, setMinimizeToTray] = useState(loadUiPref('settings.minimizeToTray', false));
+  const [autoLaunch, setAutoLaunch] = useState(loadUiPref('settings.autoLaunch', false));
 
   const applyTheme = (next: ThemePref) => {
     setTheme(next);
@@ -70,6 +73,42 @@ export function SettingsPage() {
         />
         <Bell size={13} />
         容器异常退出（退出码非 0）时发送系统通知
+      </label>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, maxWidth: 420, marginTop: 8 }}>
+        <input
+          type="checkbox"
+          checked={autoReconnect}
+          onChange={(e) => applyPref('settings.autoReconnect', e.target.checked, setAutoReconnect)}
+          style={{ width: 13, height: 13 }}
+        />
+        <RefreshCw size={13} />
+        主机连接断开后自动重连（带退避，最多每分钟一次）
+      </label>
+
+      <div className="section-title">窗口与启动</div>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, maxWidth: 420 }}>
+        <input
+          type="checkbox"
+          checked={minimizeToTray}
+          onChange={(e) => {
+            applyPref('settings.minimizeToTray', e.target.checked, setMinimizeToTray);
+            window.dockerApi.setMinimizeToTray(e.target.checked);
+          }}
+          style={{ width: 13, height: 13 }}
+        />
+        关闭窗口时最小化到系统托盘（退出请用托盘菜单）
+      </label>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, maxWidth: 420, marginTop: 8 }}>
+        <input
+          type="checkbox"
+          checked={autoLaunch}
+          onChange={(e) => {
+            applyPref('settings.autoLaunch', e.target.checked, setAutoLaunch);
+            window.dockerApi.setAutoLaunch(e.target.checked);
+          }}
+          style={{ width: 13, height: 13 }}
+        />
+        开机自动启动（仅安装版生效）
       </label>
 
       <div className="section-title">刷新与数据</div>

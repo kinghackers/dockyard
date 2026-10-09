@@ -8,6 +8,7 @@ import { Toasts } from './components/common/Toasts';
 import { CommandPalette } from './components/common/CommandPalette';
 import { useAppStore } from './stores/appStore';
 import { useDockerEvents } from './utils/useDockerEvents';
+import { useAutoReconnect } from './utils/useAutoReconnect';
 import { loadUiPref, saveUiPref } from './utils/uiPrefs';
 import { applyTheme as applyThemePref, type ThemePref } from './utils/theme';
 import type { DockerConnectionConfig } from './types/docker';
@@ -28,6 +29,7 @@ export default function App() {
 
   // live auto-refresh via docker events
   useDockerEvents();
+  useAutoReconnect();
 
   const loadConnections = useCallback(async () => {
     try {
@@ -71,6 +73,9 @@ export default function App() {
     }
     const themePref = loadUiPref<ThemePref>('settings.theme', 'dark');
     applyThemePref(themePref);
+    // mirror behavior toggles to the main process (tray / login item)
+    window.dockerApi.setMinimizeToTray(loadUiPref('settings.minimizeToTray', false));
+    window.dockerApi.setAutoLaunch(loadUiPref('settings.autoLaunch', false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

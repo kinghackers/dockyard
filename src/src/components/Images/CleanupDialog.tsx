@@ -5,7 +5,8 @@ import { useConfirm } from '../../utils/useConfirm';
 import { useModalKeys } from '../../utils/useModalKeys';
 
 interface Props {
-  hostId: string;
+  /** omit on multi-host surfaces (home): the dialog shows a host picker */
+  hostId?: string;
   onClose: () => void;
   onDone: () => void | Promise<void>;
 }
@@ -27,7 +28,12 @@ function fmtBytes(n?: number): string {
 /** Disk cleanup wizard: docker system df + selective prune. */
 export function CleanupDialog({ hostId, onClose, onDone }: Props) {
   const toast = useAppStore((s) => s.toast);
+  const connections = useAppStore((s) => s.connections);
+  const statuses = useAppStore((s) => s.statuses);
   const [confirmDialog, confirm] = useConfirm();
+  const connectedHosts = connections.filter((c) => statuses[c.id]?.connected);
+  const [pickedHost, setPickedHost] = useState(hostId ?? connectedHosts[0]?.id ?? '');
+  const host = hostId ?? pickedHost;
   const [df, setDf] = useState<Df | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -35,11 +41,13 @@ export function CleanupDialog({ hostId, onClose, onDone }: Props) {
   const [stoppedContainers, setStoppedContainers] = useState(false);
   const [unusedNetworks, setUnusedNetworks] = useState(false);
   const [unusedVolumes, setUnusedVolumes] = useState(false);
+  const [buildCache, setBuildCache] = useState(false);
 
   const load = async () => {
+    if (!host) return;
     setError(null);
     try {
-      setDf(await window.dockerApi.systemDf(hostId));
+      setDf(await window.dockerApi.systemDf(host));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
@@ -48,7 +56,7 @@ export function CleanupDialog({ hostId, onClose, onDone }: Props) {
   useEffect(() => {
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hostId]);
+  }, [host]);
 
   useModalKeys({ onCancel: onClose, disabled: busy });
 
@@ -67,17 +75,19 @@ export function CleanupDialog({ hostId, onClose, onDone }: Props) {
           return;
         }
       }
-      const res = await window.dockerApi.pruneSystem(hostId, {
+      const res = await window.dockerApi.pruneSystem(host, {
         danglingImages,
         stoppedContainers,
         unusedNetworks,
         unusedVolumes,
+        buildCache,
       });
       const parts: string[] = [];
       if (danglingImages) parts.push(`${res.imagesDeleted} 个悬空镜像`);
       if (stoppedContainers) parts.push(`${res.containersDeleted} 个已停止容器`);
       if (unusedNetworks) parts.push(`${res.networksDeleted} 个网络`);
       if (unusedVolumes) parts.push(`${res.volumesDeleted} 个数据卷`);
+      if (buildCache) parts.push(`构建缓存 ${fmtBytes(res.buildCacheBytes)}`);
       toast(parts.length ? `已清理：${parts.join('、')}` : '未选择任何清理项', parts.length ? 'success' : 'info');
       await onDone();
       onClose();
@@ -133,6 +143,19 @@ export function CleanupDialog({ hostId, onClose, onDone }: Props) {
             </button>
           </div>
           <div className="modal-body">
+            {!hostId && (
+              <div className="form-row" style={{ maxWidth: 320 }}>
+                <label>Docker 主机</label>
+                <select value={pickedHost} onChange={(e) => setPickedHost(e.target.value)} disabled={busy}>
+                  {connectedHosts.length === 0 && <option value="">（无已连接主机）</option>}
+                  {connectedHosts.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             {error ? (
               <div style={{ color: 'var(--error)', fontSize: 12, padding: '8px 0' }}>
                 获取磁盘占用失败：{error}
@@ -164,6 +187,7 @@ export function CleanupDialog({ hostId, onClose, onDone }: Props) {
                     `${df.stoppedContainers} 个 · ${fmtBytes(df.stoppedContainerBytes)}`
                   )}
                   {row(unusedNetworks, setUnusedNetworks, '未使用的网络', '数量由守护进程决定')}
+                  {row(buildCache, setBuildCache, '构建缓存（docker build 中间层）', '按占用空间回收')}
                   {row(
                     unusedVolumes,
                     setUnusedVolumes,
@@ -185,7 +209,7 @@ export function CleanupDialog({ hostId, onClose, onDone }: Props) {
             <button
               className="btn danger"
               onClick={() => void run()}
-              disabled={busy || !df || (!danglingImages && !stoppedContainers && !unusedNetworks && !unusedVolumes)}
+              disabled={busy || !df || (!danglingImages && !stoppedContainers && !unusedNetworks && !unusedVolumes && !buildCache)}
             >
               {busy ? <Loader2 size={13} className="spinner" /> : <Trash2 size={13} />} 清理
             </button>
