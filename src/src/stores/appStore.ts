@@ -115,6 +115,8 @@ interface AppState {
     name?: string;
     time: number;
   }) => void;
+  /** apply a new eventMaxCount immediately (shrinking also trims stored history) */
+  trimRecentEvents: (cap: number) => void;
 }
 
 // Docker events arrive in bursts (a compose up fires dozens within a second);
@@ -341,6 +343,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     const next = [item, ...get().recentEvents];
     const cap = loadUiPref('settings.eventMaxCount', MAX_RECENT_EVENTS);
     const capped = next.length > cap ? next.slice(0, cap) : next;
+    set({ recentEvents: capped });
+    saveUiPref(EVENTS_PREF, capped);
+  },
+  trimRecentEvents: (cap) => {
+    if (!Number.isFinite(cap) || cap <= 0) return;
+    const capped = get().recentEvents.slice(0, Math.floor(cap));
     set({ recentEvents: capped });
     saveUiPref(EVENTS_PREF, capped);
   },

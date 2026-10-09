@@ -7,7 +7,8 @@ import { useHotkeys } from '../../utils/useHotkeys';
 import { loadUiPref } from '../../utils/uiPrefs';
 import { detectLogLevel } from '../../utils/logLevel';
 
-const MAX_LINES = loadUiPref('settings.logMaxLines', 8000);
+/** rolling buffer cap — read live so settings.logMaxLines changes apply without restart */
+const logCap = () => loadUiPref('settings.logMaxLines', 8000);
 const TAIL_LINES = 200;
 
 type Line = {
@@ -68,7 +69,7 @@ export function ComposeLogsPage({ hostId, projectName }: { hostId: string; proje
       pausedBufferRef.current = [];
       setLines((l) => {
         const next = [...l, ...buf];
-        return next.length > MAX_LINES ? next.slice(next.length - MAX_LINES) : next;
+        return next.length > logCap() ? next.slice(next.length - logCap()) : next;
       });
     }
   }, [paused]);
@@ -89,7 +90,7 @@ export function ComposeLogsPage({ hostId, projectName }: { hostId: string; proje
     } else {
       setLines((l) => {
         const next = [...l, line];
-        return next.length > MAX_LINES ? next.slice(next.length - MAX_LINES) : next;
+        return next.length > logCap() ? next.slice(next.length - logCap()) : next;
       });
     }
   }, []);

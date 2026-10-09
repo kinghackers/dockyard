@@ -3,8 +3,10 @@ import { RefreshCw, Download, Trash2, Radio, Search, X } from 'lucide-react';
 import { useAppStore } from '../../stores/appStore';
 import { useHotkeys } from '../../utils/useHotkeys';
 import { detectLogLevel } from '../../utils/logLevel';
+import { loadUiPref } from '../../utils/uiPrefs';
 
-const MAX_LINES = 5000;
+/** rolling buffer cap — read live so settings.logMaxLines changes apply without restart */
+const logCap = () => loadUiPref('settings.logMaxLines', 8000);
 const TAIL_LINES = 500;
 
 /**
@@ -75,7 +77,7 @@ export function LogViewerPage({ hostId, containerId }: { hostId: string; contain
     } else {
       setLines((l) => {
         const next = [...l, ...parts];
-        return next.length > MAX_LINES ? next.slice(next.length - MAX_LINES) : next;
+        return next.length > logCap() ? next.slice(next.length - logCap()) : next;
       });
     }
   }, []);
@@ -163,7 +165,7 @@ export function LogViewerPage({ hostId, containerId }: { hostId: string; contain
     if (!paused && buffer.length > 0) {
       setLines((l) => {
         const next = [...l, ...buffer];
-        return next.length > MAX_LINES ? next.slice(next.length - MAX_LINES) : next;
+        return next.length > logCap() ? next.slice(next.length - logCap()) : next;
       });
       setBuffer([]);
     }

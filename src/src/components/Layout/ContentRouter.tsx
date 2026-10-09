@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import { useAppStore } from '../../stores/appStore';
 import type { OpenTab } from '../../types/docker';
 import { HostGuard } from '../common/HostGuard';
@@ -106,17 +106,27 @@ export function ContentRouter() {
 
       {tabs.map((tab) => {
         // host tab: the page shown inside comes from hostViews (default: dashboard)
-        const inner =
-          tab.kind === 'dashboard' && tab.hostId
-            ? hostViews[tab.hostId] ?? { ...tab, closable: false }
-            : tab;
-        return wrap(
-          tab.id,
-          inner.kind,
-          tab.id === activeTabId,
-          renderView(inner, tab.id === activeTabId),
-          tab.hostId
-        );
+        if (tab.kind === 'dashboard' && tab.hostId) {
+          const inner = hostViews[tab.hostId] ?? { ...tab, closable: false };
+          const tabActive = tab.id === activeTabId;
+          const dashVisible = tabActive && inner.kind === 'dashboard';
+          return (
+            <Fragment key={tab.id}>
+              {/* keep the host dashboard mounted while other host pages show:
+                  returning to it keeps the previous content (no reload) */}
+              {wrap(
+                `dash:${tab.hostId}`,
+                'dashboard',
+                dashVisible,
+                <DashboardPage hostId={tab.hostId} active={dashVisible} />,
+                tab.hostId
+              )}
+              {inner.kind !== 'dashboard' &&
+                wrap(tab.id, inner.kind, tabActive, renderView(inner, tabActive), tab.hostId)}
+            </Fragment>
+          );
+        }
+        return wrap(tab.id, tab.kind, tab.id === activeTabId, renderView(tab, tab.id === activeTabId), tab.hostId);
       })}
     </>
   );

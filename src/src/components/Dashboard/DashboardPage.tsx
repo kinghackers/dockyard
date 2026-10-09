@@ -164,11 +164,13 @@ export function DashboardPage({ hostId, active = true }: { hostId?: string; acti
   }, [targetHost, setRefreshing, setContainers]);
 
   // configurable cadence (settings.pollIntervalMs, 0 = off) with linear backoff
-  // while the daemon is unreachable; the hook skips ticks when hidden and
-  // catches up on reactivation
+  // while the daemon is unreachable; frozen while hidden — no catch-up reload
+  // on reactivation, the previous content stays until the next live tick or a
+  // manual refresh
   usePolling({
     active,
     reloadKey: targetHost,
+    catchUp: false,
     intervalMs: () => {
       const base = loadUiPref('settings.pollIntervalMs', 10000);
       if (base <= 0) return 0;

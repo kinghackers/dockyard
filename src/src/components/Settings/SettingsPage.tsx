@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Settings as SettingsIcon, Bell, Palette, Info, RefreshCw, ScrollText, List } from 'lucide-react';
 import { loadUiPref, saveUiPref } from '../../utils/uiPrefs';
 import { formatBuildLabel } from '../../utils/buildInfo';
+import { useAppStore } from '../../stores/appStore';
 
 /**
  * App settings: theme, notifications, polling & data limits. Values persist in
@@ -100,7 +101,7 @@ export function SettingsPage() {
           <option value={20000}>20,000 行</option>
         </select>
         <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-          每个日志视图在内存中保留的最大行数。下次打开日志页生效。
+          每个日志视图在内存中保留的最大行数，对新输出立即生效。
         </div>
       </div>
       <div className="form-row" style={{ maxWidth: 420 }}>
@@ -110,7 +111,12 @@ export function SettingsPage() {
         </label>
         <select
           value={eventMaxCount}
-          onChange={(e) => applyPref('settings.eventMaxCount', Number(e.target.value), setEventMaxCount)}
+          onChange={(e) => {
+            const n = Number(e.target.value);
+            applyPref('settings.eventMaxCount', n, setEventMaxCount);
+            // shrink (or grow) applies to the stored history immediately
+            useAppStore.getState().trimRecentEvents(n);
+          }}
         >
           <option value={20}>20 条</option>
           <option value={40}>40 条（默认）</option>

@@ -31,3 +31,6 @@ coverage/
 
 # Transient local temp (vitest tmp)
 .workbuddy/tmp/
+
+# Local assistant workspace (project memory stays out of the repo)
+.workbuddy/

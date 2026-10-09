@@ -9,19 +9,30 @@ export interface PollingOptions {
   intervalMs: number | (() => number);
   /** the load routine — should guard itself against overlapping runs */
   onLoad: () => Promise<unknown> | unknown;
+  /**
+   * Reload immediately when the surface becomes visible again with stale
+   * data (default true). Pass false to keep the previous content frozen —
+   * polling then resumes on its normal cadence without a catch-up load
+   * (used by the dashboard: switch-back shows what you left, refresh stays
+   * manual/live-tick driven).
+   */
+  catchUp?: boolean;
 }
 
 /**
  * Shared polling primitive for pages: runs onLoad on a cadence while active,
- * skips ticks while the document is hidden, and performs one catch-up load
- * immediately when the surface becomes visible again with stale data
- * (older than the poll interval) instead of waiting for the next tick.
+ * skips ticks while the document is hidden, and (unless catchUp is false)
+ * performs one catch-up load immediately when the surface becomes visible
+ * again with stale data instead of waiting for the next tick. With a
+ * non-positive interval polling is disabled, but the initial load still runs.
  */
-export function usePolling({ active, reloadKey, intervalMs, onLoad }: PollingOptions) {
+export function usePolling({ active, reloadKey, intervalMs, onLoad, catchUp = true }: PollingOptions) {
   const onLoadRef = useRef(onLoad);
   onLoadRef.current = onLoad;
   const intervalRef = useRef(intervalMs);
   intervalRef.current = intervalMs;
+  const catchUpRef = useRef(catchUp);
+  catchUpRef.current = catchUp;
   const lastLoadedAt = useRef(0);
 
   // switching data source (host / container) invalidates the freshness mark
@@ -38,8 +49,8 @@ export function usePolling({ active, reloadKey, intervalMs, onLoad }: PollingOpt
     const interval = () =>
       typeof intervalRef.current === 'function' ? intervalRef.current() : intervalRef.current;
 
-    const tick = async () => {
-      if (stopped || syncing) return;
+    const runLoad = async () => {
+      if (syncing) return;
       syncing = true;
       try {
         if (!document.hidden) {
@@ -49,21 +60,31 @@ export function usePolling({ active, reloadKey, intervalMs, onLoad }: PollingOpt
       } finally {
         syncing = false;
       }
+    };
+
+    const tick = async () => {
+      if (stopped) return;
+      await runLoad();
       if (!stopped && interval() > 0) timer = setTimeout(() => void tick(), interval());
     };
 
     const stale = () => interval() > 0 && Date.now() - lastLoadedAt.current >= interval();
 
-    // polling disabled entirely (intervalMs <= 0): rely on events / manual refresh
-    if (interval() <= 0) return;
+    if (interval() <= 0) {
+      // polling disabled entirely — still perform the initial load so the
+      // page is not blank until the next docker event
+      void runLoad();
+      return;
+    }
 
-    // catch-up on (re)activation: mounted, host switched, or surface visible again
-    if (stale()) void tick();
+    // catch-up on (re)activation: mounted, host switched, or surface visible
+    // again; frozen surfaces (catchUp=false) just resume the normal cadence
+    if (stale() && catchUpRef.current) void tick();
     else timer = setTimeout(() => void tick(), interval());
 
     // returning to the app window after a long time away — refresh if stale
     const onVisibility = () => {
-      if (!document.hidden && stale() && !syncing) void tick();
+      if (!document.hidden && catchUpRef.current && stale() && !syncing) void tick();
     };
     document.addEventListener('visibilitychange', onVisibility);
 

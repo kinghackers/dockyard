@@ -47,12 +47,13 @@ npm start          # 以 dist/ 产物启动生产模式（改完源码需先 npm
 ## 打包（Windows）
 
 ```bash
-npm run build      # 产出 dist/ 与 dist-electron/
-npm run dist       # 构建 + electron-builder 出 NSIS 安装包
-npm run dist:dir   # 仅产出免安装目录
+npm run build        # 产出 dist/ 与 dist-electron/
+npm run dist         # 构建 + electron-builder 出 NSIS 安装包（asar 打包）
+npm run dist:dir     # 仅产出免安装目录
+npm run dist:compat  # 兼容模式：asar=false（本机 Defender 锁 app.asar 时临时使用）
 ```
 
-产物在 `out/`（`directories.output`）：
+产物在 `release/`（`directories.output`）：
 
 | 文件 | 说明 |
 |------|------|
@@ -63,6 +64,8 @@ npm run dist:dir   # 仅产出免安装目录
 
 - `electronDist` 已指向 `node_modules/electron/dist`，打包不再重复下载 Electron
 - 当前配置不签名（`win.sign: null`）；需要签名时再填证书
+- 正式打包走 asar。若本机 Windows Defender 构建时报 app.asar 被锁，优先为项目目录添加
+  Defender 排除项；排除前可临时用 `npm run dist:compat`（散装目录，勿用于分发）
 - 应用图标在 `build/icon.ico`（由 `build/icon.png` 生成）
 - 打包版报「JavaScript error in the main process」时优先确认是否使用了最新构建产物
 
