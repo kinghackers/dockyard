@@ -25,6 +25,8 @@ import {
 } from './types';
 import { createSshDockerTunnel, SshTunnel } from './sshTunnel';
 import { readJsonStore, writeJsonStore } from './configStore';
+import { runComposeCommand } from './composeRunner';
+import * as imageOps from './imageOps';
 import { extractFirstEntry, packSingleFile, readStreamToEnd } from './tar';
 import {
   decryptSecret,
@@ -608,36 +610,12 @@ export class DockerConnectionManager {
 
   /** Stream an image out as a tar (docker save) to the given file path. Returns bytes written. */
   async saveImageToFile(hostId: string, name: string, destPath: string): Promise<number> {
-    const stream = await this.dockerOf(hostId).getImage(name).get();
-    let bytes = 0;
-    await new Promise<void>((resolve, reject) => {
-      const out = fs.createWriteStream(destPath);
-      stream.on('data', (c: Buffer) => {
-        bytes += c.length;
-      });
-      stream.on('error', reject);
-      out.on('error', reject);
-      out.on('finish', () => resolve());
-      stream.pipe(out);
-    });
-    return bytes;
+    return imageOps.saveImageToFile(this.dockerOf(hostId), name, destPath);
   }
 
   /** Load an image from a tar file (docker load). Returns daemon output. */
   async loadImageFromFile(hostId: string, filePath: string): Promise<string> {
-    const res = await this.dockerOf(hostId).loadImage(fs.createReadStream(filePath));
-    let out = '';
-    const s = res as unknown as NodeJS.ReadableStream;
-    if (s && typeof s.on === 'function') {
-      await new Promise<void>((resolve, reject) => {
-        s.on('data', (b: Buffer) => {
-          out += b.toString('utf8');
-        });
-        s.on('end', () => resolve());
-        s.on('error', reject);
-      });
-    }
-    return out.trim() || '(无输出)';
+    return imageOps.loadImageFromFile(this.dockerOf(hostId), filePath);
   }
 
   /**
@@ -1038,66 +1016,21 @@ export class DockerConnectionManager {
 
   // ---------- images ----------
   async listImages(hostId: string): Promise<ImageSummary[]> {
-    const docker = this.dockerOf(hostId);
-    const list = await docker.listImages({ all: false });
-    return list.map((i) => ({
-      id: i.Id,
-      repoTags: i.RepoTags || [],
-      repoDigests: i.RepoDigests || [],
-      created: i.Created,
-      size: i.Size,
-      virtualSize: i.VirtualSize,
-      labels: i.Labels || {},
-    }));
+    return imageOps.listImages(this.dockerOf(hostId));
   }
 
   /** Image metadata + build history (layer commands). */
   async inspectImage(hostId: string, id: string): Promise<ImageDetail> {
-    const img = (await this.dockerOf(hostId).getImage(id).inspect()) as Docker.ImageInspectInfo & {
-      History?: {
-        Created?: string;
-        CreatedBy?: string;
-        Comment?: string;
-        Size?: number;
-        emptyLayer?: boolean;
-      }[];
-    };
-    const entry = img.Config?.Entrypoint;
-    return {
-      id: img.Id,
-      repoTags: img.RepoTags || [],
-      repoDigests: img.RepoDigests || [],
-      created: img.Created,
-      size: img.Size || 0,
-      virtualSize: img.VirtualSize,
-      architecture: img.Architecture,
-      os: img.Os,
-      author: img.Author,
-      configCmd: Array.isArray(img.Config?.Cmd) ? img.Config.Cmd.join(' ') : img.Config?.Cmd || '',
-      configEntrypoint: Array.isArray(entry) ? entry : entry ? [entry] : [],
-      env: img.Config?.Env || [],
-      labels: img.Config?.Labels || {},
-      history: (img.History || []).map((h) => ({
-        created: h.Created,
-        createdBy: h.CreatedBy,
-        comment: h.Comment,
-        size: h.Size,
-        emptyLayer: h.emptyLayer,
-      })),
-    };
+    return imageOps.inspectImage(this.dockerOf(hostId), id);
   }
 
   async removeImage(hostId: string, id: string, force = false) {
-    await this.dockerOf(hostId).getImage(id).remove({ force });
+    await imageOps.removeImage(this.dockerOf(hostId), id, force);
   }
 
   /** Add a repo:tag to an existing image. */
   async tagImage(hostId: string, id: string, repo: string, tag = 'latest') {
-    const r = repo.trim();
-    if (!r) throw new Error('镜像名称不能为空');
-    await this.dockerOf(hostId)
-      .getImage(id)
-      .tag({ repo: r, tag: (tag || 'latest').trim() });
+    await imageOps.tagImage(this.dockerOf(hostId), id, repo, tag);
   }
 
   // ---------- container files (docker cp-style via archive API) ----------
@@ -1171,122 +1104,15 @@ export class DockerConnectionManager {
   /**
    * Run `docker compose …` against the selected connection.
    * Needs the Docker CLI on PATH. TLS material is staged to a temp dir when inline.
-   */  async runCompose(
+   */
+  async runCompose(
     hostId: string,
     args: string[],
     opts?: { cwd?: string; timeoutMs?: number }
   ): Promise<{ ok: boolean; output: string; exitCode: number | null }> {
     const cfg = this.loadConfigs().find((c) => c.id === hostId);
     if (!cfg) throw new Error(`未找到连接配置: ${hostId}`);
-
-    const env: NodeJS.ProcessEnv = { ...process.env };
-    const staged: string[] = [];
-    const tmpDir = path.join(
-      path.dirname(this.configPath),
-      `compose-tls-${Date.now().toString(36)}`
-    );
-
-    try {
-      if (cfg.kind === 'unix') {
-        env.DOCKER_HOST = `unix://${cfg.socketPath || '/var/run/docker.sock'}`;
-      } else if (cfg.kind === 'tcp') {
-        env.DOCKER_HOST = `tcp://${cfg.host || '127.0.0.1'}:${cfg.port || 2375}`;
-        if (cfg.tls) {
-          env.DOCKER_TLS_VERIFY = '1';
-          fs.mkdirSync(tmpDir, { recursive: true });
-          const stage = (name: string, inline?: string, filePath?: string) => {
-            const dest = path.join(tmpDir, name);
-            if (inline && inline.trim()) {
-              fs.writeFileSync(dest, inline, 'utf8');
-              staged.push(dest);
-              return;
-            }
-            if (filePath && fs.existsSync(filePath) && filePath !== dest) {
-              fs.copyFileSync(filePath, dest);
-              staged.push(dest);
-            }
-          };
-          stage('ca.pem', cfg.ca, cfg.caCertPath);
-          stage('cert.pem', cfg.cert, cfg.certPath);
-          stage('key.pem', cfg.key, cfg.keyPath);
-          env.DOCKER_CERT_PATH = tmpDir;
-        }
-      } else if (cfg.kind === 'ssh') {
-        // best-effort: docker CLI can use DOCKER_HOST=ssh:// when keys work
-        const user = cfg.sshUser || 'root';
-        const port = cfg.sshPort || 22;
-        env.DOCKER_HOST = `ssh://${user}@${cfg.sshHost}:${port}`;
-      }
-
-      return await new Promise<{ ok: boolean; output: string; exitCode: number | null }>((resolve) => {
-        const child = spawn('docker', ['compose', ...args], {
-          env,
-          cwd: opts?.cwd || process.cwd(),
-          windowsHide: true,
-        });
-        let out = '';
-        const cap = (s: string) => {
-          out += s;
-          if (out.length > 200_000) out = out.slice(-150_000);
-        };
-        child.stdout.on('data', (d: Buffer) => cap(d.toString('utf8')));
-        child.stderr.on('data', (d: Buffer) => cap(d.toString('utf8')));
-
-        // a hung `docker compose` (stuck pull, dead daemon) must not hang the
-        // promise forever — kill the whole tree after a generous timeout
-        let settled = false;
-        const settle = (r: { ok: boolean; output: string; exitCode: number | null }) => {
-          if (settled) return;
-          settled = true;
-          clearTimeout(timer);
-          resolve(r);
-        };
-        const timeoutMs = opts?.timeoutMs ?? 10 * 60_000;
-        const timer = setTimeout(() => {
-          if (child.pid) {
-            if (process.platform === 'win32') {
-              // compose spawns helper processes; taskkill takes down the tree
-              spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { windowsHide: true });
-            } else {
-              try {
-                child.kill('SIGKILL');
-              } catch {
-                /* ignore */
-              }
-            }
-          }
-          settle({
-            ok: false,
-            output: `${out.trim()}\n\n操作超时（${Math.round(timeoutMs / 60_000)} 分钟未完成），已终止 docker compose 进程。`.trim(),
-            exitCode: null,
-          });
-        }, timeoutMs);
-
-        child.on('error', (err) => {
-          settle({
-            ok: false,
-            output: `无法启动 docker CLI：${err.message}\n请确认已安装 Docker 并加入 PATH。`,
-            exitCode: null,
-          });
-        });
-        child.on('close', (code) => {
-          settle({ ok: code === 0, output: out.trim(), exitCode: code });
-        });
-      });
-    } finally {
-      for (const p of staged) {
-        try {
-          fs.unlinkSync(p);
-        } catch {
-          /* ignore */
-        }
-      }
-      try {
-        fs.rmdirSync(tmpDir);
-      } catch {
-        /* ignore */
-      }
-    }
+    return runComposeCommand(cfg, path.dirname(this.configPath), args, opts);
   }
 
   /** `docker compose -f <file> up -d` */
@@ -1326,50 +1152,12 @@ export class DockerConnectionManager {
   }
 
   async pullImage(hostId: string, name: string, onProgress?: (msg: string) => void): Promise<void> {
-    const docker = this.dockerOf(hostId);
-    return new Promise((resolve, reject) => {
-      docker.pull(name, (err: Error | null, stream?: NodeJS.ReadableStream) => {
-        if (err || !stream) return reject(err || new Error('拉取镜像失败'));
-        docker.modem.followProgress(
-          stream,
-          (e: Error | null) => (e ? reject(e) : resolve()),
-          (event: { status?: string; progress?: string; id?: string }) => {
-            onProgress?.(`${event.id || ''} ${event.status || ''} ${event.progress || ''}`.trim());
-          }
-        );
-      });
-    });
+    await imageOps.pullImage(this.dockerOf(hostId), name, onProgress);
   }
 
   /** Push an image tag to its registry (requires prior `docker login` on that host). */
   async pushImage(hostId: string, name: string, onProgress?: (msg: string) => void): Promise<void> {
-    const docker = this.dockerOf(hostId);
-    return new Promise((resolve, reject) => {
-      const image = docker.getImage(name);
-      image.push({}, (err: Error | null, stream?: NodeJS.ReadableStream) => {
-        if (err || !stream) return reject(err || new Error('推送镜像失败'));
-        docker.modem.followProgress(
-          stream,
-          (e: Error | null) => {
-            if (e) reject(e);
-            else resolve();
-          },
-          (event: {
-            status?: string;
-            progress?: string;
-            id?: string;
-            error?: string;
-            errorDetail?: { message?: string };
-          }) => {
-            if (event.error) {
-              reject(new Error(event.errorDetail?.message || event.error));
-              return;
-            }
-            onProgress?.(`${event.id || ''} ${event.status || ''} ${event.progress || ''}`.trim());
-          }
-        );
-      });
-    });
+    await imageOps.pushImage(this.dockerOf(hostId), name, onProgress);
   }
 
   // ---------- networks / volumes ----------
