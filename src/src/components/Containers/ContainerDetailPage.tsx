@@ -27,6 +27,7 @@ import { localizeContainerStatus, localizeContainerState, localizeRestartPolicy 
 import { formatPortMappingsDetailed } from '../../utils/ports';
 import { getContainerActions, stopRestartLoop } from '../../utils/containerActions';
 import { fmtBytes } from '../../utils/format';
+import { t, useT } from '../../i18n';
 
 export function ContainerDetailPage({
   hostId,
@@ -38,6 +39,7 @@ export function ContainerDetailPage({
   /** false while the tab is hidden (keep-alive) — polling pauses */
   active?: boolean;
 }) {
+  const t = useT();
   const toast = useAppStore((s) => s.toast);
   const openTab = useAppStore((s) => s.openTab);
   const containersVersion = useAppStore((s) => s.containersVersion);
@@ -163,7 +165,7 @@ export function ContainerDetailPage({
     };
   }, [hostId, containerId, isRunning]);
 
-  const action = async (fn: () => Promise<unknown>, msg: string, pendingMsg = '处理中…') => {
+  const action = async (fn: () => Promise<unknown>, msg: string, pendingMsg = t('处理中…')) => {
     await runAction(toast, { pending: pendingMsg, ok: msg, name: detail?.name }, fn);
     await load();
   };
@@ -204,7 +206,7 @@ export function ContainerDetailPage({
     } else {
       openTab({
         id: `containers:${hostId}`,
-        title: `容器 · ${connections.find((c) => c.id === hostId)?.name || hostId}`,
+        title: t("容器 · {p0}", { p0: connections.find((c) => c.id === hostId)?.name || hostId }),
         kind: 'containers',
         hostId,
       });
@@ -214,7 +216,7 @@ export function ContainerDetailPage({
   const openLogs = () => {
     openTab({
       id: `logs:${hostId}:${containerId}`,
-      title: `日志 · ${detail?.name || ''}`,
+      title: t("日志 · {p0}", { p0: detail?.name || '' }),
       kind: 'logs',
       hostId,
       containerId,
@@ -230,14 +232,14 @@ export function ContainerDetailPage({
       items.push({
         key: 'oom',
         level: 'error',
-        text: '因内存不足被杀（OOM）。可调高内存限额，或排查泄漏/缓存暴涨。',
+        text: t('因内存不足被杀（OOM）。可调高内存限额，或排查泄漏/缓存暴涨。'),
       });
     }
     if (exited && (detail.exitCode ?? 0) !== 0) {
       items.push({
         key: 'exit',
         level: 'error',
-        text: `进程异常退出，退出码 ${detail.exitCode}。请查看日志末尾的报错与堆栈。`,
+        text: t("进程异常退出，退出码 {p0}。请查看日志末尾的报错与堆栈。", { p0: detail.exitCode }),
       });
     }
     if (detail.health?.status === 'unhealthy') {
@@ -245,22 +247,23 @@ export function ContainerDetailPage({
       items.push({
         key: 'unhealthy',
         level: 'error',
-        text: `健康检查失败${detail.health.failingStreak ? `（连续 ${detail.health.failingStreak} 次）` : ''}${
-          last?.output ? `：${String(last.output).slice(0, 160)}` : ''
-        }`,
+        text:
+          t('健康检查失败{p0}', {
+            p0: detail.health.failingStreak ? t('（连续 {p0} 次）', { p0: detail.health.failingStreak }) : '',
+          }) + (last?.output ? t('：{p0}', { p0: String(last.output).slice(0, 160) }) : ''),
       });
     } else if (detail.health?.status === 'starting') {
       items.push({
         key: 'health-start',
         level: 'info',
-        text: '健康检查进行中，尚未给出结果。',
+        text: t('健康检查进行中，尚未给出结果。'),
       });
     }
     if ((detail.restartCount ?? 0) >= 3 || detail.state === 'restarting') {
       items.push({
         key: 'loop',
         level: 'warning',
-        text: `频繁自动重启（已重启 ${detail.restartCount ?? 0} 次）。可先停止重启循环再排查。`,
+        text: t("频繁自动重启（已重启 {p0} 次）。可先停止重启循环再排查。", { p0: detail.restartCount ?? 0 }),
       });
     }
     return items;
@@ -269,7 +272,7 @@ export function ContainerDetailPage({
   return (
     <div className="page">
       <div className="page-header">
-        <button className="btn ghost icon-btn" title="返回列表" onClick={goBack}>
+        <button className="btn ghost icon-btn" title={t('返回列表')} onClick={goBack}>
           <ArrowLeft size={15} />
         </button>
         <div className="page-title">
@@ -289,8 +292,8 @@ export function ContainerDetailPage({
             onClick={() =>
               action(
                 () => window.dockerApi.startContainer(hostId, containerId),
-                '已启动',
-                '正在启动…'
+                t('已启动'),
+                t('正在启动…')
               )
             }
           >
@@ -303,8 +306,8 @@ export function ContainerDetailPage({
             onClick={() =>
               action(
                 () => window.dockerApi.stopContainer(hostId, containerId),
-                '已停止',
-                '正在停止…'
+                t('已停止'),
+                t('正在停止…')
               )
             }
           >
@@ -317,8 +320,8 @@ export function ContainerDetailPage({
             onClick={() =>
               action(
                 () => window.dockerApi.restartContainer(hostId, containerId),
-                '已重启',
-                '正在重启…'
+                t('已重启'),
+                t('正在重启…')
               )
             }
           >
@@ -331,21 +334,21 @@ export function ContainerDetailPage({
             onClick={() =>
               action(
                 () => window.dockerApi.killContainer(hostId, containerId),
-                '已强制终止',
-                '正在强杀…'
+                t('已强制终止'),
+                t('正在强杀…')
               )
             }
           >
             <Skull size={13} /> 强制终止
           </button>
         )}
-        <button className="btn" onClick={() => setFilesOpen(true)} title="浏览容器文件系统，支持上传/下载">
+        <button className="btn" onClick={() => setFilesOpen(true)} title={t('浏览容器文件系统，支持上传/下载')}>
           <FolderOpen size={13} /> 文件
         </button>
         <button
           className="btn"
           onClick={() => setCommitOpen(true)}
-          title="将容器当前文件系统状态提交为新镜像（docker commit）"
+          title={t('将容器当前文件系统状态提交为新镜像（docker commit）')}
         >
           <Save size={13} /> 另存为镜像…
         </button>
@@ -358,7 +361,7 @@ export function ContainerDetailPage({
           onClick={() =>
             openTab({
               id: `logs:${hostId}:${containerId}`,
-              title: `日志 · ${detail?.name || ''}`,
+              title: t("日志 · {p0}", { p0: detail?.name || '' }),
               kind: 'logs',
               hostId,
               containerId,
@@ -373,7 +376,7 @@ export function ContainerDetailPage({
             onClick={() =>
               openTab({
                 id: `terminal:${hostId}:${containerId}`,
-                title: `终端 · ${detail?.name || ''}`,
+                title: t("终端 · {p0}", { p0: detail?.name || '' }),
                 kind: 'terminal',
                 hostId,
                 containerId,
@@ -389,9 +392,9 @@ export function ContainerDetailPage({
           onClick={() => {
             void (async () => {
               const ok = await confirm({
-                title: '删除容器',
-                message: `确认删除容器「${detail?.name || containerId.slice(0, 12)}」？此操作不可撤销。`,
-                confirmLabel: '删除',
+                title: t('删除容器'),
+                message: t("确认删除容器「{p0}」？此操作不可撤销。", { p0: detail?.name || containerId.slice(0, 12) }),
+                confirmLabel: t('删除'),
                 danger: true,
               });
               if (!ok) return;
@@ -400,11 +403,11 @@ export function ContainerDetailPage({
                 // back to the container list inside the host's tab
                 openTab({
                   id: `containers:${hostId}`,
-                  title: `容器 · ${connections.find((c) => c.id === hostId)?.name || hostId}`,
+                  title: t("容器 · {p0}", { p0: connections.find((c) => c.id === hostId)?.name || hostId }),
                   kind: 'containers',
                   hostId,
                 });
-              }, '已删除');
+              }, t('已删除'));
             })();
           }}
         >
@@ -416,11 +419,11 @@ export function ContainerDetailPage({
         <div className="alert" style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
           <AlertTriangle size={16} style={{ flexShrink: 0 }} />
           <div style={{ flex: 1, fontSize: 12, color: 'var(--text)' }}>
-            <strong style={{ color: 'var(--warning)' }}>检测到频繁自动重启</strong>
+            <strong style={{ color: 'var(--warning)' }}>{t('检测到频繁自动重启')}</strong>
             <span style={{ marginLeft: 8 }}>
               已重启 {detail.restartCount ?? 0} 次
               {detail.restartPolicy && detail.restartPolicy !== 'no'
-                ? ` · 重启策略 ${detail.restartPolicy}`
+                ? t(" · 重启策略 {p0}", { p0: detail.restartPolicy })
                 : ''}
               。建议先看日志定位故障原因；若需止住重启循环，可关闭自动重启并停止容器。
             </span>
@@ -433,7 +436,7 @@ export function ContainerDetailPage({
             onClick={() =>
               openTab({
                 id: `logs:${hostId}:${containerId}`,
-                title: `日志 · ${detail.name || ''}`,
+                title: t("日志 · {p0}", { p0: detail.name || '' }),
                 kind: 'logs',
                 hostId,
                 containerId,
@@ -464,7 +467,7 @@ export function ContainerDetailPage({
             }}
           >
             <AlertTriangle size={14} color="var(--warning)" />
-            <strong>排障提示</strong>
+            <strong>{t('排障提示')}</strong>
             <button className="btn ghost" style={{ marginLeft: 'auto', height: 24 }} onClick={openLogs}>
               <FileText size={12} /> 查看日志
             </button>
@@ -475,7 +478,7 @@ export function ContainerDetailPage({
                 onClick={() =>
                   openTab({
                     id: `terminal:${hostId}:${containerId}`,
-                    title: `终端 · ${detail?.name || ''}`,
+                    title: t("终端 · {p0}", { p0: detail?.name || '' }),
                     kind: 'terminal',
                     hostId,
                     containerId,
@@ -552,84 +555,84 @@ export function ContainerDetailPage({
               <div className="stat-value">{cpu.toFixed(1)}%</div>
             </div>
             <div className="stat-card">
-              <div className="stat-label">内存</div>
+              <div className="stat-label">{t('内存')}</div>
               <div className="stat-value">{fmtBytes(memUsage)}</div>
               <div className="stat-sub">
-                限额 {memLimit ? fmtBytes(memLimit) : '无限制'}
+                限额 {memLimit ? fmtBytes(memLimit) : t('无限制')}
                 {memLimit ? ` · ${memPercent.toFixed(1)}%` : ''}
               </div>
             </div>
             <div className="stat-card">
-              <div className="stat-label">网络</div>
+              <div className="stat-label">{t('网络')}</div>
               <div className="stat-value" style={{ fontSize: 15 }}>
                 ↓ {fmtBytes(netRx)}
               </div>
               <div className="stat-sub">↑ {fmtBytes(netTx)}</div>
             </div>
             <div className="stat-card">
-              <div className="stat-label">块 I/O</div>
+              <div className="stat-label">{t('块 I/O')}</div>
               <div className="stat-value" style={{ fontSize: 15 }}>
                 读 {fmtBytes(blockRead)}
               </div>
-              <div className="stat-sub">写 {fmtBytes(blockWrite)}</div>
+              <div className="stat-sub">{t('写')}{fmtBytes(blockWrite)}</div>
             </div>
           </div>
 
-          <div className="section-title">基本信息</div>
+          <div className="section-title">{t('基本信息')}</div>
           <dl className="detail-grid">
             <dt>ID</dt>
             <dd>{detail.id}</dd>
-            <dt>镜像</dt>
+            <dt>{t('镜像')}</dt>
             <dd>{detail.image}</dd>
-            <dt>命令</dt>
+            <dt>{t('命令')}</dt>
             <dd>{detail.command || '-'}</dd>
-            <dt>状态</dt>
+            <dt>{t('状态')}</dt>
             <dd>
               {localizeContainerStatus(detail.status)} · 退出码 {detail.exitCode ?? '-'}
               {detail.oomKilled ? ' · OOM' : ''}
-              {detail.health?.status ? ` · 健康检查 ${detail.health.status}` : ''}
+              {detail.health?.status ? t(" · 健康检查 {p0}", { p0: detail.health.status }) : ''}
             </dd>
-            <dt>启动时间</dt>
+            <dt>{t('启动时间')}</dt>
             <dd>{detail.startedAt || '-'}</dd>
-            <dt>结束时间</dt>
+            <dt>{t('结束时间')}</dt>
             <dd>{detail.finishedAt || '-'}</dd>
-            <dt>重启次数</dt>
+            <dt>{t('重启次数')}</dt>
             <dd>
               {detail.restartCount ?? 0}
               {(detail.restartCount ?? 0) >= 3 ? (
                 <span style={{ color: 'var(--warning)', marginLeft: 8, fontSize: 11 }}>
-                  频繁重启
+                  {t('频繁重启')}
                 </span>
               ) : null}
             </dd>
-            <dt>重启策略</dt>
+            <dt>{t('重启策略')}</dt>
             <dd>{localizeRestartPolicy(detail.restartPolicy)}</dd>
-            <dt>主机名</dt>
+            <dt>{t('主机名')}</dt>
             <dd>{detail.hostname || '-'}</dd>
-            <dt>工作目录</dt>
+            <dt>{t('工作目录')}</dt>
             <dd>{detail.workingDir || '-'}</dd>
-            <dt>平台</dt>
+            <dt>{t('平台')}</dt>
             <dd>{detail.platform || '-'}</dd>
             {detail.composeProject && (
               <>
-                <dt>Compose 项目</dt>
+                <dt>{t('Compose 项目')}</dt>
                 <dd>{detail.composeProject}</dd>
-                <dt>Compose 服务</dt>
+                <dt>{t('Compose 服务')}</dt>
                 <dd>{detail.composeService || '-'}</dd>
               </>
             )}
-            <dt>网络</dt>
+            <dt>{t('网络')}</dt>
             <dd>{(detail.networks || []).join(', ') || '-'}</dd>
-            <dt>端口</dt>
+            <dt>{t('端口')}</dt>
             <dd style={{ whiteSpace: 'pre-line' }}>{formatPortMappingsDetailed(detail.ports)}</dd>
           </dl>
 
           {detail.health && (
             <>
-              <div className="section-title">健康检查</div>
+              <div className="section-title">{t('健康检查')}</div>
               <div style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 8 }}>
                 状态 {detail.health.status || '-'}
-                {detail.health.failingStreak ? ` · 连续失败 ${detail.health.failingStreak} 次` : ''}
+                {detail.health.failingStreak ? t(" · 连续失败 {p0} 次", { p0: detail.health.failingStreak }) : ''}
                 {' · '}最近 {Math.min(detail.health.log?.length || 0, 5)} 次探测：
               </div>
               <div className="log-view" style={{ maxHeight: 240, overflow: 'auto', fontSize: 11 }}>
@@ -638,51 +641,51 @@ export function ContainerDetailPage({
                     <span className="log-line-ts">
                       [{h.start ? h.start.replace(/\.\d+Z?$/, '').replace('T', ' ') : '-'}]{' '}
                     </span>
-                    退出码 {h.exitCode ?? '-'}：{String(h.output || '').trim().slice(0, 400) || '(无输出)'}
+                    退出码 {h.exitCode ?? '-'}：{String(h.output || '').trim().slice(0, 400) || t('(无输出)')}
                   </div>
                 ))}
               </div>
             </>
           )}
 
-          <div className="section-title">资源限制</div>
+          <div className="section-title">{t('资源限制')}</div>
           <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
             <div className="form-row" style={{ width: 180 }}>
-              <label>内存上限 (MB)</label>
+              <label>{t('内存上限 (MB)')}</label>
               <input
                 type="number"
                 value={memLimitMB}
-                placeholder="不限制"
+                placeholder={t('不限制')}
                 onChange={(e) => setMemLimitMB(e.target.value)}
               />
             </div>
             <div className="form-row" style={{ width: 180 }}>
-              <label>CPU 核数</label>
+              <label>{t('CPU 核数')}</label>
               <input
                 type="number"
                 step="0.5"
                 value={cpuCores}
-                placeholder="不限制"
+                placeholder={t('不限制')}
                 onChange={(e) => setCpuCores(e.target.value)}
               />
             </div>
             <button className="btn" onClick={() => void saveResources()} disabled={savingRes}>
-              {savingRes ? '应用中…' : '应用'}
+              {savingRes ? t('应用中…') : t('应用')}
             </button>
           </div>
           <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
-            留空表示不修改该项；修改对运行中的容器即时生效（docker update）。
+            {t('留空表示不修改该项；修改对运行中的容器即时生效（docker update）。')}
           </div>
 
           {detail.mounts && detail.mounts.length > 0 && (
             <>
-              <div className="section-title">挂载</div>
+              <div className="section-title">{t('挂载')}</div>
               <table className="table">
                 <thead>
                   <tr>
-                    <th>类型</th>
-                    <th>源</th>
-                    <th>目标</th>
+                    <th>{t('类型')}</th>
+                    <th>{t('源')}</th>
+                    <th>{t('目标')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -700,7 +703,7 @@ export function ContainerDetailPage({
 
           {detail.env && detail.env.length > 0 && (
             <>
-              <div className="section-title">环境变量</div>
+              <div className="section-title">{t('环境变量')}</div>
               <div
                 className="log-view"
                 style={{ maxHeight: 220, overflow: 'auto', fontSize: 11 }}
@@ -715,11 +718,11 @@ export function ContainerDetailPage({
       )}
       {commitOpen && (
         <InputDialog
-          title="另存为镜像"
-          label="镜像仓库:标签"
+          title={t('另存为镜像')}
+          label={t('镜像仓库:标签')}
           initial={`${detail?.name || 'snapshot'}:latest`}
           placeholder="myapp:snapshot"
-          confirmLabel="提交"
+          confirmLabel={t('提交')}
           onClose={() => setCommitOpen(false)}
           onSubmit={async (value) => {
             const idx = value.lastIndexOf(':');
@@ -730,7 +733,10 @@ export function ContainerDetailPage({
                 repo,
                 tag,
               });
-              toast(`已提交为新镜像${imageId ? ` (${imageId.slice(7, 19)})` : ''}`, 'success');
+              toast(
+                t('已提交为新镜像{p0}', { p0: imageId ? ` (${imageId.slice(7, 19)})` : '' }),
+                'success'
+              );
               setCommitOpen(false);
             } catch (e) {
               toast(e instanceof Error ? e.message : String(e), 'error');
@@ -740,10 +746,10 @@ export function ContainerDetailPage({
       )}
       {renameOpen && detail && (
         <InputDialog
-          title="重命名容器"
-          label="容器名称"
+          title={t('重命名容器')}
+          label={t('容器名称')}
           initial={detail.name}
-          confirmLabel="重命名"
+          confirmLabel={t('重命名')}
           onClose={() => setRenameOpen(false)}
           onSubmit={async (name) => {
             try {

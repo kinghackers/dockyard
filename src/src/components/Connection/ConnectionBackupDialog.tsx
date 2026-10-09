@@ -3,6 +3,7 @@ import { X, Download, Upload, Loader2 } from 'lucide-react';
 import type { ConnectionGroup, DockerConnectionConfig } from '../../types/docker';
 import { reportError } from '../../utils/connection';
 import { useModalKeys } from '../../utils/useModalKeys';
+import { t, useT } from '../../i18n';
 
 interface Props {
   connections: DockerConnectionConfig[];
@@ -42,6 +43,7 @@ export function ConnectionBackupDialog({
   onImported,
   toast,
 }: Props) {
+  const t = useT();
   const [includeSecrets, setIncludeSecrets] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -63,13 +65,13 @@ export function ConnectionBackupDialog({
     a.download = `docker-manager-connections-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    toast(includeSecrets ? '已导出（含敏感信息，请妥善保管）' : '已导出（不含密码/密钥）', 'success');
+    toast(includeSecrets ? t('已导出（含敏感信息，请妥善保管）') : t('已导出（不含密码/密钥）'), 'success');
     onClose();
   };
 
   const importJson = async () => {
     const path = await window.dockerApi.selectFile([
-      { name: '连接备份', extensions: ['json'] },
+      { name: t('连接备份'), extensions: ['json'] },
     ]);
     if (!path) return;
     setBusy(true);
@@ -77,7 +79,7 @@ export function ConnectionBackupDialog({
       const text = await window.dockerApi.readTextFile(path);
       const data = JSON.parse(text) as BackupFile;
       if (!data || !Array.isArray(data.connections)) {
-        throw new Error('文件格式不正确：缺少 connections 数组');
+        throw new Error(t('文件格式不正确：缺少 connections 数组'));
       }
       const importedGroups = Array.isArray(data.groups) ? data.groups : [];
       for (const g of importedGroups) {
@@ -89,7 +91,7 @@ export function ConnectionBackupDialog({
         await window.dockerApi.upsertConnection(c);
         n++;
       }
-      toast(`已导入 ${n} 个连接、${importedGroups.length} 个目录`, 'success');
+      toast(t("已导入 {p0} 个连接、{p1} 个目录", { p0: n, p1: importedGroups.length }), 'success');
       if (!data.includeSecrets) {
         toast('备份不含密码/密钥，请编辑连接补全', 'info');
       }
@@ -106,7 +108,7 @@ export function ConnectionBackupDialog({
     <div className="modal-backdrop" onClick={busy ? undefined : onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 480 }}>
         <div className="modal-header">
-          <span>连接配置备份</span>
+          <span>{t('连接配置备份')}</span>
           <button className="btn ghost icon-btn" onClick={onClose}>
             <X size={15} />
           </button>
@@ -114,7 +116,7 @@ export function ConnectionBackupDialog({
         <div className="modal-body">
           <div style={{ fontSize: 12, color: 'var(--text-dim)', lineHeight: 1.7 }}>
             将当前 {connections.length} 个连接、{groups.length} 个目录导出为 JSON，或从备份文件恢复。
-            恢复时按 ID 合并：同 ID 覆盖，新 ID 追加。
+            {t('恢复时按 ID 合并：同 ID 覆盖，新 ID 追加。')}
           </div>
 
           <label
@@ -133,7 +135,7 @@ export function ConnectionBackupDialog({
               onChange={(e) => setIncludeSecrets(e.target.checked)}
               style={{ width: 14, height: 14 }}
             />
-            导出时包含 SSH 密码 / TLS 私钥
+            {t('导出时包含 SSH 密码 / TLS 私钥')}
           </label>
           {includeSecrets && (
             <div
@@ -148,7 +150,7 @@ export function ConnectionBackupDialog({
                 lineHeight: 1.6,
               }}
             >
-              明文敏感信息。仅在可信环境导出/传输，用完请删除备份文件。
+              {t('明文敏感信息。仅在可信环境导出/传输，用完请删除备份文件。')}
             </div>
           )}
         </div>
@@ -158,7 +160,7 @@ export function ConnectionBackupDialog({
           </button>
           <div style={{ flex: 1 }} />
           <button className="btn" onClick={onClose}>
-            关闭
+            {t('关闭')}
           </button>
           <button className="btn primary" onClick={exportJson}>
             <Download size={13} /> 导出

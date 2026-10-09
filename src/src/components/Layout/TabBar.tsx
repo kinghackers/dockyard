@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { X, LayoutDashboard, Boxes, Image, Network, Database, Layers, FileText, Terminal as Term, Settings, LayoutGrid, Home } from 'lucide-react';
 import { useAppStore, MAIN_VIEW_ID } from '../../stores/appStore';
 import type { ViewKind } from '../../types/docker';
+import { t, useT } from '../../i18n';
 
 const kindIcon: Record<ViewKind, React.ReactNode> = {
   home: <Home size={13} />,
@@ -21,6 +22,7 @@ const kindIcon: Record<ViewKind, React.ReactNode> = {
 };
 
 export function TabBar() {
+  const t = useT();
   const tabs = useAppStore((s) => s.tabs);
   const activeTabId = useAppStore((s) => s.activeTabId);
   const setActiveTab = useAppStore((s) => s.setActiveTab);
@@ -99,7 +101,7 @@ export function TabBar() {
             <span
               className="tab-close"
               role="button"
-              aria-label={`关闭 ${tab.title}`}
+              aria-label={t("关闭 {p0}", { p0: tab.title })}
               onClick={(e) => {
                 e.stopPropagation();
                 closeTab(tab.id);

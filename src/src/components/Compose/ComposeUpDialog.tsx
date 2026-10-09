@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { X, FolderOpen, Loader2, Play } from 'lucide-react';
 import { reportError } from '../../utils/connection';
 import { useModalKeys } from '../../utils/useModalKeys';
+import { t, useT } from '../../i18n';
 
 interface Props {
   hostId: string;
@@ -12,6 +13,7 @@ interface Props {
 
 /** Deploy a compose file against the selected connection via `docker compose up -d`. */
 export function ComposeUpDialog({ hostId, onClose, onDeployed, toast }: Props) {
+  const t = useT();
   const [filePath, setFilePath] = useState('');
   const [output, setOutput] = useState('');
   const [busy, setBusy] = useState(false);
@@ -25,7 +27,7 @@ export function ComposeUpDialog({ hostId, onClose, onDeployed, toast }: Props) {
 
   const pick = async () => {
     const p = await window.dockerApi.selectFile([
-      { name: 'Compose 文件', extensions: ['yml', 'yaml'] },
+      { name: t('Compose 文件'), extensions: ['yml', 'yaml'] },
     ]);
     if (p) setFilePath(p);
   };
@@ -36,12 +38,12 @@ export function ComposeUpDialog({ hostId, onClose, onDeployed, toast }: Props) {
     setOutput('正在执行 docker compose up -d …');
     try {
       const res = await window.dockerApi.composeUp(hostId, filePath.trim());
-      setOutput(res.output || (res.ok ? '(无输出)' : '部署失败'));
+      setOutput(res.output || (res.ok ? t('(无输出)') : t('部署失败')));
       if (res.ok) {
         toast('Compose 项目已部署', 'success');
         await onDeployed();
       } else {
-        toast(`部署失败（退出码 ${res.exitCode ?? '-'}）`, 'error');
+        toast(t("部署失败（退出码 {p0}）", { p0: res.exitCode ?? '-' }), 'error');
       }
     } catch (e) {
       reportError(e, toast);
@@ -55,7 +57,7 @@ export function ComposeUpDialog({ hostId, onClose, onDeployed, toast }: Props) {
     <div className="modal-backdrop" onClick={busy ? undefined : onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 640, maxWidth: '92vw' }}>
         <div className="modal-header">
-          <span>从 Compose 文件部署</span>
+          <span>{t('从 Compose 文件部署')}</span>
           <button className="btn ghost icon-btn" onClick={onClose}>
             <X size={15} />
           </button>
@@ -75,8 +77,8 @@ export function ComposeUpDialog({ hostId, onClose, onDeployed, toast }: Props) {
             </div>
           </div>
           <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6, lineHeight: 1.6 }}>
-            将在本机执行 <span className="mono">docker compose -f &lt;文件&gt; up -d</span>，
-            并按当前连接的 Docker 端点（DOCKER_HOST）部署。需要已安装 Docker CLI。
+            将在本机执行 <span className="mono">{t('docker compose -f &lt;文件&gt; up -d')}</span>，
+            {t('并按当前连接的 Docker 端点（DOCKER_HOST）部署。需要已安装 Docker CLI。')}
             SSH 连接依赖本机 ssh 免密；TCP+TLS 会临时写入证书再清理。
           </div>
 
@@ -99,7 +101,7 @@ export function ComposeUpDialog({ hostId, onClose, onDeployed, toast }: Props) {
         <div className="modal-footer">
           <div style={{ flex: 1 }} />
           <button className="btn" onClick={onClose} disabled={busy}>
-            关闭
+            {t('关闭')}
           </button>
           <button
             className="btn primary"
@@ -107,7 +109,7 @@ export function ComposeUpDialog({ hostId, onClose, onDeployed, toast }: Props) {
             disabled={busy || !filePath.trim()}
           >
             {busy ? <Loader2 size={13} className="spinner" /> : <Play size={13} />}
-            部署
+            {t('部署')}
           </button>
         </div>
       </div>

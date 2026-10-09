@@ -3,12 +3,14 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 import { RefreshCw, XCircle } from 'lucide-react';
+import { t, useT } from '../../i18n';
 
 function newSessionId() {
   return `exec-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
 export function TerminalPage({ hostId, containerId }: { hostId: string; containerId?: string }) {
+  const t = useT();
   const [status, setStatus] = useState<'connecting' | 'open' | 'closed' | 'error'>('connecting');
   const [error, setError] = useState<string | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -166,9 +168,9 @@ export function TerminalPage({ hostId, containerId }: { hostId: string; containe
         </button>
         <div style={{ flex: 1 }} />
         <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-          {status === 'connecting' && '连接中…'}
-          {status === 'open' && (containerId ? '已连接 · /bin/sh' : '已连接 · 主机 shell')}
-          {status === 'closed' && '已断开'}
+          {status === 'connecting' && t('连接中…')}
+          {status === 'open' && (containerId ? t('已连接 · /bin/sh') : t('已连接 · 主机 shell'))}
+          {status === 'closed' && t('已断开')}
           {status === 'error' && `错误: ${error || '未知'}`}
         </span>
       </div>
@@ -188,7 +190,7 @@ export function TerminalPage({ hostId, containerId }: { hostId: string; containe
             }}
           >
             <span style={{ color: '#d8d8d8', fontSize: 13 }}>
-              {status === 'error' ? `连接失败：${error || '未知错误'}` : '会话已断开'}
+              {status === 'error' ? t('连接失败：{p0}', { p0: error || t('未知错误') }) : t('会话已断开')}
             </span>
             <button className="btn primary" onClick={() => void start()}>
               <RefreshCw size={13} /> 重新连接

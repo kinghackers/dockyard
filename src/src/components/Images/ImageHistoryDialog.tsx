@@ -3,6 +3,7 @@ import { X, Loader2, Copy, Check } from 'lucide-react';
 import type { ImageDetail } from '../../types/docker';
 import { reportError } from '../../utils/connection';
 import { useModalKeys } from '../../utils/useModalKeys';
+import { t, useT } from '../../i18n';
 
 function fmtBytes(n?: number): string {
   if (n == null || n < 0) return '-';
@@ -27,6 +28,7 @@ interface Props {
 
 /** Layer-by-layer build history for an image. */
 export function ImageHistoryDialog({ hostId, imageId, title, onClose, toast }: Props) {
+  const t = useT();
   const [detail, setDetail] = useState<ImageDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -63,7 +65,7 @@ export function ImageHistoryDialog({ hostId, imageId, title, onClose, toast }: P
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 720, maxWidth: '90vw' }}>
         <div className="modal-header">
-          <span>镜像历史 · {title}</span>
+          <span>{t('镜像历史 ·')}{title}</span>
           <button className="btn ghost icon-btn" onClick={onClose}>
             <X size={15} />
           </button>
@@ -87,8 +89,8 @@ export function ImageHistoryDialog({ hostId, imageId, title, onClose, toast }: P
                   {detail.architecture ? ` · ${detail.architecture}` : ''}
                   {detail.os ? `/${detail.os}` : ''} · {fmtBytes(detail.size)}
                 </div>
-                <div>创建于 {detail.created ? new Date(detail.created).toLocaleString() : '-'}</div>
-                {detail.author ? <div>作者 {detail.author}</div> : null}
+                <div>{t('创建于')}{detail.created ? new Date(detail.created).toLocaleString() : '-'}</div>
+                {detail.author ? <div>{t('作者')}{detail.author}</div> : null}
                 {detail.configEntrypoint?.length ? (
                   <div className="mono">ENTRYPOINT {detail.configEntrypoint.join(' ')}</div>
                 ) : null}
@@ -105,7 +107,7 @@ export function ImageHistoryDialog({ hostId, imageId, title, onClose, toast }: P
                   color: 'var(--text-bright)',
                 }}
               >
-                <strong>构建层（{detail.history.length}）</strong>
+                <strong>{t('构建层（')}{detail.history.length}）</strong>
                 <button className="btn ghost" style={{ marginLeft: 'auto', height: 24 }} onClick={copyHistory}>
                   {copied ? <Check size={12} /> : <Copy size={12} />} 复制
                 </button>
@@ -114,9 +116,9 @@ export function ImageHistoryDialog({ hostId, imageId, title, onClose, toast }: P
               <table className="table">
                 <thead>
                   <tr>
-                    <th style={{ width: 150 }}>创建时间</th>
-                    <th style={{ width: 80 }}>大小</th>
-                    <th>指令</th>
+                    <th style={{ width: 150 }}>{t('创建时间')}</th>
+                    <th style={{ width: 80 }}>{t('大小')}</th>
+                    <th>{t('指令')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -137,7 +139,7 @@ export function ImageHistoryDialog({ hostId, imageId, title, onClose, toast }: P
                           color: 'var(--text-dim)',
                         }}
                       >
-                        {h.createdBy || h.comment || '(空层)'}
+                        {h.createdBy || h.comment || t('(空层)')}
                       </td>
                     </tr>
                   ))}
@@ -149,7 +151,7 @@ export function ImageHistoryDialog({ hostId, imageId, title, onClose, toast }: P
         <div className="modal-footer">
           <div style={{ flex: 1 }} />
           <button className="btn" onClick={onClose}>
-            关闭
+            {t('关闭')}
           </button>
         </div>
       </div>

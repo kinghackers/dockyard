@@ -12,8 +12,10 @@ import { useAutoReconnect } from './utils/useAutoReconnect';
 import { loadUiPref, saveUiPref } from './utils/uiPrefs';
 import { applyTheme as applyThemePref, type ThemePref } from './utils/theme';
 import type { DockerConnectionConfig } from './types/docker';
+import { t, useT, useI18n, type LocalePref } from './i18n';
 
 export default function App() {
+  const t = useT();
   // actions only — subscribing to data here would re-render the whole tree
   // on every store change (toasts, events, container lists)
   const setConnections = useAppStore((s) => s.setConnections);
@@ -65,7 +67,7 @@ export default function App() {
   useEffect(() => {
     void loadConnections();
     // default primary surface — per-host pages live inside each host's tab
-    setMainView({ title: '主页', kind: 'home' });
+    setMainView({ title: t('主页'), kind: 'home' });
     // restore sidebar width and theme across sessions
     const w = loadUiPref<number | null>('sidebar.width', null);
     if (typeof w === 'number' && w >= 220 && w <= 480) {
@@ -73,6 +75,8 @@ export default function App() {
     }
     const themePref = loadUiPref<ThemePref>('settings.theme', 'dark');
     applyThemePref(themePref);
+    // restore the UI locale (auto follows the OS language)
+    useI18n.getState().setPref(loadUiPref<LocalePref>('settings.locale', 'auto'));
     // mirror behavior toggles to the main process (tray / login item)
     window.dockerApi.setMinimizeToTray(loadUiPref('settings.minimizeToTray', false));
     window.dockerApi.setAutoLaunch(loadUiPref('settings.autoLaunch', false));
@@ -116,9 +120,9 @@ export default function App() {
       useAppStore.getState().setStatus(status);
       if (status.connected) {
         const name = useAppStore.getState().connections.find((c) => c.id === id)?.name || id;
-        toast(`已连接 ${name}`, 'success');
+        toast(t("已连接 {p0}", { p0: name }), 'success');
       } else {
-        toast(status.error || '连接失败', 'error');
+        toast(status.error || t('连接失败'), 'error');
       }
     } catch (e) {
       toast(e instanceof Error ? e.message : String(e), 'error');

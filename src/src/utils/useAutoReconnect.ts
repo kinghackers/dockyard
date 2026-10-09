@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useAppStore } from '../stores/appStore';
 import { loadUiPref } from './uiPrefs';
+import { t, useT } from '../i18n';
 
 const MAX_BACKOFF_MS = 60_000;
 
@@ -40,7 +41,7 @@ export function useAutoReconnect() {
             useAppStore.getState().setStatus(status);
             if (status.connected) {
               attemptsRef.current[c.id] = 0;
-              useAppStore.getState().toast(`已自动重连 ${c.name}`, 'success');
+              useAppStore.getState().toast(t("已自动重连 {p0}", { p0: c.name }), 'success');
             }
           } catch {
             /* failed connect updates statuses → effect reschedules with backoff */

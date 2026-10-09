@@ -1,4 +1,5 @@
 /** Which lifecycle actions make sense for a container in its current state. */
+import { t, useT } from '../i18n';
 export interface ContainerActionFlags {
   canStart: boolean;
   canStop: boolean;
@@ -52,8 +53,8 @@ export function getContainerActions(
 export async function stopRestartLoop(hostId: string, containerId: string): Promise<string> {
   const result = await window.dockerApi.stopRestartLoop(hostId, containerId);
   return result === 'killed'
-    ? '已强制终止并关闭自动重启'
+    ? t('已强制终止并关闭自动重启')
     : result === 'stopped'
-      ? '已停止并关闭自动重启'
-      : '已关闭自动重启';
+      ? t('已停止并关闭自动重启')
+      : t('已关闭自动重启');
 }

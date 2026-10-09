@@ -28,6 +28,7 @@ import { SortableTh } from '../common/SortableTh';
 import { TagImageDialog } from './TagImageDialog';
 import { ImageHistoryDialog } from './ImageHistoryDialog';
 import { CleanupDialog } from './CleanupDialog';
+import { t, useT } from '../../i18n';
 
 type SortKey = 'tags' | 'id' | 'size' | 'created';
 
@@ -36,6 +37,7 @@ function tagsLabel(img: ImageSummary): string {
 }
 
 export function ImageListPage({ hostId }: { hostId: string }) {
+  const t = useT();
   const toast = useAppStore((s) => s.toast);
   const setRefreshing = useAppStore((s) => s.setRefreshing);
   const containersVersion = useAppStore((s) => s.containersVersion);
@@ -110,7 +112,7 @@ export function ImageListPage({ hostId }: { hostId: string }) {
     });
     try {
       await window.dockerApi.pullImage(hostId, name);
-      toast(`已拉取 ${name}`, 'success');
+      toast(t("已拉取 {p0}", { p0: name }), 'success');
       setPullName('');
       await load();
     } catch (e) {
@@ -183,7 +185,7 @@ export function ImageListPage({ hostId }: { hostId: string }) {
     });
     try {
       await window.dockerApi.pushImage(hostId, name);
-      toast(`已推送 ${name}`, 'success');
+      toast(t("已推送 {p0}", { p0: name }), 'success');
       await load();
     } catch (e) {
       reportError(e, toast);
@@ -196,13 +198,13 @@ export function ImageListPage({ hostId }: { hostId: string }) {
 
   const saveOne = async (img: ImageSummary) => {
     const name = img.repoTags[0] || img.id;
-    toast(`正在导出 ${name}，大镜像可能需要一些时间…`, 'info');
+    toast(t("正在导出 {p0}，大镜像可能需要一些时间…", { p0: name }), 'info');
     try {
       const res = await window.dockerApi.saveImage(hostId, name);
       if (res.ok) {
-        toast(`已导出 ${(res.bytes ?? 0).toLocaleString()} 字节 → ${res.path}`, 'success');
+        toast(t("已导出 {p0} 字节 → {p1}", { p0: (res.bytes ?? 0).toLocaleString(), p1: res.path }), 'success');
       } else if (!res.canceled) {
-        toast(res.error || '导出失败', 'error');
+        toast(res.error || t('导出失败'), 'error');
       }
     } catch (e) {
       reportError(e, toast);
@@ -211,14 +213,14 @@ export function ImageListPage({ hostId }: { hostId: string }) {
 
   const loadFromFile = async () => {
     setPulling(true);
-    setPullMessage('正在导入镜像…');
+    setPullMessage(t('正在导入镜像…'));
     try {
       const res = await window.dockerApi.loadImage(hostId);
       if (res.ok) {
         toast('镜像导入完成', 'success');
         await load();
       } else if (!res.canceled) {
-        toast(res.error || '导入失败', 'error');
+        toast(res.error || t('导入失败'), 'error');
       }
     } catch (e) {
       reportError(e, toast);
@@ -235,7 +237,7 @@ export function ImageListPage({ hostId }: { hostId: string }) {
     if (!tagFor) return;
     try {
       await window.dockerApi.tagImage(hostId, tagFor.id, repo, tag);
-      toast(`已标记 ${repo}:${tag}`, 'success');
+      toast(t("已标记 {p0}:{p1}", { p0: repo, p1: tag }), 'success');
       setTagFor(null);
       await load();
     } catch (e) {
@@ -245,9 +247,9 @@ export function ImageListPage({ hostId }: { hostId: string }) {
 
   const removeOne = async (id: string, label: string) => {
     const ok = await confirm({
-      title: '删除镜像',
-      message: `确认删除镜像「${label}」？若有容器仍在使用将删除失败。`,
-      confirmLabel: '删除',
+      title: t('删除镜像'),
+      message: t("确认删除镜像「{p0}」？若有容器仍在使用将删除失败。", { p0: label }),
+      confirmLabel: t('删除'),
       danger: true,
     });
     if (!ok) return;
@@ -264,9 +266,9 @@ export function ImageListPage({ hostId }: { hostId: string }) {
 
   const removeMany = async (ids: string[]) => {
     const ok = await confirm({
-      title: '批量删除镜像',
-      message: `确认删除选中的 ${ids.length} 个镜像？正在使用的镜像会删除失败。`,
-      confirmLabel: '删除',
+      title: t('批量删除镜像'),
+      message: t("确认删除选中的 {p0} 个镜像？正在使用的镜像会删除失败。", { p0: ids.length }),
+      confirmLabel: t('删除'),
       danger: true,
     });
     if (!ok) return;
@@ -279,7 +281,7 @@ export function ImageListPage({ hostId }: { hostId: string }) {
         /* keep going */
       }
     }
-    toast(`已删除 ${okCount}/${ids.length} 个镜像`, okCount === ids.length ? 'success' : 'error');
+    toast(t("已删除 {p0}/{p1} 个镜像", { p0: okCount, p1: ids.length }), okCount === ids.length ? 'success' : 'error');
     clearChecked();
     setSelected(null);
     await load();
@@ -326,41 +328,41 @@ export function ImageListPage({ hostId }: { hostId: string }) {
     return [
       {
         key: 'run',
-        label: '运行…',
+        label: t('运行…'),
         icon: <Play size={13} />,
         disabled: multi,
         onSelect: () => runOne(img),
       },
       {
         key: 'tag',
-        label: '打标签…',
+        label: t('打标签…'),
         icon: <Tag size={13} />,
         disabled: multi,
         onSelect: () => tagOne(img),
       },
       {
         key: 'push',
-        label: pushing ? '推送中…' : '推送到仓库…',
+        label: pushing ? t('推送中…') : t('推送到仓库…'),
         icon: <Upload size={13} />,
         disabled: multi || !!pushing || img.repoTags.length === 0,
         onSelect: () => void pushOne(img),
       },
       {
         key: 'history',
-        label: '查看历史…',
+        label: t('查看历史…'),
         disabled: multi,
         onSelect: () => showHistory(img),
       },
       {
         key: 'save',
-        label: '保存到文件…（docker save）',
+        label: t('保存到文件…（docker save）'),
         icon: <Save size={13} />,
         disabled: multi,
         onSelect: () => void saveOne(img),
       },
       {
         key: 'copy',
-        label: '复制镜像 ID',
+        label: t('复制镜像 ID'),
         icon: <Copy size={13} />,
         disabled: multi,
         onSelect: () => {
@@ -370,7 +372,7 @@ export function ImageListPage({ hostId }: { hostId: string }) {
       },
       {
         key: 'copyTag',
-        label: '复制仓库:标签',
+        label: t('复制仓库:标签'),
         icon: <Tag size={13} />,
         disabled: multi || img.repoTags.length === 0,
         onSelect: () => {
@@ -381,7 +383,7 @@ export function ImageListPage({ hostId }: { hostId: string }) {
       { key: 'sep', label: '', separator: true, onSelect: () => {} },
       {
         key: 'del',
-        label: multi ? `删除 ${ids.length} 个…` : '删除…',
+        label: multi ? t("删除 {p0} 个…", { p0: ids.length }) : '删除…',
         icon: <Trash2 size={13} />,
         danger: true,
         onSelect: () => void (multi ? removeMany(ids) : removeOne(img.id, label)),
@@ -417,17 +419,17 @@ export function ImageListPage({ hostId }: { hostId: string }) {
         <button
           className="btn"
           disabled={!selectedImage || !!pushing}
-          title="推送到镜像仓库（需先 docker login）"
+          title={t('推送到镜像仓库（需先 docker login）')}
           onClick={() => selectedImage && void pushOne(selectedImage)}
         >
-          <Upload size={13} /> {pushing ? '推送中…' : '推送'}
+          <Upload size={13} /> {pushing ? t('推送中…') : t('推送')}
         </button>
         <button
           className="btn"
           disabled={!selectedImage}
           onClick={() => selectedImage && showHistory(selectedImage)}
         >
-          历史
+          {t('历史')}
         </button>
         <button
           className="btn danger"
@@ -442,12 +444,12 @@ export function ImageListPage({ hostId }: { hostId: string }) {
         {checked.size > 0 && (
           <>
             <div style={{ width: 1, height: 18, background: 'var(--border)', margin: '0 4px' }} />
-            <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>已选 {checked.size}</span>
+            <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>{t('已选')}{checked.size}</span>
             <button className="btn danger" onClick={() => void removeMany([...checked])}>
               <Trash2 size={13} /> 批量删除
             </button>
             <button className="btn ghost" onClick={() => clearChecked()}>
-              清除选择
+              {t('清除选择')}
             </button>
           </>
         )}
@@ -455,7 +457,7 @@ export function ImageListPage({ hostId }: { hostId: string }) {
         <input
           className="search-input"
           style={{ width: 180 }}
-          placeholder="如 nginx:latest"
+          placeholder={t('如 nginx:latest')}
           value={pullName}
           onChange={(e) => setPullName(e.target.value)}
           onKeyDown={(e) => {
@@ -470,12 +472,12 @@ export function ImageListPage({ hostId }: { hostId: string }) {
           disabled={!pullName.trim() || pulling}
           onClick={() => void doPull()}
         >
-          <Download size={13} /> {pulling ? '拉取中…' : '拉取镜像'}
+          <Download size={13} /> {pulling ? t('拉取中…') : t('拉取镜像')}
         </button>
-        <button className="btn" disabled={pulling} onClick={() => void loadFromFile()} title="从 tar 文件导入镜像（docker load）">
+        <button className="btn" disabled={pulling} onClick={() => void loadFromFile()} title={t('从 tar 文件导入镜像（docker load）')}>
           <Upload size={13} /> 导入
         </button>
-        <button className="btn" onClick={() => setCleanupOpen(true)} title="清理悬空镜像、已停止容器、未使用网络/数据卷">
+        <button className="btn" onClick={() => setCleanupOpen(true)} title={t('清理悬空镜像、已停止容器、未使用网络/数据卷')}>
           <Trash2 size={13} /> 清理
         </button>
         <div style={{ position: 'relative' }}>
@@ -484,7 +486,7 @@ export function ImageListPage({ hostId }: { hostId: string }) {
             ref={filterRef}
             className="search-input"
             style={{ paddingLeft: 26 }}
-            placeholder="过滤镜像（Ctrl+F）"
+            placeholder={t('过滤镜像（Ctrl+F）')}
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
           />
@@ -505,7 +507,7 @@ export function ImageListPage({ hostId }: { hostId: string }) {
             whiteSpace: 'nowrap',
           }}
         >
-          {pushing ? `推送 ${pushing} · ${pushMessage}` : pullMessage}
+          {pushing ? t("推送 {p0} · {p1}", { p0: pushing, p1: pushMessage }) : pullMessage}
         </div>
       ) : null}
 
@@ -513,10 +515,10 @@ export function ImageListPage({ hostId }: { hostId: string }) {
 
       <div style={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
         {loading && list.length === 0 && !error ? (
-          <ListLoading label="正在加载镜像…" />
+          <ListLoading label={t('正在加载镜像…')} />
         ) : filtered.length === 0 ? (
           <div className="empty-state">
-            <p>{list.length === 0 ? '暂无镜像' : '没有匹配的镜像'}</p>
+            <p>{list.length === 0 ? t('暂无镜像') : t('没有匹配的镜像')}</p>
           </div>
         ) : (
           <table className="table">

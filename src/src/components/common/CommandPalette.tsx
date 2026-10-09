@@ -12,6 +12,7 @@ import {
 import { useAppStore } from '../../stores/appStore';
 import { useHotkeys } from '../../utils/useHotkeys';
 import type { OpenTab } from '../../types/docker';
+import { t, useT } from '../../i18n';
 
 interface Item {
   id: string;
@@ -28,6 +29,7 @@ const MAX_ITEMS = 60;
  * straight to a container's detail page by typing a few characters.
  */
 export function CommandPalette() {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [index, setIndex] = useState(0);
@@ -51,12 +53,12 @@ export function CommandPalette() {
       useAppStore.getState().openTab(tab as OpenTab);
 
     const nav: { kind: OpenTab['kind']; label: string; icon: ReactNode }[] = [
-      { kind: 'dashboard', label: '仪表板', icon: <LayoutDashboard size={14} /> },
-      { kind: 'containers', label: '容器列表', icon: <Box size={14} /> },
-      { kind: 'images', label: '镜像列表', icon: <ImageIcon size={14} /> },
-      { kind: 'networks', label: '网络列表', icon: <Network size={14} /> },
-      { kind: 'volumes', label: '数据卷列表', icon: <Database size={14} /> },
-      { kind: 'compose', label: 'Compose 项目', icon: <Layers size={14} /> },
+      { kind: 'dashboard', label: t('仪表板'), icon: <LayoutDashboard size={14} /> },
+      { kind: 'containers', label: t('容器列表'), icon: <Box size={14} /> },
+      { kind: 'images', label: t('镜像列表'), icon: <ImageIcon size={14} /> },
+      { kind: 'networks', label: t('网络列表'), icon: <Network size={14} /> },
+      { kind: 'volumes', label: t('数据卷列表'), icon: <Database size={14} /> },
+      { kind: 'compose', label: t('Compose 项目'), icon: <Layers size={14} /> },
     ];
 
     for (const c of connections) {
@@ -66,7 +68,7 @@ export function CommandPalette() {
         out.push({
           id: `nav:${n.kind}:${c.id}`,
           label: `${n.label} · ${host}`,
-          hint: '导航',
+          hint: t('导航'),
           icon: n.icon,
           run: () =>
             go({
@@ -85,12 +87,12 @@ export function CommandPalette() {
         out.push({
           id: `ct:${hostId}:${c.id}`,
           label: c.name,
-          hint: `容器 · ${host} · ${c.state}`,
+          hint: t("容器 · {p0} · {p1}", { p0: host, p1: c.state }),
           icon: <ContainerIcon size={14} />,
           run: () =>
             go({
               id: `containerDetail:${hostId}:${c.id}`,
-              title: `容器: ${c.name}`,
+              title: t("容器: {p0}", { p0: c.name }),
               kind: 'containerDetail',
               hostId,
               containerId: c.id,
@@ -154,7 +156,7 @@ export function CommandPalette() {
           <input
             ref={inputRef}
             value={query}
-            placeholder="搜索主机 / 容器 / 导航…（↑↓ 选择，Enter 打开）"
+            placeholder={t('搜索主机 / 容器 / 导航…（↑↓ 选择，Enter 打开）')}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'ArrowDown') {
@@ -175,7 +177,7 @@ export function CommandPalette() {
         </div>
         <div ref={listRef} style={{ maxHeight: 380, overflow: 'auto' }}>
           {filtered.length === 0 && (
-            <div style={{ padding: 16, color: 'var(--text-muted)', fontSize: 12 }}>没有匹配项</div>
+            <div style={{ padding: 16, color: 'var(--text-muted)', fontSize: 12 }}>{t('没有匹配项')}</div>
           )}
           {filtered.map((it, i) => (
             <div

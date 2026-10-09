@@ -8,8 +8,10 @@ import { localizeStatusChip, localizeContainerStatus, localizeContainerState } f
 import { ComposeUpDialog } from './ComposeUpDialog';
 import { useConfirm } from '../../utils/useConfirm';
 import { ListError, ListLoading } from '../common/ListFeedback';
+import { t, useT } from '../../i18n';
 
 export function ComposeListPage({ hostId }: { hostId: string }) {
+  const t = useT();
   const toast = useAppStore((s) => s.toast);
   const setRefreshing = useAppStore((s) => s.setRefreshing);
   const openTab = useAppStore((s) => s.openTab);
@@ -47,16 +49,16 @@ export function ComposeListPage({ hostId }: { hostId: string }) {
 
   const startProject = async (p: ComposeProject) => {
     const ok = await confirm({
-      title: '启动全部容器',
-      message: `确认启动项目「${p.name}」的全部未运行容器？`,
-      confirmLabel: '启动',
+      title: t('启动全部容器'),
+      message: t("确认启动项目「{p0}」的全部未运行容器？", { p0: p.name }),
+      confirmLabel: t('启动'),
     });
     if (!ok) return;
     await runAction(
       toast,
       {
-        pending: `正在启动项目 ${p.name}…`,
-        ok: `项目 ${p.name} 已启动`,
+        pending: t("正在启动项目 {p0}…", { p0: p.name }),
+        ok: t("项目 {p0} 已启动", { p0: p.name }),
       },
       async () => {
         for (const c of p.containers) {
@@ -69,17 +71,17 @@ export function ComposeListPage({ hostId }: { hostId: string }) {
 
   const stopProject = async (p: ComposeProject) => {
     const ok = await confirm({
-      title: '停止全部容器',
-      message: `确认停止项目「${p.name}」的全部运行中容器？`,
-      confirmLabel: '停止',
+      title: t('停止全部容器'),
+      message: t("确认停止项目「{p0}」的全部运行中容器？", { p0: p.name }),
+      confirmLabel: t('停止'),
       danger: true,
     });
     if (!ok) return;
     await runAction(
       toast,
       {
-        pending: `正在停止项目 ${p.name}…`,
-        ok: `项目 ${p.name} 已停止`,
+        pending: t("正在停止项目 {p0}…", { p0: p.name }),
+        ok: t("项目 {p0} 已停止", { p0: p.name }),
       },
       async () => {
         for (const c of p.containers) {
@@ -109,12 +111,12 @@ export function ComposeListPage({ hostId }: { hostId: string }) {
       {error && <ListError error={error} onRetry={() => void load()} />}
 
       {loading && projects.length === 0 && !error ? (
-        <ListLoading label="正在加载 Compose 项目…" />
+        <ListLoading label={t('正在加载 Compose 项目…')} />
       ) : projects.length === 0 ? (
         <div className="empty-state">
           <Layers size={32} strokeWidth={1.2} color="var(--text-muted)" />
-          <h3>没有发现 Compose 项目</h3>
-          <p>由 docker compose 启动的容器会按项目自动归类展示</p>
+          <h3>{t('没有发现 Compose 项目')}</h3>
+          <p>{t('由 docker compose 启动的容器会按项目自动归类展示')}</p>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -169,11 +171,11 @@ export function ComposeListPage({ hostId }: { hostId: string }) {
               <table className="table">
                 <thead>
                   <tr>
-                    <th>服务</th>
-                    <th>容器</th>
-                    <th>镜像</th>
-                    <th>状态</th>
-                    <th>副本</th>
+                    <th>{t('服务')}</th>
+                    <th>{t('容器')}</th>
+                    <th>{t('镜像')}</th>
+                    <th>{t('状态')}</th>
+                    <th>{t('副本')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -185,7 +187,7 @@ export function ComposeListPage({ hostId }: { hostId: string }) {
                         if (s.containerId) {
                           openTab({
                             id: `containerDetail:${hostId}:${s.containerId}`,
-                            title: `容器: ${s.containerName || s.name}`,
+                            title: t("容器: {p0}", { p0: s.containerName || s.name }),
                             kind: 'containerDetail',
                             hostId,
                             containerId: s.containerId,

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { X, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import type { ConnectionGroup, ConnectionKind, DockerConnectionConfig } from '../../types/docker';
 import { useModalKeys } from '../../utils/useModalKeys';
+import { t, useT } from '../../i18n';
 
 interface Props {
   initial: DockerConnectionConfig | null;
@@ -15,6 +16,7 @@ function newId() {
 }
 
 export function ConnectionDialog({ initial, defaultGroupId, onClose, onSaved }: Props) {
+  const t = useT();
   const [kind, setKind] = useState<ConnectionKind>(initial?.kind || 'tcp');
   const [name, setName] = useState(initial?.name || '');
   const [groupId, setGroupId] = useState(initial?.groupId || defaultGroupId || '');
@@ -86,10 +88,10 @@ export function ConnectionDialog({ initial, defaultGroupId, onClose, onSaved }: 
       if (res.ok) {
         setTestResult({
           ok: true,
-          message: `连接成功 · Docker ${res.info?.serverVersion || ''} · ${res.info?.containers ?? 0} 个容器`,
+          message: t("连接成功 · Docker {p0} · {p1} 个容器", { p0: res.info?.serverVersion || '', p1: res.info?.containers ?? 0 }),
         });
       } else {
-        setTestResult({ ok: false, message: res.error || '测试失败' });
+        setTestResult({ ok: false, message: res.error || t('测试失败') });
       }
     } catch (e) {
       setTestResult({ ok: false, message: e instanceof Error ? e.message : String(e) });
@@ -99,9 +101,9 @@ export function ConnectionDialog({ initial, defaultGroupId, onClose, onSaved }: 
   };
 
   const validate = (): string | null => {
-    if (kind === 'tcp' && !host.trim()) return '请填写主机地址';
-    if (kind === 'ssh' && !sshHost.trim()) return '请填写 SSH 主机地址';
-    if (kind === 'unix' && !socketPath.trim()) return '请填写 Unix socket 路径';
+    if (kind === 'tcp' && !host.trim()) return t('请填写主机地址');
+    if (kind === 'ssh' && !sshHost.trim()) return t('请填写 SSH 主机地址');
+    if (kind === 'unix' && !socketPath.trim()) return t('请填写 Unix socket 路径');
     return null;
   };
 
@@ -128,7 +130,7 @@ export function ConnectionDialog({ initial, defaultGroupId, onClose, onSaved }: 
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 560 }}>
         <div className="modal-header">
-          <span>{initial ? '编辑连接' : '添加 Docker 连接'}</span>
+          <span>{initial ? t('编辑连接') : t('添加 Docker 连接')}</span>
           <button className="btn ghost icon-btn" onClick={onClose}>
             <X size={15} />
           </button>
@@ -137,26 +139,26 @@ export function ConnectionDialog({ initial, defaultGroupId, onClose, onSaved }: 
         <div className="modal-body">
           <div className="form-grid">
             <div className="form-row">
-              <label>名称</label>
+              <label>{t('名称')}</label>
               <input
                 value={name}
                 autoFocus
                 onChange={(e) => setName(e.target.value)}
-                placeholder="可选，留空自动生成（如 ssh-192.168.1.68）"
+                placeholder={t('可选，留空自动生成（如 ssh-192.168.1.68）')}
               />
             </div>
             <div className="form-row">
-              <label>连接方式</label>
+              <label>{t('连接方式')}</label>
               <select value={kind} onChange={(e) => setKind(e.target.value as ConnectionKind)}>
                 <option value="tcp">TCP（HTTP/HTTPS）</option>
-                <option value="ssh">SSH 隧道</option>
-                <option value="unix">Unix 套接字</option>
+                <option value="ssh">{t('SSH 隧道')}</option>
+                <option value="unix">{t('Unix 套接字')}</option>
               </select>
             </div>
             <div className="form-row">
-              <label>所属目录</label>
+              <label>{t('所属目录')}</label>
               <select value={groupId} onChange={(e) => setGroupId(e.target.value)}>
-                <option value="">（根目录）</option>
+                <option value="">{t('（根目录）')}</option>
                 {groups.map((g) => (
                   <option key={g.id} value={g.id}>
                     {g.name}
@@ -170,11 +172,11 @@ export function ConnectionDialog({ initial, defaultGroupId, onClose, onSaved }: 
             <>
               <div className="form-grid">
                 <div className="form-row">
-                  <label>主机</label>
+                  <label>{t('主机')}</label>
                   <input value={host} onChange={(e) => setHost(e.target.value)} placeholder="192.168.1.68" />
                 </div>
                 <div className="form-row">
-                  <label>端口</label>
+                  <label>{t('端口')}</label>
                   <input
                     type="number"
                     value={port}
@@ -191,13 +193,13 @@ export function ConnectionDialog({ initial, defaultGroupId, onClose, onSaved }: 
                     onChange={(e) => setTls(e.target.checked)}
                     style={{ width: 14, height: 14 }}
                   />
-                  启用 TLS (https / 双向认证)
+                  {t('启用 TLS (https / 双向认证)')}
                 </label>
               </div>
               {tls && (
                 <>
                   <div className="form-row">
-                    <label>CA 证书路径</label>
+                    <label>{t('CA 证书路径')}</label>
                     <input
                       value={caCertPath}
                       onChange={(e) => setCaCertPath(e.target.value)}
@@ -205,7 +207,7 @@ export function ConnectionDialog({ initial, defaultGroupId, onClose, onSaved }: 
                     />
                   </div>
                   <div className="form-row">
-                    <label>客户端证书路径</label>
+                    <label>{t('客户端证书路径')}</label>
                     <input
                       value={certPath}
                       onChange={(e) => setCertPath(e.target.value)}
@@ -213,7 +215,7 @@ export function ConnectionDialog({ initial, defaultGroupId, onClose, onSaved }: 
                     />
                   </div>
                   <div className="form-row">
-                    <label>客户端密钥路径</label>
+                    <label>{t('客户端密钥路径')}</label>
                     <input
                       value={keyPath}
                       onChange={(e) => setKeyPath(e.target.value)}
@@ -221,17 +223,17 @@ export function ConnectionDialog({ initial, defaultGroupId, onClose, onSaved }: 
                     />
                   </div>
                   <details style={{ fontSize: 12 }}>
-                    <summary style={{ cursor: 'pointer', color: 'var(--text-dim)' }}>或粘贴 PEM 内容</summary>
+                    <summary style={{ cursor: 'pointer', color: 'var(--text-dim)' }}>{t('或粘贴 PEM 内容')}</summary>
                     <div className="form-row" style={{ marginTop: 8 }}>
-                      <label>CA 证书内容</label>
+                      <label>{t('CA 证书内容')}</label>
                       <textarea rows={3} value={ca} onChange={(e) => setCa(e.target.value)} />
                     </div>
                     <div className="form-row">
-                      <label>客户端证书内容</label>
+                      <label>{t('客户端证书内容')}</label>
                       <textarea rows={3} value={cert} onChange={(e) => setCert(e.target.value)} />
                     </div>
                     <div className="form-row">
-                      <label>客户端密钥内容</label>
+                      <label>{t('客户端密钥内容')}</label>
                       <textarea rows={3} value={key} onChange={(e) => setKey(e.target.value)} />
                     </div>
                   </details>
@@ -242,7 +244,7 @@ export function ConnectionDialog({ initial, defaultGroupId, onClose, onSaved }: 
 
           {kind === 'unix' && (
             <div className="form-row">
-              <label>Socket 路径</label>
+              <label>{t('Socket 路径')}</label>
               <input value={socketPath} onChange={(e) => setSocketPath(e.target.value)} placeholder="/var/run/docker.sock" />
             </div>
           )}
@@ -251,11 +253,11 @@ export function ConnectionDialog({ initial, defaultGroupId, onClose, onSaved }: 
             <>
               <div className="form-grid">
                 <div className="form-row">
-                  <label>SSH 主机</label>
+                  <label>{t('SSH 主机')}</label>
                   <input value={sshHost} onChange={(e) => setSshHost(e.target.value)} placeholder="192.168.1.68" />
                 </div>
                 <div className="form-row">
-                  <label>SSH 端口</label>
+                  <label>{t('SSH 端口')}</label>
                   <input
                     type="number"
                     value={sshPort}
@@ -266,22 +268,22 @@ export function ConnectionDialog({ initial, defaultGroupId, onClose, onSaved }: 
               </div>
               <div className="form-grid">
                 <div className="form-row">
-                  <label>用户名</label>
+                  <label>{t('用户名')}</label>
                   <input value={sshUser} onChange={(e) => setSshUser(e.target.value)} placeholder="root" />
                 </div>
                 <div className="form-row">
-                  <label>密码（与密钥二选一）</label>
+                  <label>{t('密码（与密钥二选一）')}</label>
                       <input
                         type="password"
                         value={sshPassword}
                         onChange={(e) => setSshPassword(e.target.value)}
-                        placeholder="输入 SSH 登录密码"
+                        placeholder={t('输入 SSH 登录密码')}
                       />
                 </div>
               </div>
               <div className="form-grid">
                 <div className="form-row">
-                  <label>私钥路径</label>
+                  <label>{t('私钥路径')}</label>
                   <input
                     value={sshPrivateKeyPath}
                     onChange={(e) => setSshPrivateKeyPath(e.target.value)}
@@ -289,17 +291,17 @@ export function ConnectionDialog({ initial, defaultGroupId, onClose, onSaved }: 
                   />
                 </div>
                 <div className="form-row">
-                  <label>私钥密码</label>
+                  <label>{t('私钥密码')}</label>
                   <input
                     type="password"
                     value={sshPassphrase}
                     onChange={(e) => setSshPassphrase(e.target.value)}
-                    placeholder="私钥未加密则留空"
+                    placeholder={t('私钥未加密则留空')}
                   />
                 </div>
               </div>
               <div className="form-row">
-                <label>Docker Socket 路径（远程）</label>
+                <label>{t('Docker Socket 路径（远程）')}</label>
                 <input
                   value={dockerSocketPath}
                   onChange={(e) => setDockerSocketPath(e.target.value)}
@@ -331,15 +333,15 @@ export function ConnectionDialog({ initial, defaultGroupId, onClose, onSaved }: 
         <div className="modal-footer">
           <button className="btn" onClick={handleTest} disabled={testing}>
             {testing ? <Loader2 size={14} className="spinner" /> : null}
-            测试连接
+            {t('测试连接')}
           </button>
           <div style={{ flex: 1 }} />
           <button className="btn" onClick={onClose}>
-            取消
+            {t('取消')}
           </button>
           <button className="btn primary" onClick={handleSave} disabled={saving}>
             {saving ? <Loader2 size={14} className="spinner" /> : null}
-            保存
+            {t('保存')}
           </button>
         </div>
       </div>

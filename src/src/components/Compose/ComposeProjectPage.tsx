@@ -34,6 +34,7 @@ import { ContextMenu, useContextMenu, type ContextMenuItem } from '../common/Con
 import { ListError, ListLoading } from '../common/ListFeedback';
 import { SortableTh } from '../common/SortableTh';
 import { usePolling } from '../../hooks/usePolling';
+import { t, useT } from '../../i18n';
 
 type SortKey = 'service' | 'name' | 'state' | 'image';
 
@@ -47,6 +48,7 @@ export function ComposeProjectPage({
   /** false while the tab is hidden (keep-alive) — polling pauses */
   active?: boolean;
 }) {
+  const t = useT();
   const toast = useAppStore((s) => s.toast);
   const setRefreshing = useAppStore((s) => s.setRefreshing);
   const openTab = useAppStore((s) => s.openTab);
@@ -98,7 +100,7 @@ export function ComposeProjectPage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [containersVersion]);
 
-  const action = async (fn: () => Promise<unknown>, msg: string, pendingMsg = '处理中…') => {
+  const action = async (fn: () => Promise<unknown>, msg: string, pendingMsg = t('处理中…')) => {
     await runAction(toast, { pending: pendingMsg, ok: msg }, fn);
     await load();
   };
@@ -121,7 +123,7 @@ export function ComposeProjectPage({
       const res = await fn();
       if (res.ok) toast(okMsg, 'success');
       else {
-        toast(`失败（退出码 ${res.exitCode ?? '-'}）`, 'error');
+        toast(t("失败（退出码 {p0}）", { p0: res.exitCode ?? '-' }), 'error');
         console.error(res.output);
       }
       await load();
@@ -132,22 +134,22 @@ export function ComposeProjectPage({
 
   const composeDown = async () => {
     const ok = await confirm({
-      title: '下线 Compose 项目',
-      message: `将执行 docker compose -p ${projectName} down，停止并移除该项目的容器。数据卷默认保留。`,
-      confirmLabel: '下线',
+      title: t('下线 Compose 项目'),
+      message: t("将执行 docker compose -p {p0} down，停止并移除该项目的容器。数据卷默认保留。", { p0: projectName }),
+      confirmLabel: t('下线'),
       danger: true,
     });
     if (!ok) return;
     await runCompose(
       () => window.dockerApi.composeProjectDown(hostId, projectName, false),
-      '项目已下线'
+      t('项目已下线')
     );
   };
 
   const composePull = async () => {
     await runCompose(
       () => window.dockerApi.composeProjectPull(hostId, projectName),
-      '镜像已更新，请重启项目以生效'
+      t('镜像已更新，请重启项目以生效')
     );
   };
 
@@ -224,7 +226,7 @@ export function ComposeProjectPage({
       if (!c) return;
       openTab({
         id: `containerDetail:${hostId}:${c.id}`,
-        title: `容器: ${c.name}`,
+        title: t("容器: {p0}", { p0: c.name }),
         kind: 'containerDetail',
         hostId,
         containerId: c.id,
@@ -236,13 +238,13 @@ export function ComposeProjectPage({
       if (!c) return;
       void (async () => {
         const ok = await confirm({
-          title: '删除容器',
-          message: `确认删除容器「${c.name}」？数据卷将一并移除。`,
-          confirmLabel: '删除',
+          title: t('删除容器'),
+          message: t("确认删除容器「{p0}」？数据卷将一并移除。", { p0: c.name }),
+          confirmLabel: t('删除'),
           danger: true,
         });
         if (!ok) return;
-        void action(() => window.dockerApi.removeContainer(hostId, c.id, true), '已删除');
+        void action(() => window.dockerApi.removeContainer(hostId, c.id, true), t('已删除'));
       })();
     },
   });
@@ -260,67 +262,67 @@ export function ComposeProjectPage({
     if (a.canStart) {
       items.push({
         key: 'start',
-        label: '启动',
+        label: t('启动'),
         icon: <Play size={13} />,
-        onSelect: () => void action(each((id) => window.dockerApi.startContainer(hostId, id)), '已启动'),
+        onSelect: () => void action(each((id) => window.dockerApi.startContainer(hostId, id)), t('已启动')),
       });
     }
     if (a.canStop) {
       items.push({
         key: 'stop',
-        label: '停止',
+        label: t('停止'),
         icon: <Square size={13} />,
-        onSelect: () => void action(each((id) => window.dockerApi.stopContainer(hostId, id)), '已停止'),
+        onSelect: () => void action(each((id) => window.dockerApi.stopContainer(hostId, id)), t('已停止')),
       });
     }
     if (a.canRestart) {
       items.push({
         key: 'restart',
-        label: '重启',
+        label: t('重启'),
         icon: <RotateCw size={13} />,
-        onSelect: () => void action(each((id) => window.dockerApi.restartContainer(hostId, id)), '已重启'),
+        onSelect: () => void action(each((id) => window.dockerApi.restartContainer(hostId, id)), t('已重启')),
       });
     }
     if (a.canKill) {
       items.push({
         key: 'kill',
-        label: '强制终止',
+        label: t('强制终止'),
         icon: <Skull size={13} />,
-        onSelect: () => void action(each((id) => window.dockerApi.killContainer(hostId, id)), '已强制终止'),
+        onSelect: () => void action(each((id) => window.dockerApi.killContainer(hostId, id)), t('已强制终止')),
       });
     }
     if (a.canPause) {
       items.push({
         key: 'pause',
-        label: '暂停',
+        label: t('暂停'),
         icon: <Pause size={13} />,
-        onSelect: () => void action(() => window.dockerApi.pauseContainer(hostId, c.id), '已暂停'),
+        onSelect: () => void action(() => window.dockerApi.pauseContainer(hostId, c.id), t('已暂停')),
       });
     }
     if (a.canUnpause) {
       items.push({
         key: 'unpause',
-        label: '恢复',
+        label: t('恢复'),
         icon: <PlayCircle size={13} />,
-        onSelect: () => void action(() => window.dockerApi.unpauseContainer(hostId, c.id), '已恢复'),
+        onSelect: () => void action(() => window.dockerApi.unpauseContainer(hostId, c.id), t('已恢复')),
       });
     }
     if (a.isRestartLoop) {
       items.push({
         key: 'loop',
-        label: '停止重启循环',
+        label: t('停止重启循环'),
         onSelect: () => void stopRestartLoopOne(c.id, c.name),
       });
     }
     items.push({ key: 'sep1', label: '', separator: true, onSelect: () => {} });
     items.push({
       key: 'logs',
-      label: '查看日志',
+      label: t('查看日志'),
       icon: <FileText size={13} />,
       onSelect: () =>
         openTab({
           id: `logs:${hostId}:${c.id}`,
-          title: `日志 · ${c.name}`,
+          title: t("日志 · {p0}", { p0: c.name }),
           kind: 'logs',
           hostId,
           containerId: c.id,
@@ -328,13 +330,13 @@ export function ComposeProjectPage({
     });
     items.push({
       key: 'term',
-      label: '打开终端',
+      label: t('打开终端'),
       icon: <TermIcon size={13} />,
       disabled: !a.canExec,
       onSelect: () =>
         openTab({
           id: `terminal:${hostId}:${c.id}`,
-          title: `终端 · ${c.name}`,
+          title: t("终端 · {p0}", { p0: c.name }),
           kind: 'terminal',
           hostId,
           containerId: c.id,
@@ -342,12 +344,12 @@ export function ComposeProjectPage({
     });
     items.push({
       key: 'detail',
-      label: '打开详情',
+      label: t('打开详情'),
       icon: <Info size={13} />,
       onSelect: () =>
         openTab({
           id: `containerDetail:${hostId}:${c.id}`,
-          title: `容器: ${c.name}`,
+          title: t("容器: {p0}", { p0: c.name }),
           kind: 'containerDetail',
           hostId,
           containerId: c.id,
@@ -355,7 +357,7 @@ export function ComposeProjectPage({
     });
     items.push({
       key: 'copy',
-      label: '复制容器 ID',
+      label: t('复制容器 ID'),
       icon: <Copy size={13} />,
       onSelect: () => {
         void navigator.clipboard?.writeText(c.id);
@@ -365,20 +367,20 @@ export function ComposeProjectPage({
     items.push({ key: 'sep2', label: '', separator: true, onSelect: () => {} });
     items.push({
       key: 'del',
-      label: '删除…',
+      label: t('删除…'),
       icon: <Trash2 size={13} />,
       danger: true,
       disabled: !a.canRemove,
       onSelect: () => {
         void (async () => {
           const ok = await confirm({
-            title: '删除容器',
-            message: `确认删除容器「${c.name}」？数据卷将一并移除。`,
-            confirmLabel: '删除',
+            title: t('删除容器'),
+            message: t("确认删除容器「{p0}」？数据卷将一并移除。", { p0: c.name }),
+            confirmLabel: t('删除'),
             danger: true,
           });
           if (!ok) return;
-          void action(() => window.dockerApi.removeContainer(hostId, c.id, true), '已删除');
+          void action(() => window.dockerApi.removeContainer(hostId, c.id, true), t('已删除'));
         })();
       },
     });
@@ -391,7 +393,7 @@ export function ComposeProjectPage({
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginRight: 8 }}>
           <button
             className="btn ghost icon-btn"
-            title="返回项目列表"
+            title={t('返回项目列表')}
             onClick={() => {
               const conn = useAppStore.getState().connections.find((c) => c.id === hostId);
               openTab({
@@ -409,7 +411,7 @@ export function ComposeProjectPage({
             <div style={{ fontWeight: 600, color: 'var(--text-bright)' }}>{projectName}</div>
             <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>
               {running}/{containers.length} 个容器运行中
-              {project ? ` · ${project.services.length} 个服务` : ''}
+              {project ? t(" · {p0} 个服务", { p0: project.services.length }) : ''}
             </div>
           </div>
         </div>
@@ -420,9 +422,9 @@ export function ComposeProjectPage({
           className="btn"
           onClick={async () => {
             const ok = await confirm({
-              title: '启动全部容器',
-              message: '确认启动该项目的全部未运行容器？',
-              confirmLabel: '启动',
+              title: t('启动全部容器'),
+              message: t('确认启动该项目的全部未运行容器？'),
+              confirmLabel: t('启动'),
             });
             if (!ok) return;
             await action(
@@ -431,8 +433,8 @@ export function ComposeProjectPage({
                   if (c.state !== 'running') await window.dockerApi.startContainer(hostId, c.id);
                 }
               },
-              '项目已启动',
-              '正在启动全部…'
+              t('项目已启动'),
+              t('正在启动全部…')
             );
           }}
         >
@@ -442,9 +444,9 @@ export function ComposeProjectPage({
           className="btn"
           onClick={async () => {
             const ok = await confirm({
-              title: '停止全部容器',
-              message: '确认停止该项目的全部运行中容器？',
-              confirmLabel: '停止',
+              title: t('停止全部容器'),
+              message: t('确认停止该项目的全部运行中容器？'),
+              confirmLabel: t('停止'),
               danger: true,
             });
             if (!ok) return;
@@ -454,8 +456,8 @@ export function ComposeProjectPage({
                   if (c.state === 'running') await window.dockerApi.stopContainer(hostId, c.id);
                 }
               },
-              '项目已停止',
-              '正在停止全部…'
+              t('项目已停止'),
+              t('正在停止全部…')
             );
           }}
         >
@@ -465,17 +467,17 @@ export function ComposeProjectPage({
           className="btn"
           onClick={async () => {
             const ok = await confirm({
-              title: '重启全部容器',
-              message: '确认重启该项目的全部容器？',
-              confirmLabel: '重启',
+              title: t('重启全部容器'),
+              message: t('确认重启该项目的全部容器？'),
+              confirmLabel: t('重启'),
             });
             if (!ok) return;
             await action(
               async () => {
                 for (const c of containers) await window.dockerApi.restartContainer(hostId, c.id);
               },
-              '项目已重启',
-              '正在重启全部…'
+              t('项目已重启'),
+              t('正在重启全部…')
             );
           }}
         >
@@ -492,7 +494,7 @@ export function ComposeProjectPage({
           onClick={() =>
             openTab({
               id: `composeLogs:${hostId}:${projectName}`,
-              title: `项目日志 · ${projectName}`,
+              title: t("项目日志 · {p0}", { p0: projectName }),
               kind: 'composeLogs',
               hostId,
               projectName,
@@ -504,11 +506,11 @@ export function ComposeProjectPage({
         {checked.size > 0 && (
           <>
             <div style={{ width: 1, height: 18, background: 'var(--border)', margin: '0 4px' }} />
-            <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>已选 {checked.size}</span>
+            <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>{t('已选')}{checked.size}</span>
             <button
               className="btn"
               onClick={() =>
-                void runChecked((id) => window.dockerApi.startContainer(hostId, id), '已启动', '正在启动所选…')
+                void runChecked((id) => window.dockerApi.startContainer(hostId, id), t('已启动'), t('正在启动所选…'))
               }
             >
               <Play size={13} /> 启动
@@ -516,7 +518,7 @@ export function ComposeProjectPage({
             <button
               className="btn"
               onClick={() =>
-                void runChecked((id) => window.dockerApi.stopContainer(hostId, id), '已停止', '正在停止所选…')
+                void runChecked((id) => window.dockerApi.stopContainer(hostId, id), t('已停止'), t('正在停止所选…'))
               }
             >
               <Square size={13} /> 停止
@@ -524,13 +526,13 @@ export function ComposeProjectPage({
             <button
               className="btn"
               onClick={() =>
-                void runChecked((id) => window.dockerApi.restartContainer(hostId, id), '已重启', '正在重启所选…')
+                void runChecked((id) => window.dockerApi.restartContainer(hostId, id), t('已重启'), t('正在重启所选…'))
               }
             >
               <RotateCw size={13} /> 重启
             </button>
             <button className="btn ghost" onClick={() => clearChecked()}>
-              清除选择
+              {t('清除选择')}
             </button>
           </>
         )}
@@ -547,7 +549,7 @@ export function ComposeProjectPage({
                   if (!selected || !cur) return;
                   openTab({
                     id: `logs:${hostId}:${selected}`,
-                    title: `日志 · ${cur.name}`,
+                    title: t("日志 · {p0}", { p0: cur.name }),
                     kind: 'logs',
                     hostId,
                     containerId: selected,
@@ -559,12 +561,12 @@ export function ComposeProjectPage({
               <button
                 className="btn"
                 disabled={!selected || !curActs?.canExec}
-                title={selected && !curActs?.canExec ? '仅运行中的容器可打开终端' : '打开终端'}
+                title={selected && !curActs?.canExec ? t('仅运行中的容器可打开终端') : t('打开终端')}
                 onClick={() => {
                   if (!selected || !cur) return;
                   openTab({
                     id: `terminal:${hostId}:${selected}`,
-                    title: `终端 · ${cur.name}`,
+                    title: t("终端 · {p0}", { p0: cur.name }),
                     kind: 'terminal',
                     hostId,
                     containerId: selected,
@@ -582,10 +584,10 @@ export function ComposeProjectPage({
 
       <div style={{ flex: 1, overflow: 'auto' }}>
         {loading && containers.length === 0 && !error ? (
-          <ListLoading label="正在加载项目服务…" />
+          <ListLoading label={t('正在加载项目服务…')} />
         ) : containers.length === 0 ? (
           <div className="empty-state">
-            <p>该项目下没有容器</p>
+            <p>{t('该项目下没有容器')}</p>
           </div>
         ) : (
           <table className="table">
@@ -605,15 +607,15 @@ export function ComposeProjectPage({
                 <SortableTh label={'容器'} active={sortKey === 'name'} asc={sortAsc} onSort={() => toggleSort('name')} />
                 <SortableTh label={'状态'} active={sortKey === 'state'} asc={sortAsc} onSort={() => toggleSort('state')} />
                 <SortableTh label={'镜像'} active={sortKey === 'image'} asc={sortAsc} onSort={() => toggleSort('image')} />
-                <th>端口</th>
-                <th>操作</th>
+                <th>{t('端口')}</th>
+                <th>{t('操作')}</th>
               </tr>
             </thead>
             <tbody>
               {sorted.map((c) => (
                 <tr
                   key={c.id}
-                  title="双击打开详情"
+                  title={t('双击打开详情')}
                   className={`${selected === c.id ? 'selected' : ''} ${checked.has(c.id) ? 'checked' : ''}`}
                   onClick={(e) => {
                     // ctrl/cmd toggles multi-select; shift selects range; plain click focuses
@@ -638,7 +640,7 @@ export function ComposeProjectPage({
                   onDoubleClick={() =>
                     openTab({
                       id: `containerDetail:${hostId}:${c.id}`,
-                      title: `容器: ${c.name}`,
+                      title: t("容器: {p0}", { p0: c.name }),
                       kind: 'containerDetail',
                       hostId,
                       containerId: c.id,
@@ -681,43 +683,43 @@ export function ComposeProjectPage({
                       onStart={() =>
                         void action(
                           () => window.dockerApi.startContainer(hostId, c.id),
-                          '已启动',
-                          `${c.name}: 正在启动…`
+                          t('已启动'),
+                          t("{p0}: 正在启动…", { p0: c.name })
                         )
                       }
                       onStop={() =>
                         void action(
                           () => window.dockerApi.stopContainer(hostId, c.id),
-                          '已停止',
-                          `${c.name}: 正在停止…`
+                          t('已停止'),
+                          t("{p0}: 正在停止…", { p0: c.name })
                         )
                       }
                       onRestart={() =>
                         void action(
                           () => window.dockerApi.restartContainer(hostId, c.id),
-                          '已重启',
-                          `${c.name}: 正在重启…`
+                          t('已重启'),
+                          t("{p0}: 正在重启…", { p0: c.name })
                         )
                       }
                       onPause={() =>
                         void action(
                           () => window.dockerApi.pauseContainer(hostId, c.id),
-                          '已暂停',
-                          `${c.name}: 正在暂停…`
+                          t('已暂停'),
+                          t("{p0}: 正在暂停…", { p0: c.name })
                         )
                       }
                       onUnpause={() =>
                         void action(
                           () => window.dockerApi.unpauseContainer(hostId, c.id),
-                          '已恢复',
-                          `${c.name}: 正在恢复…`
+                          t('已恢复'),
+                          t("{p0}: 正在恢复…", { p0: c.name })
                         )
                       }
                       onKill={() =>
                         void action(
                           () => window.dockerApi.killContainer(hostId, c.id),
-                          '已强制终止',
-                          `${c.name}: 正在强杀…`
+                          t('已强制终止'),
+                          t("{p0}: 正在强杀…", { p0: c.name })
                         )
                       }
                       onStopRestartLoop={() => void stopRestartLoopOne(c.id, c.name)}
@@ -725,12 +727,12 @@ export function ComposeProjectPage({
                         <>
                           <button
                             className="btn ghost icon-btn"
-                            title="详情"
+                            title={t('详情')}
                             onClick={(e) => {
                               e.stopPropagation();
                               openTab({
                                 id: `containerDetail:${hostId}:${c.id}`,
-                                title: `容器: ${c.name}`,
+                                title: t("容器: {p0}", { p0: c.name }),
                                 kind: 'containerDetail',
                                 hostId,
                                 containerId: c.id,
@@ -741,12 +743,12 @@ export function ComposeProjectPage({
                           </button>
                           <button
                             className="btn ghost icon-btn"
-                            title="日志"
+                            title={t('日志')}
                             onClick={(e) => {
                               e.stopPropagation();
                               openTab({
                                 id: `logs:${hostId}:${c.id}`,
-                                title: `日志 · ${c.name}`,
+                                title: t("日志 · {p0}", { p0: c.name }),
                                 kind: 'logs',
                                 hostId,
                                 containerId: c.id,

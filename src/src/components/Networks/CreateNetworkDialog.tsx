@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { X } from 'lucide-react';
 import type { CreateNetworkOptions } from '../../types/docker';
 import { useModalKeys } from '../../utils/useModalKeys';
+import { t, useT } from '../../i18n';
 
 interface Props {
   hostId: string;
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export function CreateNetworkDialog({ hostId, onClose, onCreated }: Props) {
+  const t = useT();
   const [name, setName] = useState('');
   const [driver, setDriver] = useState('bridge');
   const [internal, setInternal] = useState(false);
@@ -21,7 +23,7 @@ export function CreateNetworkDialog({ hostId, onClose, onCreated }: Props) {
 
   const handleCreate = async () => {
     if (!name.trim()) {
-      setError('请输入网络名称');
+      setError(t('请输入网络名称'));
       return;
     }
     setSaving(true);
@@ -50,7 +52,7 @@ export function CreateNetworkDialog({ hostId, onClose, onCreated }: Props) {
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 480 }}>
         <div className="modal-header">
-          <span>创建网络</span>
+          <span>{t('创建网络')}</span>
           <button className="btn ghost icon-btn" onClick={onClose}>
             <X size={15} />
           </button>
@@ -59,28 +61,28 @@ export function CreateNetworkDialog({ hostId, onClose, onCreated }: Props) {
         <div className="modal-body">
           <div className="form-grid">
             <div className="form-row">
-              <label>名称 *</label>
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="如 my-network" autoFocus />
+              <label>{t('名称 *')}</label>
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t('如 my-network')} autoFocus />
             </div>
             <div className="form-row">
-              <label>驱动</label>
+              <label>{t('驱动')}</label>
               <select value={driver} onChange={(e) => setDriver(e.target.value)}>
-                <option value="bridge">桥接（bridge）</option>
-                <option value="host">主机（host）</option>
-                <option value="overlay">覆盖（overlay）</option>
+                <option value="bridge">{t('桥接（bridge）')}</option>
+                <option value="host">{t('主机（host）')}</option>
+                <option value="overlay">{t('覆盖（overlay）')}</option>
                 <option value="macvlan">macvlan</option>
-                <option value="none">无（none）</option>
+                <option value="none">{t('无（none）')}</option>
               </select>
             </div>
           </div>
 
           <div className="form-grid">
             <div className="form-row">
-              <label>子网 (可选)</label>
+              <label>{t('子网 (可选)')}</label>
               <input value={subnet} onChange={(e) => setSubnet(e.target.value)} placeholder="172.20.0.0/16" />
             </div>
             <div className="form-row">
-              <label>网关 (可选)</label>
+              <label>{t('网关 (可选)')}</label>
               <input value={gateway} onChange={(e) => setGateway(e.target.value)} placeholder="172.20.0.1" />
             </div>
           </div>
@@ -93,7 +95,7 @@ export function CreateNetworkDialog({ hostId, onClose, onCreated }: Props) {
                 onChange={(e) => setInternal(e.target.checked)}
                 style={{ width: 13, height: 13 }}
               />
-              内部网络（不可访问外网）
+              {t('内部网络（不可访问外网）')}
             </label>
             <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 12, textTransform: 'none' }}>
               <input
@@ -102,7 +104,7 @@ export function CreateNetworkDialog({ hostId, onClose, onCreated }: Props) {
                 onChange={(e) => setAttachable(e.target.checked)}
                 style={{ width: 13, height: 13 }}
               />
-              可附加（允许 swarm 服务外挂）
+              {t('可附加（允许 swarm 服务外挂）')}
             </label>
           </div>
 
@@ -124,10 +126,10 @@ export function CreateNetworkDialog({ hostId, onClose, onCreated }: Props) {
 
         <div className="modal-footer">
           <button className="btn" onClick={onClose} disabled={saving}>
-            取消
+            {t('取消')}
           </button>
           <button className="btn primary" onClick={handleCreate} disabled={saving || !name.trim()}>
-            {saving ? '创建中…' : '创建'}
+            {saving ? t('创建中…') : t('创建')}
           </button>
         </div>
       </div>

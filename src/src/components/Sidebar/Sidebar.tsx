@@ -44,6 +44,7 @@ import type { ComposeProject, ContainerSummary, DockerConnectionConfig } from '.
 import { GroupNameDialog } from './GroupNameDialog';
 import { ConnectionBackupDialog } from '../Connection/ConnectionBackupDialog';
 import { ContextMenu, useContextMenu, type ContextMenuItem } from '../common/ContextMenu';
+import { t, useT } from '../../i18n';
 
 interface Props {
   onAddConnection: (groupId?: string) => void;
@@ -69,6 +70,7 @@ async function runSidebarAction(pending: string, ok: string, fn: () => Promise<u
 }
 
 export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDisconnect }: Props) {
+  const t = useT();
   // per-field selectors: any unrelated store change (toasts, other hosts'
   // containers) must not re-render the whole sidebar tree
   const connections = useAppStore((s) => s.connections);
@@ -163,12 +165,12 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
 
   const openView = (hostId: string, kind: 'containers' | 'images' | 'networks' | 'volumes' | 'compose' | 'dashboard') => {
     const titles: Record<string, string> = {
-      containers: '容器',
-      images: '镜像',
-      networks: '网络',
-      volumes: '数据卷',
+      containers: t('容器'),
+      images: t('镜像'),
+      networks: t('网络'),
+      volumes: t('数据卷'),
       compose: 'Docker Compose',
-      dashboard: '仪表板',
+      dashboard: t('仪表板'),
     };
     const conn = connections.find((c) => c.id === hostId);
     openTab({
@@ -198,9 +200,9 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
 
   const removeGroup = async (id: string, name: string) => {
     const ok = await confirm({
-      title: '删除目录',
-      message: `确认删除目录「${name}」？目录下的连接会回到根目录，连接本身不会被删除。`,
-      confirmLabel: '删除',
+      title: t('删除目录'),
+      message: t("确认删除目录「{p0}」？目录下的连接会回到根目录，连接本身不会被删除。", { p0: name }),
+      confirmLabel: t('删除'),
       danger: true,
     });
     if (!ok) return;
@@ -221,8 +223,8 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
       useAppStore.getState().upsertConnection(next);
       useAppStore.getState().toast(
         groupId
-          ? `已移动到「${groups.find((g) => g.id === groupId)?.name || groupId}」`
-          : '已移到根目录',
+          ? t("已移动到「{p0}」", { p0: groups.find((g) => g.id === groupId)?.name || groupId })
+          : t('已移到根目录'),
         'success'
       );
     } catch (err) {
@@ -243,9 +245,9 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
 
     const deleteConnection = async () => {
       const ok = await confirm({
-        title: '删除连接',
-        message: `确认删除连接「${conn.name}」？仅移除配置，不影响远程 Docker 资源。`,
-        confirmLabel: '删除',
+        title: t('删除连接'),
+        message: t("确认删除连接「{p0}」？仅移除配置，不影响远程 Docker 资源。", { p0: conn.name }),
+        confirmLabel: t('删除'),
         danger: true,
       });
       if (!ok) return;
@@ -263,7 +265,7 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
     const composeProjectMenu = (p: ComposeProject): ContextMenuItem[] => [
       {
         key: 'open',
-        label: '打开项目',
+        label: t('打开项目'),
         icon: <Layers size={13} />,
         onSelect: () => {
           selectTree(`compose:${conn.id}:${p.name}`, conn.id);
@@ -278,12 +280,12 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
       },
       {
         key: 'logs',
-        label: '项目日志',
+        label: t('项目日志'),
         icon: <FileText size={13} />,
         onSelect: () =>
           openTab({
             id: `composeLogs:${conn.id}:${p.name}`,
-            title: `项目日志 · ${p.name}`,
+            title: t("项目日志 · {p0}", { p0: p.name }),
             kind: 'composeLogs',
             hostId: conn.id,
             projectName: p.name,
@@ -292,10 +294,10 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
       { key: 'sep1', label: '', separator: true, onSelect: () => {} },
       {
         key: 'start',
-        label: '启动全部',
+        label: t('启动全部'),
         icon: <Play size={13} />,
         onSelect: () =>
-          void runSidebarAction(`正在启动项目 ${p.name}…`, `项目 ${p.name} 已启动`, async () => {
+          void runSidebarAction(t("正在启动项目 {p0}…", { p0: p.name }), t("项目 {p0} 已启动", { p0: p.name }), async () => {
             for (const c of p.containers) {
               if (c.state !== 'running') await window.dockerApi.startContainer(conn.id, c.id);
             }
@@ -303,10 +305,10 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
       },
       {
         key: 'stop',
-        label: '停止全部',
+        label: t('停止全部'),
         icon: <Square size={13} />,
         onSelect: () =>
-          void runSidebarAction(`正在停止项目 ${p.name}…`, `项目 ${p.name} 已停止`, async () => {
+          void runSidebarAction(t("正在停止项目 {p0}…", { p0: p.name }), t("项目 {p0} 已停止", { p0: p.name }), async () => {
             for (const c of p.containers) {
               if (c.state === 'running') await window.dockerApi.stopContainer(conn.id, c.id);
             }
@@ -314,41 +316,41 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
       },
       {
         key: 'restart',
-        label: '重启全部',
+        label: t('重启全部'),
         icon: <RotateCw size={13} />,
         onSelect: () =>
-          void runSidebarAction(`正在重启项目 ${p.name}…`, `项目 ${p.name} 已重启`, async () => {
+          void runSidebarAction(t("正在重启项目 {p0}…", { p0: p.name }), t("项目 {p0} 已重启", { p0: p.name }), async () => {
             for (const c of p.containers) await window.dockerApi.restartContainer(conn.id, c.id);
           }),
       },
       {
         key: 'pull',
-        label: '更新镜像',
+        label: t('更新镜像'),
         icon: <Download size={13} />,
         onSelect: () =>
-          void runSidebarAction(`正在更新 ${p.name} 镜像…`, '镜像已更新', async () => {
+          void runSidebarAction(t("正在更新 {p0} 镜像…", { p0: p.name }), '镜像已更新', async () => {
             const res = await window.dockerApi.composeProjectPull(conn.id, p.name);
-            if (!res.ok) throw new Error(res.output || `更新失败（退出码 ${res.exitCode ?? '-'}）`);
+            if (!res.ok) throw new Error(res.output || t("更新失败（退出码 {p0}）", { p0: res.exitCode ?? '-' }));
           }),
       },
       { key: 'sep2', label: '', separator: true, onSelect: () => {} },
       {
         key: 'down',
-        label: '项目下线…',
+        label: t('项目下线…'),
         icon: <Trash2 size={13} />,
         danger: true,
         onSelect: () =>
           void (async () => {
             const ok = await confirm({
-              title: '项目下线',
-              message: `确认停止并移除项目「${p.name}」的容器？（默认保留数据卷）`,
-              confirmLabel: '下线',
+              title: t('项目下线'),
+              message: t("确认停止并移除项目「{p0}」的容器？（默认保留数据卷）", { p0: p.name }),
+              confirmLabel: t('下线'),
               danger: true,
             });
             if (!ok) return;
             await runSidebarAction(
-              `正在下线项目 ${p.name}…`,
-              `项目 ${p.name} 已下线`,
+              t("正在下线项目 {p0}…", { p0: p.name }),
+              t("项目 {p0} 已下线", { p0: p.name }),
               () => window.dockerApi.composeProjectDown(conn.id, p.name)
             );
           })(),
@@ -365,12 +367,12 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
       const items: ContextMenuItem[] = [
         {
           key: 'detail',
-          label: '打开详情',
+          label: t('打开详情'),
           icon: <Info size={13} />,
           onSelect: () =>
             openTab({
               id: `containerDetail:${conn.id}:${id}`,
-              title: `容器: ${name}`,
+              title: t("容器: {p0}", { p0: name }),
               kind: 'containerDetail',
               hostId: conn.id,
               containerId: id,
@@ -378,12 +380,12 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
         },
         {
           key: 'logs',
-          label: '查看日志',
+          label: t('查看日志'),
           icon: <FileText size={13} />,
           onSelect: () =>
             openTab({
               id: `logs:${conn.id}:${id}`,
-              title: `日志 · ${name}`,
+              title: t("日志 · {p0}", { p0: name }),
               kind: 'logs',
               hostId: conn.id,
               containerId: id,
@@ -391,13 +393,13 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
         },
         {
           key: 'term',
-          label: '打开终端',
+          label: t('打开终端'),
           icon: <TermIcon size={13} />,
           disabled: !a.canExec,
           onSelect: () =>
             openTab({
               id: `terminal:${conn.id}:${id}`,
-              title: `终端 · ${name}`,
+              title: t("终端 · {p0}", { p0: name }),
               kind: 'terminal',
               hostId: conn.id,
               containerId: id,
@@ -409,12 +411,12 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
         if (a.canStart) {
           items.push({
             key: 'start',
-            label: '启动',
+            label: t('启动'),
             icon: <Play size={13} />,
             onSelect: () =>
               void runSidebarAction(
-                `正在启动 ${name}…`,
-                `已启动 ${name}`,
+                t("正在启动 {p0}…", { p0: name }),
+                t("已启动 {p0}", { p0: name }),
                 () => window.dockerApi.startContainer(conn.id, id)
               ),
           });
@@ -422,12 +424,12 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
         if (a.canStop) {
           items.push({
             key: 'stop',
-            label: '停止',
+            label: t('停止'),
             icon: <Square size={13} />,
             onSelect: () =>
               void runSidebarAction(
-                `正在停止 ${name}…`,
-                `已停止 ${name}`,
+                t("正在停止 {p0}…", { p0: name }),
+                t("已停止 {p0}", { p0: name }),
                 () => window.dockerApi.stopContainer(conn.id, id)
               ),
           });
@@ -435,12 +437,12 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
         if (a.canRestart) {
           items.push({
             key: 'restart',
-            label: '重启',
+            label: t('重启'),
             icon: <RotateCw size={13} />,
             onSelect: () =>
               void runSidebarAction(
-                `正在重启 ${name}…`,
-                `已重启 ${name}`,
+                t("正在重启 {p0}…", { p0: name }),
+                t("已重启 {p0}", { p0: name }),
                 () => window.dockerApi.restartContainer(conn.id, id)
               ),
           });
@@ -448,12 +450,12 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
         if (a.canKill) {
           items.push({
             key: 'kill',
-            label: '强制终止',
+            label: t('强制终止'),
             icon: <Skull size={13} />,
             onSelect: () =>
               void runSidebarAction(
-                `正在强制终止 ${name}…`,
-                `已强制终止 ${name}`,
+                t("正在强制终止 {p0}…", { p0: name }),
+                t("已强制终止 {p0}", { p0: name }),
                 () => window.dockerApi.killContainer(conn.id, id)
               ),
           });
@@ -461,12 +463,12 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
         if (a.canPause) {
           items.push({
             key: 'pause',
-            label: '暂停',
+            label: t('暂停'),
             icon: <Pause size={13} />,
             onSelect: () =>
               void runSidebarAction(
-                `正在暂停 ${name}…`,
-                `已暂停 ${name}`,
+                t("正在暂停 {p0}…", { p0: name }),
+                t("已暂停 {p0}", { p0: name }),
                 () => window.dockerApi.pauseContainer(conn.id, id)
               ),
           });
@@ -474,12 +476,12 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
         if (a.canUnpause) {
           items.push({
             key: 'unpause',
-            label: '恢复',
+            label: t('恢复'),
             icon: <PlayCircle size={13} />,
             onSelect: () =>
               void runSidebarAction(
-                `正在恢复 ${name}…`,
-                `已恢复 ${name}`,
+                t("正在恢复 {p0}…", { p0: name }),
+                t("已恢复 {p0}", { p0: name }),
                 () => window.dockerApi.unpauseContainer(conn.id, id)
               ),
           });
@@ -488,7 +490,7 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
       items.push({ key: 'sep2', label: '', separator: true, onSelect: () => {} });
       items.push({
         key: 'copy',
-        label: '复制容器 ID',
+        label: t('复制容器 ID'),
         icon: <Copy size={13} />,
         onSelect: () => {
           void navigator.clipboard?.writeText(id);
@@ -498,19 +500,19 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
       if (a.canRemove) {
         items.push({
           key: 'del',
-          label: '删除…',
+          label: t('删除…'),
           icon: <Trash2 size={13} />,
           danger: true,
           onSelect: () =>
             void (async () => {
               const ok = await confirm({
-                title: '删除容器',
-                message: `确认删除容器「${name}」？数据卷将一并移除。`,
-                confirmLabel: '删除',
+                title: t('删除容器'),
+                message: t("确认删除容器「{p0}」？数据卷将一并移除。", { p0: name }),
+                confirmLabel: t('删除'),
                 danger: true,
               });
               if (!ok) return;
-              await runSidebarAction(`正在删除 ${name}…`, '已删除', () =>
+              await runSidebarAction(t("正在删除 {p0}…", { p0: name }), '已删除', () =>
                 window.dockerApi.removeContainer(conn.id, id, true)
               );
             })(),
@@ -526,7 +528,7 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
     ): ContextMenuItem[] => [
       {
         key: 'open',
-        label: `打开${label}`,
+        label: t("打开{p0}", { p0: label }),
         icon: <ArrowRight size={13} />,
         onSelect: () => {
           selectTree(treeKey, conn.id);
@@ -539,13 +541,13 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
       const items: ContextMenuItem[] = [
         {
           key: 'toggle',
-          label: isExpanded ? '折叠' : '展开',
+          label: isExpanded ? t('折叠') : t('展开'),
           icon: <ChevronsUpDown size={13} />,
           onSelect: () => void handleToggleHost(conn.id),
         },
         {
           key: 'conn',
-          label: st?.connected ? '断开连接' : '连接',
+          label: st?.connected ? t('断开连接') : t('连接'),
           icon: st?.connected ? <PlugZap size={13} /> : <Plug size={13} />,
           onSelect: () => {
             if (st?.connected) void onDisconnect(conn.id);
@@ -555,13 +557,13 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
         { key: 'sep1', label: '', separator: true, onSelect: () => {} },
         {
           key: 'dashboard',
-          label: '打开仪表板',
+          label: t('打开仪表板'),
           icon: <LayoutDashboard size={13} />,
           onSelect: () => {
             selectTree(`host:${conn.id}`, conn.id);
             openTab({
               id: `dashboard:${conn.id}`,
-              title: `仪表板 · ${conn.name}`,
+              title: t("仪表板 · {p0}", { p0: conn.name }),
               kind: 'dashboard',
               hostId: conn.id,
             });
@@ -569,7 +571,7 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
         },
         {
           key: 'containers',
-          label: '打开容器列表',
+          label: t('打开容器列表'),
           icon: <Box size={13} />,
           onSelect: () => openView(conn.id, 'containers'),
         },
@@ -577,12 +579,12 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
           ? [
               {
                 key: 'hostterm' as const,
-                label: '打开主机终端',
+                label: t('打开主机终端'),
                 icon: <TermIcon size={13} />,
                 onSelect: () =>
                   openTab({
                     id: `hostterm:${conn.id}`,
-                    title: `主机终端 · ${conn.name}`,
+                    title: t("主机终端 · {p0}", { p0: conn.name }),
                     kind: 'terminal' as const,
                     hostId: conn.id,
                   }),
@@ -592,14 +594,14 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
         { key: 'sep2', label: '', separator: true, onSelect: () => {} },
         {
           key: 'move',
-          label: '移动到目录',
+          label: t('移动到目录'),
           icon: <FolderInput size={13} />,
           disabled: groups.length === 0,
           onSelect: () => {},
           children: [
             {
               key: 'move-root',
-              label: '根目录',
+              label: t('根目录'),
               disabled: !conn.groupId,
               onSelect: () => void moveToGroup(conn, undefined),
             },
@@ -613,13 +615,13 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
         },
         {
           key: 'edit',
-          label: '编辑连接…',
+          label: t('编辑连接…'),
           icon: <Pencil size={13} />,
           onSelect: () => onEditConnection(conn),
         },
         {
           key: 'del',
-          label: '删除连接…',
+          label: t('删除连接…'),
           icon: <Trash2 size={13} />,
           danger: true,
           onSelect: () => void deleteConnection(),
@@ -642,7 +644,7 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
             selectTree(`host:${conn.id}`, conn.id);
             openTab({
               id: `dashboard:${conn.id}`,
-              title: `仪表板 · ${conn.name}`,
+              title: t("仪表板 · {p0}", { p0: conn.name }),
               kind: 'dashboard',
               hostId: conn.id,
             });
@@ -664,12 +666,12 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
           <span className="label">{conn.name}</span>
           <span
             className={`host-status-dot ${st?.connected ? 'online' : 'offline'}`}
-            title={st?.connected ? '已连接' : st?.error || '未连接'}
+            title={st?.connected ? t('已连接') : st?.error || t('未连接')}
           />
           <button
             className="btn ghost icon-btn"
             style={{ width: 22, height: 22 }}
-            title={st?.connected ? '断开' : '连接'}
+            title={st?.connected ? t('断开') : t('连接')}
             onClick={(e) => {
               e.stopPropagation();
               if (st?.connected) void onDisconnect(conn.id);
@@ -681,7 +683,7 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
           <button
             className="btn ghost icon-btn"
             style={{ width: 22, height: 22 }}
-            title="编辑"
+            title={t('编辑')}
             onClick={(e) => {
               e.stopPropagation();
               onEditConnection(conn);
@@ -692,7 +694,7 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
           <button
             className="btn ghost icon-btn"
             style={{ width: 22, height: 22 }}
-            title="删除"
+            title={t('删除')}
             onClick={async (e) => {
               e.stopPropagation();
               await deleteConnection();
@@ -755,7 +757,7 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
                               if (s.containerId) {
                                 openTab({
                                   id: `containerDetail:${conn.id}:${s.containerId}`,
-                                  title: `容器: ${s.containerName || s.name}`,
+                                  title: t("容器: {p0}", { p0: s.containerName || s.name }),
                                   kind: 'containerDetail',
                                   hostId: conn.id,
                                   containerId: s.containerId,
@@ -814,7 +816,7 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
                       openView(conn.id, 'containers');
                     }}
                     onContextMenu={(e) =>
-                      ctx.open(e, categoryMenu(containersKey, 'containers', '容器列表'))
+                      ctx.open(e, categoryMenu(containersKey, 'containers', t('容器列表')))
                     }
                   >
                     <span
@@ -829,7 +831,7 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
                     <span className="icon">
                       <Box size={14} color="var(--container)" />
                     </span>
-                    <span className="label">容器</span>
+                    <span className="label">{t('容器')}</span>
                     <span className="badge">{loose.length}</span>
                   </div>
                   {containersExpanded &&
@@ -844,7 +846,7 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
                             selectTree(cKey, conn.id);
                             openTab({
                               id: `containerDetail:${conn.id}:${c.id}`,
-                              title: `容器: ${c.name}`,
+                              title: t("容器: {p0}", { p0: c.name }),
                               kind: 'containerDetail',
                               hostId: conn.id,
                               containerId: c.id,
@@ -884,7 +886,7 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
               <span className="icon">
                 <ImageIcon size={14} color="var(--image)" />
               </span>
-              <span className="label">镜像</span>
+              <span className="label">{t('镜像')}</span>
             </div>
 
             <div
@@ -902,7 +904,7 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
               <span className="icon">
                 <Network size={14} color="var(--network)" />
               </span>
-              <span className="label">网络</span>
+              <span className="label">{t('网络')}</span>
             </div>
 
             <div
@@ -920,7 +922,7 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
               <span className="icon">
                 <Database size={14} color="var(--volume)" />
               </span>
-              <span className="label">数据卷</span>
+              <span className="label">{t('数据卷')}</span>
             </div>
           </div>
         )}
@@ -937,19 +939,19 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
   return (
     <div className="sidebar">
       <div className="sidebar-toolbar">
-        <button className="btn ghost icon-btn" title="添加连接" onClick={() => onAddConnection()}>
+        <button className="btn ghost icon-btn" title={t('添加连接')} onClick={() => onAddConnection()}>
           <Plus size={15} />
         </button>
         <button
           className="btn ghost icon-btn"
-          title="新建目录"
+          title={t('新建目录')}
           onClick={() => setGroupDialog({ mode: 'create' })}
         >
           <FolderPlus size={15} />
         </button>
         <button
           className="btn ghost icon-btn"
-          title="刷新"
+          title={t('刷新')}
           onClick={() => {
             for (const c of connections) {
               if (statuses[c.id]?.connected) void refreshHostTree(c.id);
@@ -960,7 +962,7 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
         </button>
         <button
           className="btn ghost icon-btn"
-          title="导入 / 导出连接配置"
+          title={t('导入 / 导出连接配置')}
           onClick={() => setBackupOpen(true)}
         >
           <HardDriveDownload size={14} />
@@ -968,20 +970,20 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
         <div style={{ flex: 1 }} />
         <button
           className="btn ghost icon-btn"
-          title="所有主机的容器（聚合视图）"
+          title={t('所有主机的容器（聚合视图）')}
           onClick={() => {
             selectTree(null, null);
-            openTab({ id: 'aggregateContainers', title: '所有容器', kind: 'aggregateContainers' });
+            openTab({ id: 'aggregateContainers', title: t('所有容器'), kind: 'aggregateContainers' });
           }}
         >
           <Boxes size={15} />
         </button>
         <button
           className="btn ghost icon-btn"
-          title="设置"
+          title={t('设置')}
           onClick={() => {
             selectTree(null, null);
-            openTab({ id: 'settings', title: '设置', kind: 'settings' });
+            openTab({ id: 'settings', title: t('设置'), kind: 'settings' });
           }}
         >
           <Settings size={15} />
@@ -1009,7 +1011,7 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
         {connections.length === 0 && groups.length === 0 && (
           <div className="empty-state" style={{ padding: '32px 16px' }}>
             <Server size={32} strokeWidth={1.2} color="var(--text-muted)" />
-            <div style={{ fontSize: 12 }}>还没有 Docker 连接</div>
+            <div style={{ fontSize: 12 }}>{t('还没有 Docker 连接')}</div>
             <button className="btn primary" onClick={() => onAddConnection()}>
               <Plus size={14} /> 添加连接
             </button>
@@ -1024,25 +1026,25 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
           const groupMenu = (): ContextMenuItem[] => [
             {
               key: 'toggle',
-              label: gExpanded ? '折叠' : '展开',
+              label: gExpanded ? t('折叠') : t('展开'),
               onSelect: () => toggleGroup(group.id),
             },
             {
               key: 'add',
-              label: '在此目录添加连接',
+              label: t('在此目录添加连接'),
               icon: <Plus size={13} />,
               onSelect: () => onAddConnection(group.id),
             },
             { key: 'sep', label: '', separator: true, onSelect: () => {} },
             {
               key: 'rename',
-              label: '重命名目录…',
+              label: t('重命名目录…'),
               icon: <Pencil size={13} />,
               onSelect: () => setGroupDialog({ mode: 'rename', id: group.id, name: group.name }),
             },
             {
               key: 'del',
-              label: '删除目录…',
+              label: t('删除目录…'),
               icon: <Trash2 size={13} />,
               danger: true,
               onSelect: () => void removeGroup(group.id, group.name),
@@ -1094,7 +1096,7 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
                 <button
                   className="btn ghost icon-btn"
                   style={{ width: 22, height: 22 }}
-                  title="重命名"
+                  title={t('重命名')}
                   onClick={(e) => {
                     e.stopPropagation();
                     setGroupDialog({ mode: 'rename', id: group.id, name: group.name });
@@ -1105,7 +1107,7 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
                 <button
                   className="btn ghost icon-btn"
                   style={{ width: 22, height: 22 }}
-                  title="删除目录"
+                  title={t('删除目录')}
                   onClick={(e) => {
                     e.stopPropagation();
                     void removeGroup(group.id, group.name);
@@ -1117,7 +1119,7 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
               {gExpanded && items.map((conn) => renderHost(conn, 22))}
               {gExpanded && items.length === 0 && (
                 <div style={{ padding: '4px 0 4px 38px', fontSize: 11, color: 'var(--text-muted)' }}>
-                  空目录 · 编辑连接可移入
+                  {t('空目录 · 编辑连接可移入')}
                 </div>
               )}
             </div>
@@ -1128,7 +1130,7 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
       {confirmDialog}
       {groupDialog && (
         <GroupNameDialog
-          title={groupDialog.mode === 'create' ? '新建目录' : '重命名目录'}
+          title={groupDialog.mode === 'create' ? t('新建目录') : t('重命名目录')}
           initialName={groupDialog.mode === 'rename' ? groupDialog.name : ''}
           onClose={() => setGroupDialog(null)}
           onSubmit={submitGroup}

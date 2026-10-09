@@ -11,10 +11,12 @@ import { CreateVolumeDialog } from './CreateVolumeDialog';
 import { ContextMenu, useContextMenu, type ContextMenuItem } from '../common/ContextMenu';
 import { ListError, ListLoading } from '../common/ListFeedback';
 import { SortableTh } from '../common/SortableTh';
+import { t, useT } from '../../i18n';
 
 type SortKey = 'name' | 'driver' | 'mountpoint' | 'scope' | 'created';
 
 export function VolumeListPage({ hostId }: { hostId: string }) {
+  const t = useT();
   const toast = useAppStore((s) => s.toast);
   const setRefreshing = useAppStore((s) => s.setRefreshing);
   const containersVersion = useAppStore((s) => s.containersVersion);
@@ -113,9 +115,9 @@ export function VolumeListPage({ hostId }: { hostId: string }) {
 
   const removeOne = async (name: string) => {
     const ok = await confirm({
-      title: '删除数据卷',
-      message: `确认删除数据卷「${name}」？卷中数据将永久丢失。`,
-      confirmLabel: '删除',
+      title: t('删除数据卷'),
+      message: t("确认删除数据卷「{p0}」？卷中数据将永久丢失。", { p0: name }),
+      confirmLabel: t('删除'),
       danger: true,
     });
     if (!ok) return;
@@ -136,9 +138,9 @@ export function VolumeListPage({ hostId }: { hostId: string }) {
 
   const removeMany = async (names: string[]) => {
     const ok = await confirm({
-      title: '批量删除数据卷',
-      message: `确认删除选中的 ${names.length} 个数据卷？卷中数据将永久丢失。`,
-      confirmLabel: '删除',
+      title: t('批量删除数据卷'),
+      message: t("确认删除选中的 {p0} 个数据卷？卷中数据将永久丢失。", { p0: names.length }),
+      confirmLabel: t('删除'),
       danger: true,
     });
     if (!ok) return;
@@ -151,7 +153,7 @@ export function VolumeListPage({ hostId }: { hostId: string }) {
         /* keep going */
       }
     }
-    toast(`已删除 ${okCount}/${names.length} 个数据卷`, okCount === names.length ? 'success' : 'error');
+    toast(t("已删除 {p0}/{p1} 个数据卷", { p0: okCount, p1: names.length }), okCount === names.length ? 'success' : 'error');
     setChecked(new Set());
     setSelected(null);
     await load();
@@ -190,7 +192,7 @@ export function VolumeListPage({ hostId }: { hostId: string }) {
     return [
       {
         key: 'copy',
-        label: '复制卷名',
+        label: t('复制卷名'),
         icon: <Copy size={13} />,
         disabled: multi,
         onSelect: () => {
@@ -200,7 +202,7 @@ export function VolumeListPage({ hostId }: { hostId: string }) {
       },
       {
         key: 'copyPath',
-        label: '复制挂载点',
+        label: t('复制挂载点'),
         disabled: multi,
         onSelect: () => {
           void navigator.clipboard?.writeText(v.mountpoint);
@@ -210,7 +212,7 @@ export function VolumeListPage({ hostId }: { hostId: string }) {
       { key: 'sep', label: '', separator: true, onSelect: () => {} },
       {
         key: 'del',
-        label: multi ? `删除 ${ids.length} 个…` : '删除…',
+        label: multi ? t("删除 {p0} 个…", { p0: ids.length }) : '删除…',
         icon: <Trash2 size={13} />,
         danger: true,
         onSelect: () => void (multi ? removeMany(ids) : removeOne(v.name)),
@@ -245,12 +247,12 @@ export function VolumeListPage({ hostId }: { hostId: string }) {
         {checked.size > 0 && (
           <>
             <div style={{ width: 1, height: 18, background: 'var(--border)', margin: '0 4px' }} />
-            <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>已选 {checked.size}</span>
+            <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>{t('已选')}{checked.size}</span>
             <button className="btn danger" onClick={() => void removeMany([...checked])}>
               <Trash2 size={13} /> 批量删除
             </button>
             <button className="btn ghost" onClick={() => setChecked(new Set())}>
-              清除选择
+              {t('清除选择')}
             </button>
           </>
         )}
@@ -261,7 +263,7 @@ export function VolumeListPage({ hostId }: { hostId: string }) {
             ref={filterRef}
             className="search-input"
             style={{ paddingLeft: 26 }}
-            placeholder="过滤数据卷（Ctrl+F）"
+            placeholder={t('过滤数据卷（Ctrl+F）')}
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
           />
@@ -272,10 +274,10 @@ export function VolumeListPage({ hostId }: { hostId: string }) {
 
       <div style={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
         {loading && list.length === 0 && !error ? (
-          <ListLoading label="正在加载数据卷…" />
+          <ListLoading label={t('正在加载数据卷…')} />
         ) : filtered.length === 0 ? (
           <div className="empty-state">
-            <p>{list.length === 0 ? '暂无数据卷' : '没有匹配的数据卷'}</p>
+            <p>{list.length === 0 ? t('暂无数据卷') : t('没有匹配的数据卷')}</p>
           </div>
         ) : (
           <table className="table">

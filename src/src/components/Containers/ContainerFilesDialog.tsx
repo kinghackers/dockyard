@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { X, Folder, File as FileIcon, RefreshCw, ArrowUp, Download, Upload } from 'lucide-react';
 import { useAppStore } from '../../stores/appStore';
 import { useModalKeys } from '../../utils/useModalKeys';
+import { t, useT } from '../../i18n';
 
 interface Props {
   hostId: string;
@@ -26,6 +27,7 @@ function fmtBytes(n?: number): string {
  * files, upload into the current directory (docker cp-style transfers).
  */
 export function ContainerFilesDialog({ hostId, containerId, onClose }: Props) {
+  const t = useT();
   const toast = useAppStore((s) => s.toast);
   const [dir, setDir] = useState('/');
   const [entries, setEntries] = useState<{ name: string; dir: boolean }[]>([]);
@@ -61,9 +63,9 @@ export function ContainerFilesDialog({ hostId, containerId, onClose }: Props) {
     try {
       const res = await window.dockerApi.downloadContainerFile(hostId, containerId, `${dir}/${name}`);
       if (res.ok) {
-        toast(`已下载 ${name}（${fmtBytes(res.bytes)}）→ ${res.path}`, 'success');
+        toast(t("已下载 {p0}（{p1}）→ {p2}", { p0: name, p1: fmtBytes(res.bytes), p2: res.path }), 'success');
       } else if (!res.canceled) {
-        toast(res.error || '下载失败', 'error');
+        toast(res.error || t('下载失败'), 'error');
       }
     } catch (e) {
       toast(e instanceof Error ? e.message : String(e), 'error');
@@ -77,7 +79,7 @@ export function ContainerFilesDialog({ hostId, containerId, onClose }: Props) {
         toast(`已上传到 ${dir}/${res.path?.replace(/^.*\//, '')}`, 'success');
         await load(dir);
       } else if (!res.canceled) {
-        toast(res.error || '上传失败', 'error');
+        toast(res.error || t('上传失败'), 'error');
       }
     } catch (e) {
       toast(e instanceof Error ? e.message : String(e), 'error');
@@ -88,7 +90,7 @@ export function ContainerFilesDialog({ hostId, containerId, onClose }: Props) {
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 640 }}>
         <div className="modal-header">
-          <span>容器文件 · {containerId.slice(0, 12)}</span>
+          <span>{t('容器文件 ·')}{containerId.slice(0, 12)}</span>
           <button className="btn ghost icon-btn" onClick={onClose}>
             <X size={15} />
           </button>
@@ -98,7 +100,7 @@ export function ContainerFilesDialog({ hostId, containerId, onClose }: Props) {
             <button className="btn ghost icon-btn" title="返回上级" onClick={() => void load(crumbs.length > 1 ? `/${crumbs.slice(0, -1).join('/')}` : '/')} style={{ width: 24, height: 24 }}>
               <ArrowUp size={13} />
             </button>
-            <button className="btn ghost icon-btn" title="刷新" onClick={() => void load(dir)} disabled={loading} style={{ width: 24, height: 24 }}>
+            <button className="btn ghost icon-btn" title={t('刷新')} onClick={() => void load(dir)} disabled={loading} style={{ width: 24, height: 24 }}>
               <RefreshCw size={13} className={loading ? 'spinner' : ''} />
             </button>
             <span className="mono" style={{ fontSize: 12, color: 'var(--text-bright)', wordBreak: 'break-all' }}>
@@ -121,7 +123,7 @@ export function ContainerFilesDialog({ hostId, containerId, onClose }: Props) {
               ))}
             </span>
             <div style={{ flex: 1 }} />
-            <button className="btn" onClick={() => void upload()} title="上传文件到当前目录">
+            <button className="btn" onClick={() => void upload()} title={t('上传文件到当前目录')}>
               <Upload size={13} /> 上传
             </button>
           </div>
@@ -130,17 +132,17 @@ export function ContainerFilesDialog({ hostId, containerId, onClose }: Props) {
             <div className="list-error" style={{ margin: 0 }}>
               <span style={{ flex: 1 }}>{error}</span>
               <button className="btn" style={{ height: 24 }} onClick={() => void load(dir)}>
-                重试
+                {t('重试')}
               </button>
             </div>
           ) : loading && entries.length === 0 ? (
             <div style={{ padding: 20, color: 'var(--text-dim)', fontSize: 12, textAlign: 'center' }}>
-              正在读取目录…
+              {t('正在读取目录…')}
             </div>
           ) : (
             <div style={{ border: '1px solid var(--border)', borderRadius: 4, maxHeight: '55vh', overflow: 'auto' }}>
               {entries.length === 0 && (
-                <div style={{ padding: 16, color: 'var(--text-muted)', fontSize: 12 }}>空目录</div>
+                <div style={{ padding: 16, color: 'var(--text-muted)', fontSize: 12 }}>{t('空目录')}</div>
               )}
               {entries.map((e) => (
                 <div
@@ -170,14 +172,14 @@ export function ContainerFilesDialog({ hostId, containerId, onClose }: Props) {
                       color: e.dir ? 'var(--text-link)' : 'var(--text)',
                     }}
                     onClick={() => e.dir && void load(`${dir === '/' ? '' : dir}/${e.name}`)}
-                    title={e.dir ? '进入目录' : e.name}
+                    title={e.dir ? t('进入目录') : e.name}
                   >
                     {e.name}
                   </span>
                   {!e.dir && (
                     <button
                       className="btn ghost icon-btn"
-                      title="下载到本机"
+                      title={t('下载到本机')}
                       style={{ width: 22, height: 22 }}
                       onClick={() => void download(e.name)}
                     >
@@ -189,7 +191,7 @@ export function ContainerFilesDialog({ hostId, containerId, onClose }: Props) {
             </div>
           )}
           <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-            目录支持导航；文件可下载到本机、可上传到当前目录。需要容器内有 sh。
+            {t('目录支持导航；文件可下载到本机、可上传到当前目录。需要容器内有 sh。')}
           </div>
         </div>
       </div>

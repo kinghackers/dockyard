@@ -4,6 +4,7 @@ import { useAppStore } from '../../stores/appStore';
 import { useHotkeys } from '../../utils/useHotkeys';
 import { detectLogLevel } from '../../utils/logLevel';
 import { loadUiPref } from '../../utils/uiPrefs';
+import { t, useT } from '../../i18n';
 
 /** rolling buffer cap — read live so settings.logMaxLines changes apply without restart */
 const logCap = () => loadUiPref('settings.logMaxLines', 8000);
@@ -50,6 +51,7 @@ const LogLine = memo(function LogLine({ line, q }: { line: string; q: string }) 
 });
 
 export function LogViewerPage({ hostId, containerId }: { hostId: string; containerId: string }) {
+  const t = useT();
   const toast = useAppStore((s) => s.toast);
   const [lines, setLines] = useState<string[]>([]);
   const [paused, setPaused] = useState(false);
@@ -196,8 +198,8 @@ export function LogViewerPage({ hostId, containerId }: { hostId: string; contain
     URL.revokeObjectURL(url);
     toast(
       logFilter.trim()
-        ? `已按当前过滤导出 ${visibleLines.length}/${lines.length} 行`
-        : `已导出 ${lines.length} 行日志`,
+        ? t("已按当前过滤导出 {p0}/{p1} 行", { p0: visibleLines.length, p1: lines.length })
+        : t("已导出 {p0} 行日志", { p0: lines.length }),
       'success'
     );
   };
@@ -239,7 +241,7 @@ export function LogViewerPage({ hostId, containerId }: { hostId: string; contain
           <RefreshCw size={14} /> 重新加载
         </button>
         <button className={`btn ${paused ? 'primary' : ''}`} onClick={() => setPaused(!paused)}>
-          {paused ? '恢复滚动' : '暂停'}
+          {paused ? t('恢复滚动') : t('暂停')}
         </button>
         <button className="btn" onClick={exportLog}>
           <Download size={13} /> 导出
@@ -260,7 +262,7 @@ export function LogViewerPage({ hostId, containerId }: { hostId: string; contain
             ref={filterRef}
             className="search-input"
             style={{ paddingLeft: 26, width: 180 }}
-            placeholder="过滤日志，支持 /正则/（Ctrl+F）"
+            placeholder={t('过滤日志，支持 /正则/（Ctrl+F）')}
             value={logFilter}
             onChange={(e) => setLogFilter(e.target.value)}
             onKeyDown={(e) => {
@@ -274,7 +276,7 @@ export function LogViewerPage({ hostId, containerId }: { hostId: string; contain
             <button
               className="btn ghost icon-btn"
               style={{ position: 'absolute', right: 2, top: 2, width: 22, height: 22 }}
-              title="清除过滤"
+              title={t('清除过滤')}
               onClick={() => {
                 setLogFilter('');
                 filterRef.current?.focus();
@@ -300,16 +302,16 @@ export function LogViewerPage({ hostId, containerId }: { hostId: string; contain
           }}
         >
           <Radio size={12} />
-          {status === 'connecting' && '连接中…'}
-          {status === 'live' && (paused ? '已暂停滚动 · 仍在接收' : '实时跟随中')}
-          {status === 'ended' && '流已结束，正在重连…'}
-          {status === 'error' && `错误: ${error || '未知'}`}
+          {status === 'connecting' && t('连接中…')}
+          {status === 'live' && (paused ? t('已暂停滚动 · 仍在接收') : t('实时跟随中'))}
+          {status === 'ended' && t('流已结束，正在重连…')}
+          {status === 'error' && t('错误: {p0}', { p0: error || t('未知') })}
         </span>
         <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 8 }}>
           {logFilter.trim()
-            ? `${matchCount}/${lines.length} 行匹配`
-            : `${lines.length} 行`}
-          {buffer.length > 0 ? ` · 暂停中 +${buffer.length}` : ''}
+            ? t("{p0}/{p1} 行匹配", { p0: matchCount, p1: lines.length })
+            : t("{p0} 行", { p0: lines.length })}
+          {buffer.length > 0 ? t(" · 暂停中 +{p0}", { p0: buffer.length }) : ''}
         </span>
       </div>
 
@@ -322,11 +324,11 @@ export function LogViewerPage({ hostId, containerId }: { hostId: string; contain
       <div ref={bodyRef} className="log-view" style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
         {lines.length === 0 && (
           <div style={{ color: 'var(--text-muted)', padding: 12 }}>
-            {status === 'connecting' ? '正在获取日志…' : '等待日志输出…'}
+            {status === 'connecting' ? t('正在获取日志…') : t('等待日志输出…')}
           </div>
         )}
         {lines.length > 0 && visibleLines.length === 0 && (
-          <div style={{ color: 'var(--text-muted)', padding: 12 }}>没有匹配的日志行</div>
+          <div style={{ color: 'var(--text-muted)', padding: 12 }}>{t('没有匹配的日志行')}</div>
         )}
         {visibleLines.map((line, i) => (
           <LogLine key={i} line={line} q={highlightQuery} />

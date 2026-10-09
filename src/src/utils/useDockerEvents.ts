@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useAppStore } from '../stores/appStore';
 import { loadUiPref } from './uiPrefs';
 import type { DockerEvent } from '../types/docker';
+import { t, useT } from '../i18n';
 
 /** Events that mean a list (containers / images / networks / volumes) should refresh. */
 const REFRESH_ACTIONS = new Set([
@@ -113,7 +114,7 @@ export function useDockerEvents() {
               .filter(Boolean)
               .some((k) => Date.now() - (deliberateStopAtRef.current[stopKey(String(k))] || 0) < DELIBERATE_STOP_WINDOW_MS);
           if (!stoppedDeliberately && exitCode !== undefined && String(exitCode) !== '0' && e.name) {
-            window.dockerApi.notify(`容器异常退出：${e.name}`, `退出码 ${exitCode}`);
+            window.dockerApi.notify(t("容器异常退出：{p0}", { p0: e.name }), t("退出码 {p0}", { p0: exitCode }));
           }
         }
       }
@@ -129,7 +130,7 @@ export function useDockerEvents() {
       if (now - last < STREAM_ERROR_TOAST_MS) return;
       streamErrorAtRef.current[hostId] = now;
       const name = useAppStore.getState().connections.find((c) => c.id === hostId)?.name || hostId;
-      useAppStore.getState().toast(`事件流中断，正在自动重连（${name}）：${error}`, 'error');
+      useAppStore.getState().toast(t("事件流中断，正在自动重连（{p0}）：{p1}", { p0: name, p1: error }), 'error');
     };
 
     // one shared listener — openEvents streams all feed the same channel

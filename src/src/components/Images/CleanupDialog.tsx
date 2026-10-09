@@ -3,6 +3,7 @@ import { X, Loader2, Trash2, HardDrive } from 'lucide-react';
 import { useAppStore } from '../../stores/appStore';
 import { useConfirm } from '../../utils/useConfirm';
 import { useModalKeys } from '../../utils/useModalKeys';
+import { t, useT } from '../../i18n';
 
 interface Props {
   /** omit on multi-host surfaces (home): the dialog shows a host picker */
@@ -27,6 +28,7 @@ function fmtBytes(n?: number): string {
 
 /** Disk cleanup wizard: docker system df + selective prune. */
 export function CleanupDialog({ hostId, onClose, onDone }: Props) {
+  const t = useT();
   const toast = useAppStore((s) => s.toast);
   const connections = useAppStore((s) => s.connections);
   const statuses = useAppStore((s) => s.statuses);
@@ -65,9 +67,9 @@ export function CleanupDialog({ hostId, onClose, onDone }: Props) {
     try {
       if (unusedVolumes) {
         const ok = await confirm({
-          title: '删除未使用的数据卷',
-          message: '未使用的数据卷将被永久删除，卷内数据无法恢复。确认继续？',
-          confirmLabel: '删除数据卷',
+          title: t('删除未使用的数据卷'),
+          message: t('未使用的数据卷将被永久删除，卷内数据无法恢复。确认继续？'),
+          confirmLabel: t('删除数据卷'),
           danger: true,
         });
         if (!ok) {
@@ -83,12 +85,12 @@ export function CleanupDialog({ hostId, onClose, onDone }: Props) {
         buildCache,
       });
       const parts: string[] = [];
-      if (danglingImages) parts.push(`${res.imagesDeleted} 个悬空镜像`);
-      if (stoppedContainers) parts.push(`${res.containersDeleted} 个已停止容器`);
-      if (unusedNetworks) parts.push(`${res.networksDeleted} 个网络`);
-      if (unusedVolumes) parts.push(`${res.volumesDeleted} 个数据卷`);
-      if (buildCache) parts.push(`构建缓存 ${fmtBytes(res.buildCacheBytes)}`);
-      toast(parts.length ? `已清理：${parts.join('、')}` : '未选择任何清理项', parts.length ? 'success' : 'info');
+      if (danglingImages) parts.push(t("{p0} 个悬空镜像", { p0: res.imagesDeleted }));
+      if (stoppedContainers) parts.push(t("{p0} 个已停止容器", { p0: res.containersDeleted }));
+      if (unusedNetworks) parts.push(t("{p0} 个网络", { p0: res.networksDeleted }));
+      if (unusedVolumes) parts.push(t("{p0} 个数据卷", { p0: res.volumesDeleted }));
+      if (buildCache) parts.push(t("构建缓存 {p0}", { p0: fmtBytes(res.buildCacheBytes) }));
+      toast(parts.length ? t("已清理：{p0}", { p0: parts.join('、') }) : '未选择任何清理项', parts.length ? 'success' : 'info');
       await onDone();
       onClose();
     } catch (e) {
@@ -145,9 +147,9 @@ export function CleanupDialog({ hostId, onClose, onDone }: Props) {
           <div className="modal-body">
             {!hostId && (
               <div className="form-row" style={{ maxWidth: 320 }}>
-                <label>Docker 主机</label>
+                <label>{t('Docker 主机')}</label>
                 <select value={pickedHost} onChange={(e) => setPickedHost(e.target.value)} disabled={busy}>
-                  {connectedHosts.length === 0 && <option value="">（无已连接主机）</option>}
+                  {connectedHosts.length === 0 && <option value="">{t('（无已连接主机）')}</option>}
                   {connectedHosts.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name}
@@ -160,7 +162,7 @@ export function CleanupDialog({ hostId, onClose, onDone }: Props) {
               <div style={{ color: 'var(--error)', fontSize: 12, padding: '8px 0' }}>
                 获取磁盘占用失败：{error}
                 <button className="btn" style={{ marginLeft: 10, height: 24 }} onClick={() => void load()}>
-                  重试
+                  {t('重试')}
                 </button>
               </div>
             ) : !df ? (
@@ -177,26 +179,26 @@ export function CleanupDialog({ hostId, onClose, onDone }: Props) {
                   {row(
                     danglingImages,
                     setDanglingImages,
-                    '悬空镜像（无标签且未被使用）',
-                    `${df.danglingImages} 个 · ${fmtBytes(df.danglingImageBytes)}`
+                    t('悬空镜像（无标签且未被使用）'),
+                    t("{p0} 个 · {p1}", { p0: df.danglingImages, p1: fmtBytes(df.danglingImageBytes) })
                   )}
                   {row(
                     stoppedContainers,
                     setStoppedContainers,
-                    '已停止的容器',
-                    `${df.stoppedContainers} 个 · ${fmtBytes(df.stoppedContainerBytes)}`
+                    t('已停止的容器'),
+                    t("{p0} 个 · {p1}", { p0: df.stoppedContainers, p1: fmtBytes(df.stoppedContainerBytes) })
                   )}
-                  {row(unusedNetworks, setUnusedNetworks, '未使用的网络', '数量由守护进程决定')}
-                  {row(buildCache, setBuildCache, '构建缓存（docker build 中间层）', '按占用空间回收')}
+                  {row(unusedNetworks, setUnusedNetworks, t('未使用的网络'), t('数量由守护进程决定'))}
+                  {row(buildCache, setBuildCache, t('构建缓存（docker build 中间层）'), t('按占用空间回收'))}
                   {row(
                     unusedVolumes,
                     setUnusedVolumes,
-                    '未使用的数据卷（危险）',
-                    `${df.unusedVolumes} 个 · ${fmtBytes(df.unusedVolumeBytes)}`
+                    t('未使用的数据卷（危险）'),
+                    t("{p0} 个 · {p1}", { p0: df.unusedVolumes, p1: fmtBytes(df.unusedVolumeBytes) })
                   )}
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 10, lineHeight: 1.6 }}>
-                  清理操作不可撤销；正在运行容器使用的资源不会被删除。
+                  {t('清理操作不可撤销；正在运行容器使用的资源不会被删除。')}
                 </div>
               </>
             )}
@@ -204,7 +206,7 @@ export function CleanupDialog({ hostId, onClose, onDone }: Props) {
           <div className="modal-footer">
             <div style={{ flex: 1 }} />
             <button className="btn" onClick={onClose} disabled={busy}>
-              取消
+              {t('取消')}
             </button>
             <button
               className="btn danger"

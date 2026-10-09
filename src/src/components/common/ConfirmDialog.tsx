@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { AlertTriangle, X } from 'lucide-react';
+import { t, useT } from '../../i18n';
 
 interface Props {
   title: string;
@@ -17,11 +18,12 @@ interface Props {
 export function ConfirmDialog({
   title,
   message,
-  confirmLabel = '确定',
+  confirmLabel = t('确定'),
   danger = false,
   onConfirm,
   onCancel,
 }: Props) {
+  const t = useT();
   const initialFocusRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -67,7 +69,7 @@ export function ConfirmDialog({
             className="btn"
             onClick={onCancel}
           >
-            取消
+            {t('取消')}
           </button>
           <button
             ref={danger ? undefined : initialFocusRef}

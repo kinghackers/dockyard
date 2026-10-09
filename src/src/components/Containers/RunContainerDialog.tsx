@@ -8,6 +8,7 @@ import type {
   VolumeMountSpec,
 } from '../../types/docker';
 import { useModalKeys } from '../../utils/useModalKeys';
+import { t, useT } from '../../i18n';
 
 interface Props {
   hostId: string;
@@ -23,13 +24,14 @@ interface PairRow {
 }
 
 const RESTART_POLICIES = [
-  { value: 'no', label: '不自动重启' },
-  { value: 'on-failure', label: '失败时重启' },
-  { value: 'always', label: '总是重启' },
-  { value: 'unless-stopped', label: '除非手动停止' },
+  { value: 'no', label: t('不自动重启') },
+  { value: 'on-failure', label: t('失败时重启') },
+  { value: 'always', label: t('总是重启') },
+  { value: 'unless-stopped', label: t('除非手动停止') },
 ] as const;
 
 export function RunContainerDialog({ hostId, initialImage, onClose, onCreated }: Props) {
+  const t = useT();
   const [images, setImages] = useState<ImageSummary[]>([]);
   const [networks, setNetworks] = useState<NetworkSummary[]>([]);
   const [image, setImage] = useState(initialImage || '');
@@ -114,7 +116,7 @@ export function RunContainerDialog({ hostId, initialImage, onClose, onCreated }:
 
   const handleCreate = async () => {
     if (!image.trim()) {
-      setError('请选择或输入镜像');
+      setError(t('请选择或输入镜像'));
       return;
     }
     setSaving(true);
@@ -135,7 +137,7 @@ export function RunContainerDialog({ hostId, initialImage, onClose, onCreated }:
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 640 }}>
         <div className="modal-header">
-          <span>创建并运行容器</span>
+          <span>{t('创建并运行容器')}</span>
           <button className="btn ghost icon-btn" onClick={onClose}>
             <X size={15} />
           </button>
@@ -144,7 +146,7 @@ export function RunContainerDialog({ hostId, initialImage, onClose, onCreated }:
         <div className="modal-body">
           <div className="form-grid">
             <div className="form-row">
-              <label>镜像 *</label>
+              <label>{t('镜像 *')}</label>
               <input
                 list="run-container-images"
                 value={image}
@@ -158,20 +160,20 @@ export function RunContainerDialog({ hostId, initialImage, onClose, onCreated }:
               </datalist>
             </div>
             <div className="form-row">
-              <label>容器名称</label>
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="留空自动生成" />
+              <label>{t('容器名称')}</label>
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t('留空自动生成')} />
             </div>
           </div>
 
           <div className="form-grid">
             <div className="form-row">
-              <label>启动命令</label>
-              <input value={cmd} onChange={(e) => setCmd(e.target.value)} placeholder="留空使用镜像默认 CMD" />
+              <label>{t('启动命令')}</label>
+              <input value={cmd} onChange={(e) => setCmd(e.target.value)} placeholder={t('留空使用镜像默认 CMD')} />
             </div>
             <div className="form-row">
-              <label>网络</label>
+              <label>{t('网络')}</label>
               <select value={network} onChange={(e) => setNetwork(e.target.value)}>
-                <option value="">默认（桥接）</option>
+                <option value="">{t('默认（桥接）')}</option>
                 {networks.map((n) => (
                   <option key={n.id} value={n.name}>
                     {n.name}（{n.driver}）
@@ -183,7 +185,7 @@ export function RunContainerDialog({ hostId, initialImage, onClose, onCreated }:
 
           <div className="form-grid">
             <div className="form-row">
-              <label>重启策略</label>
+              <label>{t('重启策略')}</label>
               <select
                 value={restartPolicy || 'no'}
                 onChange={(e) => setRestartPolicy(e.target.value as CreateContainerOptions['restartPolicy'])}
@@ -196,18 +198,18 @@ export function RunContainerDialog({ hostId, initialImage, onClose, onCreated }:
               </select>
             </div>
             <div className="form-row">
-              <label>工作目录</label>
+              <label>{t('工作目录')}</label>
               <input value={workingDir} onChange={(e) => setWorkingDir(e.target.value)} placeholder="/app" />
             </div>
           </div>
 
           <div className="form-grid">
             <div className="form-row">
-              <label>用户</label>
+              <label>{t('用户')}</label>
               <input value={user} onChange={(e) => setUser(e.target.value)} placeholder="root" />
             </div>
             <div className="form-row">
-              <label>选项</label>
+              <label>{t('选项')}</label>
               <div style={{ display: 'flex', gap: 12, alignItems: 'center', paddingTop: 4 }}>
                 <label style={{ display: 'flex', gap: 6, alignItems: 'center', textTransform: 'none', fontSize: 12 }}>
                   <input
@@ -216,7 +218,7 @@ export function RunContainerDialog({ hostId, initialImage, onClose, onCreated }:
                     onChange={(e) => setStartNow(e.target.checked)}
                     style={{ width: 13, height: 13 }}
                   />
-                  创建后启动
+                  {t('创建后启动')}
                 </label>
                 <label style={{ display: 'flex', gap: 6, alignItems: 'center', textTransform: 'none', fontSize: 12 }}>
                   <input
@@ -225,7 +227,7 @@ export function RunContainerDialog({ hostId, initialImage, onClose, onCreated }:
                     onChange={(e) => setPrivileged(e.target.checked)}
                     style={{ width: 13, height: 13 }}
                   />
-                  特权
+                  {t('特权')}
                 </label>
                 <label style={{ display: 'flex', gap: 6, alignItems: 'center', textTransform: 'none', fontSize: 12 }}>
                   <input
@@ -234,7 +236,7 @@ export function RunContainerDialog({ hostId, initialImage, onClose, onCreated }:
                     onChange={(e) => setAutoRemove(e.target.checked)}
                     style={{ width: 13, height: 13 }}
                   />
-                  退出后删除
+                  {t('退出后删除')}
                 </label>
               </div>
             </div>
@@ -243,7 +245,7 @@ export function RunContainerDialog({ hostId, initialImage, onClose, onCreated }:
           {/* ports */}
           <div className="form-row">
             <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              端口映射
+              {t('端口映射')}
               <button
                 className="btn ghost"
                 style={{ height: 22, fontSize: 11 }}
@@ -262,7 +264,7 @@ export function RunContainerDialog({ hostId, initialImage, onClose, onCreated }:
                     next[i] = { ...p, publicPort: Number(e.target.value) || undefined };
                     setPorts(next);
                   }}
-                  placeholder="主机端口"
+                  placeholder={t('主机端口')}
                 />
                 <input
                   type="number"
@@ -272,7 +274,7 @@ export function RunContainerDialog({ hostId, initialImage, onClose, onCreated }:
                     next[i] = { ...p, privatePort: Number(e.target.value) || 0 };
                     setPorts(next);
                   }}
-                  placeholder="容器端口"
+                  placeholder={t('容器端口')}
                 />
                 <select
                   value={p.type}
@@ -288,7 +290,7 @@ export function RunContainerDialog({ hostId, initialImage, onClose, onCreated }:
                 <button
                   className="btn ghost icon-btn"
                   onClick={() => setPorts(ports.filter((_, j) => j !== i))}
-                  title="删除"
+                  title={t('删除')}
                 >
                   <Trash2 size={13} />
                 </button>
@@ -299,7 +301,7 @@ export function RunContainerDialog({ hostId, initialImage, onClose, onCreated }:
           {/* volumes */}
           <div className="form-row">
             <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              卷 / 挂载
+              {t('卷 / 挂载')}
               <button
                 className="btn ghost"
                 style={{ height: 22, fontSize: 11 }}
@@ -317,7 +319,7 @@ export function RunContainerDialog({ hostId, initialImage, onClose, onCreated }:
                     next[i] = { ...v, source: e.target.value };
                     setVolumes(next);
                   }}
-                  placeholder="主机路径或卷名"
+                  placeholder={t('主机路径或卷名')}
                 />
                 <input
                   value={v.destination}
@@ -326,7 +328,7 @@ export function RunContainerDialog({ hostId, initialImage, onClose, onCreated }:
                     next[i] = { ...v, destination: e.target.value };
                     setVolumes(next);
                   }}
-                  placeholder="容器路径"
+                  placeholder={t('容器路径')}
                 />
                 <label
                   style={{
@@ -348,12 +350,12 @@ export function RunContainerDialog({ hostId, initialImage, onClose, onCreated }:
                     }}
                     style={{ width: 12, height: 12 }}
                   />
-                  只读
+                  {t('只读')}
                 </label>
                 <button
                   className="btn ghost icon-btn"
                   onClick={() => setVolumes(volumes.filter((_, j) => j !== i))}
-                  title="删除"
+                  title={t('删除')}
                 >
                   <Trash2 size={13} />
                 </button>
@@ -364,7 +366,7 @@ export function RunContainerDialog({ hostId, initialImage, onClose, onCreated }:
           {/* env */}
           <div className="form-row">
             <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              环境变量
+              {t('环境变量')}
               <button
                 className="btn ghost"
                 style={{ height: 22, fontSize: 11 }}
@@ -382,7 +384,7 @@ export function RunContainerDialog({ hostId, initialImage, onClose, onCreated }:
                     next[i] = { ...e, key: ev.target.value };
                     setEnv(next);
                   }}
-                  placeholder="变量名"
+                  placeholder={t('变量名')}
                 />
                 <input
                   value={e.value}
@@ -391,12 +393,12 @@ export function RunContainerDialog({ hostId, initialImage, onClose, onCreated }:
                     next[i] = { ...e, value: ev.target.value };
                     setEnv(next);
                   }}
-                  placeholder="变量值"
+                  placeholder={t('变量值')}
                 />
                 <button
                   className="btn ghost icon-btn"
                   onClick={() => setEnv(env.filter((_, j) => j !== i))}
-                  title="删除"
+                  title={t('删除')}
                 >
                   <Trash2 size={13} />
                 </button>
@@ -422,10 +424,10 @@ export function RunContainerDialog({ hostId, initialImage, onClose, onCreated }:
 
         <div className="modal-footer">
           <button className="btn" onClick={onClose} disabled={saving}>
-            取消
+            {t('取消')}
           </button>
           <button className="btn primary" onClick={handleCreate} disabled={saving || !image.trim()}>
-            {saving ? '创建中…' : startNow ? '创建并运行' : '创建'}
+            {saving ? t('创建中…') : startNow ? t('创建并运行') : t('创建')}
           </button>
         </div>
       </div>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X } from 'lucide-react';
 import { useModalKeys } from '../../utils/useModalKeys';
+import { t, useT } from '../../i18n';
 
 interface Props {
   title: string;
@@ -18,10 +19,11 @@ export function InputDialog({
   label,
   initial = '',
   placeholder,
-  confirmLabel = '确定',
+  confirmLabel = t('确定'),
   onSubmit,
   onClose,
 }: Props) {
+  const t = useT();
   const [value, setValue] = useState(initial);
   const [saving, setSaving] = useState(false);
 
@@ -60,10 +62,10 @@ export function InputDialog({
         <div className="modal-footer">
           <div style={{ flex: 1 }} />
           <button className="btn" onClick={onClose} disabled={saving}>
-            取消
+            {t('取消')}
           </button>
           <button className="btn primary" onClick={() => void submit()} disabled={saving || !value.trim()}>
-            {saving ? '处理中…' : confirmLabel}
+            {saving ? t('处理中…') : confirmLabel}
           </button>
         </div>
       </div>

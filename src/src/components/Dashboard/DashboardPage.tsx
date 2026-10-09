@@ -15,6 +15,7 @@ import { useAppStore } from '../../stores/appStore';
 import { formatBuildLabel } from '../../utils/buildInfo';
 import { usePolling } from '../../hooks/usePolling';
 import { loadUiPref } from '../../utils/uiPrefs';
+import { t, useT } from '../../i18n';
 
 function fmtBytes(n: number): string {
   if (!n || n < 0) return '0 B';
@@ -50,12 +51,12 @@ function detectProblems(list: ContainerSummary[]): Problem[] {
         id: c.id,
         name: c.name,
         level: 'error',
-        reason: '自动重启中（可能是崩溃循环）',
+        reason: t('自动重启中（可能是崩溃循环）'),
       });
       continue;
     }
     if (/\(unhealthy\)/i.test(st)) {
-      out.push({ id: c.id, name: c.name, level: 'error', reason: '健康检查失败' });
+      out.push({ id: c.id, name: c.name, level: 'error', reason: t('健康检查失败') });
       continue;
     }
     const ex = st.match(/Exited\s*\((-?\d+)\)/i);
@@ -64,36 +65,36 @@ function detectProblems(list: ContainerSummary[]): Problem[] {
         id: c.id,
         name: c.name,
         level: 'warning',
-        reason: `异常退出（退出码 ${ex[1]}）`,
+        reason: t("异常退出（退出码 {p0}）", { p0: ex[1] }),
       });
       continue;
     }
     if (/\(health:\s*starting\)/i.test(st) && c.state === 'running') {
-      out.push({ id: c.id, name: c.name, level: 'warning', reason: '健康检查中' });
+      out.push({ id: c.id, name: c.name, level: 'warning', reason: t('健康检查中') });
     }
   }
   return out;
 }
 
 const EVENT_LABEL: Record<string, string> = {
-  'container.start': '启动',
-  'container.stop': '停止',
-  'container.die': '退出',
-  'container.kill': '强制终止',
-  'container.restart': '重启',
-  'container.destroy': '删除',
-  'container.create': '创建',
-  'container.pause': '暂停',
-  'container.unpause': '恢复',
-  'container.rename': '重命名',
-  'image.pull': '拉取镜像',
-  'image.tag': '镜像打标签',
-  'image.untag': '取消标签',
-  'image.delete': '删除镜像',
-  'volume.create': '创建卷',
-  'volume.destroy': '删除卷',
-  'network.create': '创建网络',
-  'network.destroy': '删除网络',
+  'container.start': t('启动'),
+  'container.stop': t('停止'),
+  'container.die': t('退出'),
+  'container.kill': t('强制终止'),
+  'container.restart': t('重启'),
+  'container.destroy': t('删除'),
+  'container.create': t('创建'),
+  'container.pause': t('暂停'),
+  'container.unpause': t('恢复'),
+  'container.rename': t('重命名'),
+  'image.pull': t('拉取镜像'),
+  'image.tag': t('镜像打标签'),
+  'image.untag': t('取消标签'),
+  'image.delete': t('删除镜像'),
+  'volume.create': t('创建卷'),
+  'volume.destroy': t('删除卷'),
+  'network.create': t('创建网络'),
+  'network.destroy': t('删除网络'),
 };
 
 function fmtEventTime(ts: number) {
@@ -107,7 +108,7 @@ function Sparkline({ points, color, height = 38 }: { points: number[]; color: st
   if (points.length < 2) {
     return (
       <div style={{ height, fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}>
-        趋势采集中（需至少 2 次采样）…
+        {t('趋势采集中（需至少 2 次采样）…')}
       </div>
     );
   }
@@ -127,14 +128,15 @@ function eventLabel(e: { type: string; action: string }) {
   if (known) return known;
   // "health_status: healthy/unhealthy" — 只在状态真正变化时出现
   if (e.action.startsWith('health_status')) {
-    if (e.action.endsWith('unhealthy')) return '转为不健康';
-    if (e.action.endsWith('healthy')) return '转为健康';
-    return '健康状态变更';
+    if (e.action.endsWith('unhealthy')) return t('转为不健康');
+    if (e.action.endsWith('healthy')) return t('转为健康');
+    return t('健康状态变更');
   }
   return e.action;
 }
 
 export function DashboardPage({ hostId, active = true }: { hostId?: string; active?: boolean }) {
+  const t = useT();
   // per-field selectors keep toasts / unrelated store writes from re-rendering the page
   const connections = useAppStore((s) => s.connections);
   const statuses = useAppStore((s) => s.statuses);
@@ -221,8 +223,8 @@ export function DashboardPage({ hostId, active = true }: { hostId?: string; acti
     return (
       <div className="page">
         <div className="empty-state">
-          <h3>尚未连接任何 Docker 主机</h3>
-          <p>请在左侧添加并连接一个远程 Docker 服务</p>
+          <h3>{t('尚未连接任何 Docker 主机')}</h3>
+          <p>{t('请在左侧添加并连接一个远程 Docker 服务')}</p>
         </div>
       </div>
     );
@@ -253,7 +255,7 @@ export function DashboardPage({ hostId, active = true }: { hostId?: string; acti
       {error && (
         <div className="alert danger" style={{ marginBottom: 16 }}>
           {error}
-          {!status?.connected && <div style={{ marginTop: 6, fontSize: 11 }}>请先在左侧连接该主机</div>}
+          {!status?.connected && <div style={{ marginTop: 6, fontSize: 11 }}>{t('请先在左侧连接该主机')}</div>}
         </div>
       )}
 
@@ -261,38 +263,38 @@ export function DashboardPage({ hostId, active = true }: { hostId?: string; acti
         <>
           <div className="stat-grid">
             <div className="stat-card">
-              <div className="stat-label">运行中容器</div>
+              <div className="stat-label">{t('运行中容器')}</div>
               <div className="stat-value">{stats.containersRunning}</div>
-              <div className="stat-sub">共 {stats.containersTotal} 个</div>
+              <div className="stat-sub">{t('共')}{stats.containersTotal}{t('个')}</div>
             </div>
             <div className="stat-card">
-              <div className="stat-label">镜像</div>
+              <div className="stat-label">{t('镜像')}</div>
               <div className="stat-value">{stats.images}</div>
             </div>
             <div className="stat-card">
-              <div className="stat-label">网络</div>
+              <div className="stat-label">{t('网络')}</div>
               <div className="stat-value">{stats.networks}</div>
             </div>
             <div className="stat-card">
-              <div className="stat-label">数据卷</div>
+              <div className="stat-label">{t('数据卷')}</div>
               <div className="stat-value">{stats.volumes}</div>
             </div>
             <div
               className="stat-card"
               style={problems.length > 0 ? { border: '1px solid var(--error-border)' } : undefined}
             >
-              <div className="stat-label">异常</div>
+              <div className="stat-label">{t('异常')}</div>
               <div
                 className="stat-value"
                 style={{ color: problems.length > 0 ? 'var(--error)' : 'var(--success)' }}
               >
                 {problems.length}
               </div>
-              <div className="stat-sub">{problems.length > 0 ? '需要关注' : '状态正常'}</div>
+              <div className="stat-sub">{problems.length > 0 ? t('需要关注') : t('状态正常')}</div>
             </div>
           </div>
 
-          <div className="section-title">排障速览</div>
+          <div className="section-title">{t('排障速览')}</div>
           {problems.length === 0 ? (
             <div
               style={{
@@ -305,7 +307,7 @@ export function DashboardPage({ hostId, active = true }: { hostId?: string; acti
                 marginBottom: 8,
               }}
             >
-              当前没有检测到重启循环、健康检查失败或异常退出的容器。
+              {t('当前没有检测到重启循环、健康检查失败或异常退出的容器。')}
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 8 }}>
@@ -328,7 +330,7 @@ export function DashboardPage({ hostId, active = true }: { hostId?: string; acti
                   onClick={() =>
                     openTab({
                       id: `containerDetail:${targetHost}:${p.id}`,
-                      title: `容器: ${p.name}`,
+                      title: t("容器: {p0}", { p0: p.name }),
                       kind: 'containerDetail',
                       hostId: targetHost,
                       containerId: p.id,
@@ -343,13 +345,13 @@ export function DashboardPage({ hostId, active = true }: { hostId?: string; acti
                     {p.name}
                   </span>
                   <span style={{ flex: 1, fontSize: 12, color: 'var(--text)' }}>{p.reason}</span>
-                  <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>查看详情 ›</span>
+                  <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>{t('查看详情 ›')}</span>
                 </div>
               ))}
             </div>
           )}
 
-          <div className="section-title">资源占用</div>
+          <div className="section-title">{t('资源占用')}</div>
 
           <div className="resource-row">
             <Cpu size={15} color="var(--accent)" />
@@ -362,7 +364,7 @@ export function DashboardPage({ hostId, active = true }: { hostId?: string; acti
 
           <div className="resource-row">
             <HardDrive size={15} color="var(--warning)" />
-            <span className="name">内存</span>
+            <span className="name">{t('内存')}</span>
             <div className={meterClass(stats.memPercent)}>
               <span style={{ width: `${Math.min(stats.memPercent, 100)}%` }} />
             </div>
@@ -373,7 +375,7 @@ export function DashboardPage({ hostId, active = true }: { hostId?: string; acti
 
           <div className="resource-row">
             <Network size={15} color="var(--network)" />
-            <span className="name">网络 I/O</span>
+            <span className="name">{t('网络 I/O')}</span>
             <div style={{ flex: 1, color: 'var(--text-dim)', fontSize: 12 }}>
               ↓ {fmtBytes(stats.netRx)} &nbsp;&nbsp; ↑ {fmtBytes(stats.netTx)}
             </div>
@@ -381,7 +383,7 @@ export function DashboardPage({ hostId, active = true }: { hostId?: string; acti
 
           <div className="resource-row">
             <Database size={15} color="var(--volume)" />
-            <span className="name">块 I/O</span>
+            <span className="name">{t('块 I/O')}</span>
             <div style={{ flex: 1, color: 'var(--text-dim)', fontSize: 12 }}>
               读 {fmtBytes(stats.blockRead)} &nbsp;&nbsp; 写 {fmtBytes(stats.blockWrite)}
             </div>
@@ -402,15 +404,15 @@ export function DashboardPage({ hostId, active = true }: { hostId?: string; acti
                 >
                   <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 2 }}>
                     <span style={{ color }}>●</span> {label}
-                    <span style={{ float: 'right' }}>近 {hist.length} 次采样</span>
+                    <span style={{ float: 'right' }}>{t('近')}{hist.length}{t('次采样')}</span>
                   </div>
                   <Sparkline points={pts} color={color} />
                 </div>
               );
               return (
                 <>
-                  {card('CPU 趋势', 'var(--accent)', hist.map((p) => p.cpu))}
-                  {card('内存趋势', 'var(--success)', hist.map((p) => p.mem))}
+                  {card(t('CPU 趋势'), 'var(--accent)', hist.map((p) => p.cpu))}
+                  {card(t('内存趋势'), 'var(--success)', hist.map((p) => p.mem))}
                 </>
               );
             })()}
@@ -418,11 +420,11 @@ export function DashboardPage({ hostId, active = true }: { hostId?: string; acti
 
           <div className="section-title">
             <Radio size={13} style={{ marginRight: 6, verticalAlign: -2 }} />
-            最近事件
+            {t('最近事件')}
           </div>
           {hostEvents.length === 0 ? (
             <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>
-              暂无事件。启动/停止容器后这里会滚动显示。
+              {t('暂无事件。启动/停止容器后这里会滚动显示。')}
             </div>
           ) : (
             <div
@@ -462,21 +464,21 @@ export function DashboardPage({ hostId, active = true }: { hostId?: string; acti
 
           {info && (
             <>
-              <div className="section-title">主机信息</div>
+              <div className="section-title">{t('主机信息')}</div>
               <dl className="detail-grid">
-                <dt>名称</dt>
+                <dt>{t('名称')}</dt>
                 <dd>{info.name || '-'}</dd>
-                <dt>Docker 版本</dt>
+                <dt>{t('Docker 版本')}</dt>
                 <dd>{info.serverVersion || '-'}</dd>
-                <dt>操作系统</dt>
+                <dt>{t('操作系统')}</dt>
                 <dd>{info.os || '-'}</dd>
-                <dt>架构</dt>
+                <dt>{t('架构')}</dt>
                 <dd>{info.arch || '-'}</dd>
                 <dt>CPU</dt>
                 <dd>{info.nCPU ?? '-'}</dd>
-                <dt>内存</dt>
+                <dt>{t('内存')}</dt>
                 <dd>{info.memTotal ? fmtBytes(info.memTotal) : '-'}</dd>
-                <dt>存储驱动</dt>
+                <dt>{t('存储驱动')}</dt>
                 <dd>{info.driver || '-'}</dd>
               </dl>
             </>
@@ -487,7 +489,7 @@ export function DashboardPage({ hostId, active = true }: { hostId?: string; acti
       {!stats && !error && !loading && (
         <div className="empty-state">
           <Box size={32} strokeWidth={1.2} color="var(--text-muted)" />
-          <p>暂无统计数据</p>
+          <p>{t('暂无统计数据')}</p>
         </div>
       )}
     </div>

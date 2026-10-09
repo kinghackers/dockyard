@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { Plug, ServerCrash } from 'lucide-react';
 import { useAppStore } from '../../stores/appStore';
 import { connectOnce } from '../../utils/connection';
+import { t, useT } from '../../i18n';
 
 type Phase = 'connecting' | 'ready' | 'disconnected' | 'error';
 
@@ -17,6 +18,7 @@ export function HostGuard({
   hostId: string;
   children: React.ReactNode;
 }) {
+  const t = useT();
   const connections = useAppStore((s) => s.connections);
   const status = useAppStore((s) => s.statuses[hostId]);
   const setStatus = useAppStore((s) => s.setStatus);
@@ -41,7 +43,7 @@ export function HostGuard({
         setPhase('ready');
       } else {
         setPhase('disconnected');
-        setError(st.error || '连接失败');
+        setError(st.error || t('连接失败'));
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -86,21 +88,21 @@ export function HostGuard({
         {phase === 'connecting' || connecting ? (
           <>
             <span className="spinner" style={{ width: 28, height: 28, borderWidth: 3 }} />
-            <h3>正在连接 {conn?.name || hostId}…</h3>
-            <p>首次打开会自动建立到 Docker 主机的连接</p>
+            <h3>{t('正在连接')}{conn?.name || hostId}…</h3>
+            <p>{t('首次打开会自动建立到 Docker 主机的连接')}</p>
           </>
         ) : (
           <>
             <ServerCrash size={36} strokeWidth={1.2} color="var(--text-muted)" />
-            <h3>未连接到 {conn?.name || hostId}</h3>
+            <h3>{t('未连接到')}{conn?.name || hostId}</h3>
             <p style={{ maxWidth: 420, lineHeight: 1.6 }}>
               {error
-                ? `连接失败：${error}`
-                : '该主机尚未建立连接，请点击下方按钮连接后再管理资源。'}
+                ? t("连接失败：{p0}", { p0: error })
+                : t('该主机尚未建立连接，请点击下方按钮连接后再管理资源。')}
             </p>
             <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
               <button className="btn primary" onClick={() => void connect()} disabled={connecting}>
-                <Plug size={14} /> {connecting ? '连接中…' : attempted.current || phase === 'error' ? '重试连接' : '立即连接'}
+                <Plug size={14} /> {connecting ? t('连接中…') : attempted.current || phase === 'error' ? t('重试连接') : t('立即连接')}
               </button>
             </div>
           </>

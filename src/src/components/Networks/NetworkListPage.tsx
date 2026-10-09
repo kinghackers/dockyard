@@ -11,10 +11,12 @@ import { CreateNetworkDialog } from './CreateNetworkDialog';
 import { ContextMenu, useContextMenu, type ContextMenuItem } from '../common/ContextMenu';
 import { ListError, ListLoading } from '../common/ListFeedback';
 import { SortableTh } from '../common/SortableTh';
+import { t, useT } from '../../i18n';
 
 type SortKey = 'name' | 'id' | 'driver' | 'scope' | 'subnet';
 
 export function NetworkListPage({ hostId }: { hostId: string }) {
+  const t = useT();
   const toast = useAppStore((s) => s.toast);
   const setRefreshing = useAppStore((s) => s.setRefreshing);
   const containersVersion = useAppStore((s) => s.containersVersion);
@@ -114,9 +116,9 @@ export function NetworkListPage({ hostId }: { hostId: string }) {
 
   const removeOne = async (id: string, name: string) => {
     const ok = await confirm({
-      title: '删除网络',
-      message: `确认删除网络「${name}」？已连接的容器将被断开。`,
-      confirmLabel: '删除',
+      title: t('删除网络'),
+      message: t("确认删除网络「{p0}」？已连接的容器将被断开。", { p0: name }),
+      confirmLabel: t('删除'),
       danger: true,
     });
     if (!ok) return;
@@ -137,9 +139,9 @@ export function NetworkListPage({ hostId }: { hostId: string }) {
 
   const removeMany = async (ids: string[]) => {
     const ok = await confirm({
-      title: '批量删除网络',
-      message: `确认删除选中的 ${ids.length} 个网络？已连接的容器将被断开。`,
-      confirmLabel: '删除',
+      title: t('批量删除网络'),
+      message: t("确认删除选中的 {p0} 个网络？已连接的容器将被断开。", { p0: ids.length }),
+      confirmLabel: t('删除'),
       danger: true,
     });
     if (!ok) return;
@@ -152,7 +154,7 @@ export function NetworkListPage({ hostId }: { hostId: string }) {
         /* keep going */
       }
     }
-    toast(`已删除 ${okCount}/${ids.length} 个网络`, okCount === ids.length ? 'success' : 'error');
+    toast(t("已删除 {p0}/{p1} 个网络", { p0: okCount, p1: ids.length }), okCount === ids.length ? 'success' : 'error');
     setChecked(new Set());
     setSelected(null);
     await load();
@@ -196,13 +198,13 @@ export function NetworkListPage({ hostId }: { hostId: string }) {
     return [
       {
         key: 'expand',
-        label: expanded === n.id ? '收起容器列表' : '查看连接的容器',
+        label: expanded === n.id ? t('收起容器列表') : t('查看连接的容器'),
         disabled: multi,
         onSelect: () => setExpanded(expanded === n.id ? null : n.id),
       },
       {
         key: 'copy',
-        label: '复制网络 ID',
+        label: t('复制网络 ID'),
         icon: <Copy size={13} />,
         disabled: multi,
         onSelect: () => {
@@ -213,7 +215,7 @@ export function NetworkListPage({ hostId }: { hostId: string }) {
       { key: 'sep', label: '', separator: true, onSelect: () => {} },
       {
         key: 'del',
-        label: multi ? `删除 ${ids.length} 个…` : '删除…',
+        label: multi ? t("删除 {p0} 个…", { p0: ids.length }) : '删除…',
         icon: <Trash2 size={13} />,
         danger: true,
         onSelect: () => void (multi ? removeMany(ids) : removeOne(n.id, n.name)),
@@ -249,12 +251,12 @@ export function NetworkListPage({ hostId }: { hostId: string }) {
         {checked.size > 0 && (
           <>
             <div style={{ width: 1, height: 18, background: 'var(--border)', margin: '0 4px' }} />
-            <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>已选 {checked.size}</span>
+            <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>{t('已选')}{checked.size}</span>
             <button className="btn danger" onClick={() => void removeMany([...checked])}>
               <Trash2 size={13} /> 批量删除
             </button>
             <button className="btn ghost" onClick={() => setChecked(new Set())}>
-              清除选择
+              {t('清除选择')}
             </button>
           </>
         )}
@@ -265,7 +267,7 @@ export function NetworkListPage({ hostId }: { hostId: string }) {
             ref={filterRef}
             className="search-input"
             style={{ paddingLeft: 26 }}
-            placeholder="过滤网络（Ctrl+F）"
+            placeholder={t('过滤网络（Ctrl+F）')}
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
           />
@@ -276,10 +278,10 @@ export function NetworkListPage({ hostId }: { hostId: string }) {
 
       <div style={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
         {loading && list.length === 0 && !error ? (
-          <ListLoading label="正在加载网络…" />
+          <ListLoading label={t('正在加载网络…')} />
         ) : filtered.length === 0 ? (
           <div className="empty-state">
-            <p>{list.length === 0 ? '暂无网络' : '没有匹配的网络'}</p>
+            <p>{list.length === 0 ? t('暂无网络') : t('没有匹配的网络')}</p>
           </div>
         ) : (
           <table className="table">
@@ -300,7 +302,7 @@ export function NetworkListPage({ hostId }: { hostId: string }) {
                 <SortableTh label={'驱动'} active={sortKey === 'driver'} asc={sortAsc} onSort={() => toggleSort('driver')} />
                 <SortableTh label={'作用域'} active={sortKey === 'scope'} asc={sortAsc} onSort={() => toggleSort('scope')} />
                 <SortableTh label={'子网'} active={sortKey === 'subnet'} asc={sortAsc} onSort={() => toggleSort('subnet')} />
-                <th>容器</th>
+                <th>{t('容器')}</th>
               </tr>
             </thead>
             <tbody>
@@ -365,13 +367,13 @@ export function NetworkListPage({ hostId }: { hostId: string }) {
                       <td colSpan={7} style={{ background: 'var(--bg-panel-alt)' }}>
                         {n.containers.length === 0 ? (
                           <div style={{ color: 'var(--text-muted)', fontSize: 11, padding: 4 }}>
-                            该网络上没有已连接的容器
+                            {t('该网络上没有已连接的容器')}
                           </div>
                         ) : (
                           <table className="table" style={{ background: 'transparent' }}>
                             <thead>
                               <tr>
-                                <th>容器</th>
+                                <th>{t('容器')}</th>
                                 <th>IPv4</th>
                                 <th>IPv6</th>
                                 <th>MAC</th>

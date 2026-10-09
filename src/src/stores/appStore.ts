@@ -7,6 +7,7 @@ import type {
   OpenTab,
 } from '../types/docker';
 import { loadUiPref, saveUiPref } from '../utils/uiPrefs';
+import { t, useT } from '../i18n';
 
 /** Stable id for the single primary content surface driven by the tree. */
 export const MAIN_VIEW_ID = '__main_view__';
@@ -45,7 +46,7 @@ const HOST_PAGE_KINDS: ReadonlySet<OpenTab['kind']> = new Set([
 
 const defaultMainView: OpenTab = {
   id: MAIN_VIEW_ID,
-  title: '主页',
+  title: t('主页'),
   kind: 'home',
   closable: false,
 };

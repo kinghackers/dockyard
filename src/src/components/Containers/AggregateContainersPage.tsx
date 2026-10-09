@@ -12,6 +12,7 @@ import {
 } from '../../utils/localize';
 import { ListError, ListLoading } from '../common/ListFeedback';
 import { SortableTh } from '../common/SortableTh';
+import { t, useT } from '../../i18n';
 
 interface Row {
   hostId: string;
@@ -28,6 +29,7 @@ type StateFilter = 'all' | 'running' | 'exited' | 'paused' | 'restarting';
  * tree and command palette stay in sync.
  */
 export function AggregateContainersPage({ active = true }: { active?: boolean }) {
+  const t = useT();
   const toast = useAppStore((s) => s.toast);
   const openTab = useAppStore((s) => s.openTab);
   const setContainers = useAppStore((s) => s.setContainers);
@@ -75,9 +77,9 @@ export function AggregateContainersPage({ active = true }: { active?: boolean })
       });
       setRows(out);
       if (failed.length === connected.length && connected.length > 0) {
-        setError('所有主机的容器列表获取均失败，请检查连接状态');
+        setError(t('所有主机的容器列表获取均失败，请检查连接状态'));
       } else if (failed.length > 0) {
-        toast(`部分主机获取失败：${failed.join('、')}`, 'error');
+        toast(t("部分主机获取失败：{p0}", { p0: failed.join('、') }), 'error');
       }
     } finally {
       setLoading(false);
@@ -160,7 +162,7 @@ export function AggregateContainersPage({ active = true }: { active?: boolean })
   const openDetail = (r: Row) => {
     openTab({
       id: `containerDetail:${r.hostId}:${r.c.id}`,
-      title: `容器: ${r.c.name}`,
+      title: t("容器: {p0}", { p0: r.c.name }),
       kind: 'containerDetail',
       hostId: r.hostId,
       containerId: r.c.id,
@@ -188,11 +190,11 @@ export function AggregateContainersPage({ active = true }: { active?: boolean })
             onChange={(e) => setStateFilter(e.target.value as StateFilter)}
             style={{ height: 28 }}
           >
-            <option value="all">全部状态</option>
-            <option value="running">运行中</option>
-            <option value="exited">已退出</option>
-            <option value="paused">已暂停</option>
-            <option value="restarting">重启中</option>
+            <option value="all">{t('全部状态')}</option>
+            <option value="running">{t('运行中')}</option>
+            <option value="exited">{t('已退出')}</option>
+            <option value="paused">{t('已暂停')}</option>
+            <option value="restarting">{t('重启中')}</option>
           </select>
           <div style={{ position: 'relative' }}>
             <Search size={13} style={{ position: 'absolute', left: 8, top: 8, color: 'var(--text-muted)' }} />
@@ -200,7 +202,7 @@ export function AggregateContainersPage({ active = true }: { active?: boolean })
               ref={filterRef}
               className="search-input"
               style={{ paddingLeft: 26 }}
-              placeholder="跨主机搜索名称 / 镜像 / 项目（Ctrl+F）"
+              placeholder={t('跨主机搜索名称 / 镜像 / 项目（Ctrl+F）')}
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
             />
@@ -212,14 +214,14 @@ export function AggregateContainersPage({ active = true }: { active?: boolean })
 
       <div style={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
         {loading && rows.length === 0 && !error ? (
-          <ListLoading label="正在汇总各主机容器…" />
+          <ListLoading label={t('正在汇总各主机容器…')} />
         ) : connections.filter((c) => statuses[c.id]?.connected).length === 0 ? (
           <div className="empty-state">
-            <p>尚未连接任何 Docker 主机</p>
+            <p>{t('尚未连接任何 Docker 主机')}</p>
           </div>
         ) : sorted.length === 0 ? (
           <div className="empty-state">
-            <p>{rows.length === 0 ? '没有容器' : '没有匹配的容器'}</p>
+            <p>{rows.length === 0 ? t('没有容器') : t('没有匹配的容器')}</p>
           </div>
         ) : (
           <table className="table">
@@ -231,14 +233,14 @@ export function AggregateContainersPage({ active = true }: { active?: boolean })
                 <SortableTh label={'镜像'} active={sortKey === 'image'} asc={sortAsc} onSort={() => toggleSort('image')} />
                 <SortableTh label={'项目'} active={sortKey === 'project'} asc={sortAsc} onSort={() => toggleSort('project')} />
                 <SortableTh label={'创建时间'} active={sortKey === 'created'} asc={sortAsc} onSort={() => toggleSort('created')} />
-                <th style={{ width: 80 }}>操作</th>
+                <th style={{ width: 80 }}>{t('操作')}</th>
               </tr>
             </thead>
             <tbody>
               {sorted.map((r) => (
                 <tr
                   key={`${r.hostId}:${r.c.id}`}
-                  title="双击打开详情"
+                  title={t('双击打开详情')}
                   className={selected === `${r.hostId}:${r.c.id}` ? 'selected' : ''}
                   onClick={() => setSelected(`${r.hostId}:${r.c.id}`)}
                   onDoubleClick={() => openDetail(r)}
@@ -273,7 +275,7 @@ export function AggregateContainersPage({ active = true }: { active?: boolean })
                   <td>
                     <button
                       className="btn ghost icon-btn"
-                      title="详情"
+                      title={t('详情')}
                       style={{ width: 24, height: 24 }}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -284,13 +286,13 @@ export function AggregateContainersPage({ active = true }: { active?: boolean })
                     </button>
                     <button
                       className="btn ghost icon-btn"
-                      title="日志"
+                      title={t('日志')}
                       style={{ width: 24, height: 24 }}
                       onClick={(e) => {
                         e.stopPropagation();
                         openTab({
                           id: `logs:${r.hostId}:${r.c.id}`,
-                          title: `日志 · ${r.c.name}`,
+                          title: t("日志 · {p0}", { p0: r.c.name }),
                           kind: 'logs',
                           hostId: r.hostId,
                           containerId: r.c.id,

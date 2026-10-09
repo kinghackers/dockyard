@@ -35,6 +35,7 @@ import { ContextMenu, useContextMenu, type ContextMenuItem } from '../common/Con
 import { ListError, ListLoading } from '../common/ListFeedback';
 import { SortableTh } from '../common/SortableTh';
 import { InputDialog } from '../common/InputDialog';
+import { t, useT } from '../../i18n';
 
 type SortKey = 'name' | 'state' | 'image' | 'project' | 'created';
 
@@ -42,6 +43,7 @@ type SortKey = 'name' | 'state' | 'image' | 'project' | 'created';
 const EMPTY_LIST: ContainerSummary[] = [];
 
 export function ContainerListPage({ hostId }: { hostId: string }) {
+  const t = useT();
   const openTab = useAppStore((s) => s.openTab);
   const toast = useAppStore((s) => s.toast);
   const setContainers = useAppStore((s) => s.setContainers);
@@ -179,7 +181,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
     setViewportH(e.currentTarget.clientHeight);
   };
 
-  const action = async (fn: () => Promise<unknown>, okMsg: string, pendingMsg = '处理中…') => {
+  const action = async (fn: () => Promise<unknown>, okMsg: string, pendingMsg = t('处理中…')) => {
     await runAction(toast, { pending: pendingMsg, ok: okMsg }, fn);
     await load();
   };
@@ -188,7 +190,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
     ids: string[],
     fn: (id: string) => Promise<unknown>,
     okMsg: string,
-    pendingMsg = '处理中…'
+    pendingMsg = t('处理中…')
   ) =>
     action(
       async () => {
@@ -221,7 +223,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
   const openLogs = (id: string, name: string) => {
     openTab({
       id: `logs:${hostId}:${id}`,
-      title: `日志 · ${name}`,
+      title: t("日志 · {p0}", { p0: name }),
       kind: 'logs',
       hostId,
       containerId: id,
@@ -231,7 +233,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
   const openTerminal = (id: string, name: string) => {
     openTab({
       id: `terminal:${hostId}:${id}`,
-      title: `终端 · ${name}`,
+      title: t("终端 · {p0}", { p0: name }),
       kind: 'terminal',
       hostId,
       containerId: id,
@@ -241,7 +243,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
   const openDetail = (id: string, name: string) => {
     openTab({
       id: `containerDetail:${hostId}:${id}`,
-      title: `容器: ${name}`,
+      title: t("容器: {p0}", { p0: name }),
       kind: 'containerDetail',
       hostId,
       containerId: id,
@@ -250,25 +252,25 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
 
   const removeOne = async (id: string, name: string) => {
     const ok = await confirm({
-      title: '删除容器',
-      message: `确认删除容器「${name}」？数据卷将一并移除。`,
-      confirmLabel: '删除',
+      title: t('删除容器'),
+      message: t("确认删除容器「{p0}」？数据卷将一并移除。", { p0: name }),
+      confirmLabel: t('删除'),
       danger: true,
     });
     if (!ok) return;
-    await action(() => window.dockerApi.removeContainer(hostId, id, true), '已删除');
+    await action(() => window.dockerApi.removeContainer(hostId, id, true), t('已删除'));
     uncheck(id);
   };
 
   const removeMany = async (ids: string[]) => {
     const ok = await confirm({
-      title: '批量删除容器',
-      message: `确认删除选中的 ${ids.length} 个容器？数据卷将一并移除。`,
-      confirmLabel: '删除',
+      title: t('批量删除容器'),
+      message: t("确认删除选中的 {p0} 个容器？数据卷将一并移除。", { p0: ids.length }),
+      confirmLabel: t('删除'),
       danger: true,
     });
     if (!ok) return;
-    await runOn(ids, (id) => window.dockerApi.removeContainer(hostId, id, true), `已删除 ${ids.length} 个容器`);
+    await runOn(ids, (id) => window.dockerApi.removeContainer(hostId, id, true), t("已删除 {p0} 个容器", { p0: ids.length }));
     clearChecked();
   };
 
@@ -326,88 +328,88 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
     if (a.canStart) {
       items.push({
         key: 'start',
-        label: multi ? `启动 ${ids.length} 个` : '启动',
+        label: multi ? t("启动 {p0} 个", { p0: ids.length }) : '启动',
         icon: <Play size={13} />,
         onSelect: () =>
           void runOn(
             ids,
             (id) => window.dockerApi.startContainer(hostId, id),
-            multi ? `已启动 ${ids.length} 个` : '已启动',
-            multi ? `正在启动 ${ids.length} 个…` : `${c.name}: 正在启动…`
+            multi ? t("已启动 {p0} 个", { p0: ids.length }) : '已启动',
+            multi ? t("正在启动 {p0} 个…", { p0: ids.length }) : t("{p0}: 正在启动…", { p0: c.name })
           ),
       });
     }
     if (a.canStop) {
       items.push({
         key: 'stop',
-        label: multi ? `停止 ${ids.length} 个` : '停止',
+        label: multi ? t("停止 {p0} 个", { p0: ids.length }) : '停止',
         icon: <Square size={13} />,
         onSelect: () =>
           void runOn(
             ids,
             (id) => window.dockerApi.stopContainer(hostId, id),
-            multi ? `已停止 ${ids.length} 个` : '已停止',
-            multi ? `正在停止 ${ids.length} 个…` : `${c.name}: 正在停止…`
+            multi ? t("已停止 {p0} 个", { p0: ids.length }) : '已停止',
+            multi ? t("正在停止 {p0} 个…", { p0: ids.length }) : t("{p0}: 正在停止…", { p0: c.name })
           ),
       });
     }
     if (a.canRestart) {
       items.push({
         key: 'restart',
-        label: multi ? `重启 ${ids.length} 个` : '重启',
+        label: multi ? t("重启 {p0} 个", { p0: ids.length }) : '重启',
         icon: <RotateCw size={13} />,
         onSelect: () =>
           void runOn(
             ids,
             (id) => window.dockerApi.restartContainer(hostId, id),
-            multi ? `已重启 ${ids.length} 个` : '已重启',
-            multi ? `正在重启 ${ids.length} 个…` : `${c.name}: 正在重启…`
+            multi ? t("已重启 {p0} 个", { p0: ids.length }) : '已重启',
+            multi ? t("正在重启 {p0} 个…", { p0: ids.length }) : t("{p0}: 正在重启…", { p0: c.name })
           ),
       });
     }
     if (a.canKill && !multi) {
       items.push({
         key: 'kill',
-        label: '强制终止',
+        label: t('强制终止'),
         icon: <Skull size={13} />,
         onSelect: () =>
           void action(
             () => window.dockerApi.killContainer(hostId, c.id),
-            '已强制终止',
-            `${c.name}: 正在强杀…`
+            t('已强制终止'),
+            t("{p0}: 正在强杀…", { p0: c.name })
           ),
       });
     }
     if (a.canPause && !multi) {
       items.push({
         key: 'pause',
-        label: '暂停',
+        label: t('暂停'),
         icon: <Pause size={13} />,
         onSelect: () =>
           void action(
             () => window.dockerApi.pauseContainer(hostId, c.id),
-            '已暂停',
-            `${c.name}: 正在暂停…`
+            t('已暂停'),
+            t("{p0}: 正在暂停…", { p0: c.name })
           ),
       });
     }
     if (a.canUnpause && !multi) {
       items.push({
         key: 'unpause',
-        label: '恢复',
+        label: t('恢复'),
         icon: <PlayCircle size={13} />,
         onSelect: () =>
           void action(
             () => window.dockerApi.unpauseContainer(hostId, c.id),
-            '已恢复',
-            `${c.name}: 正在恢复…`
+            t('已恢复'),
+            t("{p0}: 正在恢复…", { p0: c.name })
           ),
       });
     }
     if (a.isRestartLoop && !multi) {
       items.push({
         key: 'loop',
-        label: '停止重启循环',
+        label: t('停止重启循环'),
         onSelect: () => void stopRestartLoopOne(c.id, c.name),
       });
     }
@@ -415,28 +417,28 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
     items.push({ key: 'sep1', label: '', separator: true, onSelect: () => {} });
     items.push({
       key: 'logs',
-      label: '查看日志',
+      label: t('查看日志'),
       icon: <FileText size={13} />,
       disabled: multi,
       onSelect: () => openLogs(c.id, c.name),
     });
     items.push({
       key: 'term',
-      label: '打开终端',
+      label: t('打开终端'),
       icon: <TermIcon size={13} />,
       disabled: multi || !a.canExec,
       onSelect: () => openTerminal(c.id, c.name),
     });
     items.push({
       key: 'detail',
-      label: '打开详情',
+      label: t('打开详情'),
       icon: <Info size={13} />,
       disabled: multi,
       onSelect: () => openDetail(c.id, c.name),
     });
     items.push({
       key: 'copy',
-      label: '复制容器 ID',
+      label: t('复制容器 ID'),
       icon: <Copy size={13} />,
       disabled: multi,
       onSelect: () => {
@@ -446,7 +448,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
     });
     items.push({
       key: 'rename',
-      label: '重命名…',
+      label: t('重命名…'),
       icon: <Pencil size={13} />,
       disabled: multi,
       onSelect: () => setRenameFor(c),
@@ -454,7 +456,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
     items.push({ key: 'sep2', label: '', separator: true, onSelect: () => {} });
     items.push({
       key: 'del',
-      label: multi ? `删除 ${ids.length} 个…` : '删除…',
+      label: multi ? t("删除 {p0} 个…", { p0: ids.length }) : '删除…',
       icon: <Trash2 size={13} />,
       danger: true,
       onSelect: () => void (multi ? removeMany(ids) : removeOne(c.id, c.name)),
@@ -481,8 +483,8 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
             selected &&
             action(
               () => window.dockerApi.startContainer(hostId, selected),
-              '已启动',
-              '正在启动…'
+              t('已启动'),
+              t('正在启动…')
             )
           }
         >
@@ -495,8 +497,8 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
             selected &&
             action(
               () => window.dockerApi.stopContainer(hostId, selected),
-              '已停止',
-              '正在停止…'
+              t('已停止'),
+              t('正在停止…')
             )
           }
         >
@@ -509,8 +511,8 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
             selected &&
             action(
               () => window.dockerApi.restartContainer(hostId, selected),
-              '已重启',
-              '正在重启…'
+              t('已重启'),
+              t('正在重启…')
             )
           }
         >
@@ -523,8 +525,8 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
             selected &&
             action(
               () => window.dockerApi.pauseContainer(hostId, selected),
-              '已暂停',
-              '正在暂停…'
+              t('已暂停'),
+              t('正在暂停…')
             )
           }
         >
@@ -537,8 +539,8 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
             selected &&
             action(
               () => window.dockerApi.unpauseContainer(hostId, selected),
-              '已恢复',
-              '正在恢复…'
+              t('已恢复'),
+              t('正在恢复…')
             )
           }
         >
@@ -547,13 +549,13 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
         <button
           className="btn"
           disabled={!selected || !selActions?.canKill}
-          title="强制终止"
+          title={t('强制终止')}
           onClick={() =>
             selected &&
             action(
               () => window.dockerApi.killContainer(hostId, selected),
-              '已强制终止',
-              '正在强杀…'
+              t('已强制终止'),
+              t('正在强杀…')
             )
           }
         >
@@ -572,7 +574,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
         <button
           className="btn"
           disabled={!selected || !selActions?.canExec}
-          title={selected && !selActions?.canExec ? '仅运行中的容器可打开终端' : '打开终端'}
+          title={selected && !selActions?.canExec ? t('仅运行中的容器可打开终端') : t('打开终端')}
           onClick={() => {
             if (!selected) return;
             openTerminal(selected, list.find((c) => c.id === selected)?.name || '');
@@ -593,14 +595,14 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
         {checked.size > 0 && (
           <>
             <div style={{ width: 1, height: 18, background: 'var(--border)', margin: '0 4px' }} />
-            <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>已选 {checked.size}</span>
+            <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>{t('已选')}{checked.size}</span>
             <button
               className="btn"
               onClick={() =>
                 runOn(
                   [...checked],
                   (id) => window.dockerApi.startContainer(hostId, id),
-                  `已启动 ${checked.size} 个`
+                  t("已启动 {p0} 个", { p0: checked.size })
                 )
               }
             >
@@ -612,7 +614,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
                 runOn(
                   [...checked],
                   (id) => window.dockerApi.stopContainer(hostId, id),
-                  `已停止 ${checked.size} 个`
+                  t("已停止 {p0} 个", { p0: checked.size })
                 )
               }
             >
@@ -625,7 +627,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
               <Trash2 size={13} /> 批量删除
             </button>
             <button className="btn ghost" onClick={() => clearChecked()}>
-              清除选择
+              {t('清除选择')}
             </button>
           </>
         )}
@@ -636,11 +638,11 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
             onChange={(e) => setStateFilter(e.target.value as typeof stateFilter)}
             style={{ height: 28 }}
           >
-            <option value="all">全部状态</option>
-            <option value="running">运行中</option>
-            <option value="exited">已退出</option>
-            <option value="paused">已暂停</option>
-            <option value="restarting">重启中</option>
+            <option value="all">{t('全部状态')}</option>
+            <option value="running">{t('运行中')}</option>
+            <option value="exited">{t('已退出')}</option>
+            <option value="paused">{t('已暂停')}</option>
+            <option value="restarting">{t('重启中')}</option>
           </select>
           <div style={{ position: 'relative' }}>
             <Search
@@ -656,7 +658,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
               ref={filterRef}
               className="search-input"
               style={{ paddingLeft: 26 }}
-              placeholder="过滤名称 / 镜像 / 项目（Ctrl+F）"
+              placeholder={t('过滤名称 / 镜像 / 项目（Ctrl+F）')}
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
             />
@@ -672,10 +674,10 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
         onScroll={windowed ? handleListScroll : undefined}
       >
         {loading && list.length === 0 && !error ? (
-          <ListLoading label="正在加载容器…" />
+          <ListLoading label={t('正在加载容器…')} />
         ) : filtered.length === 0 ? (
           <div className="empty-state">
-            <p>{list.length === 0 ? '暂无容器' : '没有匹配的容器'}</p>
+            <p>{list.length === 0 ? t('暂无容器') : t('没有匹配的容器')}</p>
           </div>
         ) : (
           <table className="table">
@@ -693,9 +695,9 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
                 <SortableTh label={'状态'} active={sortKey === 'state'} asc={sortAsc} onSort={() => toggleSort('state')} />
                 <SortableTh label={'镜像'} active={sortKey === 'image'} asc={sortAsc} onSort={() => toggleSort('image')} />
                 <SortableTh label={'项目'} active={sortKey === 'project'} asc={sortAsc} onSort={() => toggleSort('project')} />
-                <th>端口</th>
+                <th>{t('端口')}</th>
                 <SortableTh label={'创建时间'} active={sortKey === 'created'} asc={sortAsc} onSort={() => toggleSort('created')} />
-                <th style={{ width: 140 }}>操作</th>
+                <th style={{ width: 140 }}>{t('操作')}</th>
               </tr>
             </thead>
             <tbody>
@@ -708,7 +710,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
                 <tr
                   key={c.id}
                   ref={i === 0 ? firstRowRef : undefined}
-                  title="双击打开详情"
+                  title={t('双击打开详情')}
                   className={`${selected === c.id ? 'selected' : ''} ${checked.has(c.id) ? 'checked' : ''}`}
                   onClick={(e) => {
                     // ctrl/cmd toggles multi-select; shift selects range; plain click focuses
@@ -792,43 +794,43 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
                       onStart={() =>
                         void action(
                           () => window.dockerApi.startContainer(hostId, c.id),
-                          '已启动',
-                          `${c.name}: 正在启动…`
+                          t('已启动'),
+                          t("{p0}: 正在启动…", { p0: c.name })
                         )
                       }
                       onStop={() =>
                         void action(
                           () => window.dockerApi.stopContainer(hostId, c.id),
-                          '已停止',
-                          `${c.name}: 正在停止…`
+                          t('已停止'),
+                          t("{p0}: 正在停止…", { p0: c.name })
                         )
                       }
                       onRestart={() =>
                         void action(
                           () => window.dockerApi.restartContainer(hostId, c.id),
-                          '已重启',
-                          `${c.name}: 正在重启…`
+                          t('已重启'),
+                          t("{p0}: 正在重启…", { p0: c.name })
                         )
                       }
                       onPause={() =>
                         void action(
                           () => window.dockerApi.pauseContainer(hostId, c.id),
-                          '已暂停',
-                          `${c.name}: 正在暂停…`
+                          t('已暂停'),
+                          t("{p0}: 正在暂停…", { p0: c.name })
                         )
                       }
                       onUnpause={() =>
                         void action(
                           () => window.dockerApi.unpauseContainer(hostId, c.id),
-                          '已恢复',
-                          `${c.name}: 正在恢复…`
+                          t('已恢复'),
+                          t("{p0}: 正在恢复…", { p0: c.name })
                         )
                       }
                       onKill={() =>
                         void action(
                           () => window.dockerApi.killContainer(hostId, c.id),
-                          '已强制终止',
-                          `${c.name}: 正在强杀…`
+                          t('已强制终止'),
+                          t("{p0}: 正在强杀…", { p0: c.name })
                         )
                       }
                       onStopRestartLoop={() => void stopRestartLoopOne(c.id, c.name)}
@@ -836,7 +838,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
                         <>
                           <button
                             className="btn ghost icon-btn"
-                            title="详情"
+                            title={t('详情')}
                             onClick={(e) => {
                               e.stopPropagation();
                               openDetail(c.id, c.name);
@@ -846,7 +848,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
                           </button>
                           <button
                             className="btn ghost icon-btn"
-                            title="日志"
+                            title={t('日志')}
                             onClick={(e) => {
                               e.stopPropagation();
                               openLogs(c.id, c.name);
@@ -856,7 +858,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
                           </button>
                           <button
                             className="btn ghost icon-btn danger-text"
-                            title="删除"
+                            title={t('删除')}
                             onClick={(e) => {
                               e.stopPropagation();
                               void removeOne(c.id, c.name);
@@ -894,10 +896,10 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
       )}
       {renameFor && (
         <InputDialog
-          title="重命名容器"
-          label="容器名称"
+          title={t('重命名容器')}
+          label={t('容器名称')}
           initial={renameFor.name}
-          confirmLabel="重命名"
+          confirmLabel={t('重命名')}
           onClose={() => setRenameFor(null)}
           onSubmit={async (name) => {
             try {

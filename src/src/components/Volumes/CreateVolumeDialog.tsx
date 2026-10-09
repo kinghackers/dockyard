@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { X } from 'lucide-react';
 import type { CreateVolumeOptions } from '../../types/docker';
 import { useModalKeys } from '../../utils/useModalKeys';
+import { t, useT } from '../../i18n';
 
 interface Props {
   hostId: string;
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export function CreateVolumeDialog({ hostId, onClose, onCreated }: Props) {
+  const t = useT();
   const [name, setName] = useState('');
   const [driver, setDriver] = useState('local');
   const [saving, setSaving] = useState(false);
@@ -17,7 +19,7 @@ export function CreateVolumeDialog({ hostId, onClose, onCreated }: Props) {
 
   const handleCreate = async () => {
     if (!name.trim()) {
-      setError('请输入数据卷名称');
+      setError(t('请输入数据卷名称'));
       return;
     }
     setSaving(true);
@@ -42,7 +44,7 @@ export function CreateVolumeDialog({ hostId, onClose, onCreated }: Props) {
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 420 }}>
         <div className="modal-header">
-          <span>创建数据卷</span>
+          <span>{t('创建数据卷')}</span>
           <button className="btn ghost icon-btn" onClick={onClose}>
             <X size={15} />
           </button>
@@ -50,13 +52,13 @@ export function CreateVolumeDialog({ hostId, onClose, onCreated }: Props) {
 
         <div className="modal-body">
           <div className="form-row">
-            <label>名称 *</label>
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="如 my-volume" autoFocus />
+            <label>{t('名称 *')}</label>
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t('如 my-volume')} autoFocus />
           </div>
           <div className="form-row">
-            <label>驱动</label>
+            <label>{t('驱动')}</label>
             <select value={driver} onChange={(e) => setDriver(e.target.value)}>
-              <option value="local">本地（local）</option>
+              <option value="local">{t('本地（local）')}</option>
               <option value="nfs">NFS</option>
             </select>
           </div>
@@ -79,10 +81,10 @@ export function CreateVolumeDialog({ hostId, onClose, onCreated }: Props) {
 
         <div className="modal-footer">
           <button className="btn" onClick={onClose} disabled={saving}>
-            取消
+            {t('取消')}
           </button>
           <button className="btn primary" onClick={handleCreate} disabled={saving || !name.trim()}>
-            {saving ? '创建中…' : '创建'}
+            {saving ? t('创建中…') : t('创建')}
           </button>
         </div>
       </div>

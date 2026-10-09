@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X } from 'lucide-react';
 import { useModalKeys } from '../../utils/useModalKeys';
+import { t, useT } from '../../i18n';
 
 interface Props {
   initialRepo?: string;
@@ -11,6 +12,7 @@ interface Props {
 
 /** Small modal to add a repo:tag to an existing image. */
 export function TagImageDialog({ initialRepo = '', initialTag = 'latest', onClose, onSubmit }: Props) {
+  const t = useT();
   const [repo, setRepo] = useState(initialRepo);
   const [tag, setTag] = useState(initialTag);
   const [saving, setSaving] = useState(false);
@@ -33,7 +35,7 @@ export function TagImageDialog({ initialRepo = '', initialTag = 'latest', onClos
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 420 }}>
         <div className="modal-header">
-          <span>打标签</span>
+          <span>{t('打标签')}</span>
           <button className="btn ghost icon-btn" onClick={onClose}>
             <X size={15} />
           </button>
@@ -41,16 +43,16 @@ export function TagImageDialog({ initialRepo = '', initialTag = 'latest', onClos
         <div className="modal-body">
           <div className="form-grid">
             <div className="form-row" style={{ gridColumn: '1 / -1' }}>
-              <label>仓库 / 镜像名 *</label>
+              <label>{t('仓库 / 镜像名 *')}</label>
               <input
                 value={repo}
                 autoFocus
-                placeholder="myapp 或 registry.example.com/myapp"
+                placeholder={t('myapp 或 registry.example.com/myapp')}
                 onChange={(e) => setRepo(e.target.value)}
               />
             </div>
             <div className="form-row">
-              <label>标签</label>
+              <label>{t('标签')}</label>
               <input
                 value={tag}
                 placeholder="latest"
@@ -65,10 +67,10 @@ export function TagImageDialog({ initialRepo = '', initialTag = 'latest', onClos
         <div className="modal-footer">
           <div style={{ flex: 1 }} />
           <button className="btn" onClick={onClose}>
-            取消
+            {t('取消')}
           </button>
           <button className="btn primary" onClick={() => void submit()} disabled={saving || !repo.trim()}>
-            确定
+            {t('确定')}
           </button>
         </div>
       </div>
