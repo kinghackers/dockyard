@@ -178,10 +178,10 @@ export function AggregateContainersPage({ active = true }: { active?: boolean })
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
       <div className="content-toolbar">
         <button className="btn" onClick={load} disabled={loading}>
-          <RefreshCw size={14} className={loading ? 'spinner' : ''} /> 刷新
+          <RefreshCw size={14} className={loading ? 'spinner' : ''} /> {t('刷新')}
         </button>
         <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>
-          {hostCount} 台主机 · {filtered.length}/{rows.length} 个容器
+          {hostCount} {t('台主机')} · {filtered.length}/{rows.length} {t('个容器')}
         </span>
         <div style={{ flex: 1 }} />
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -227,12 +227,12 @@ export function AggregateContainersPage({ active = true }: { active?: boolean })
           <table className="table">
             <thead>
               <tr>
-                <SortableTh label={'主机'} active={sortKey === 'host'} asc={sortAsc} onSort={() => toggleSort('host')} />
-                <SortableTh label={'名称'} active={sortKey === 'name'} asc={sortAsc} onSort={() => toggleSort('name')} />
-                <SortableTh label={'状态'} active={sortKey === 'state'} asc={sortAsc} onSort={() => toggleSort('state')} />
-                <SortableTh label={'镜像'} active={sortKey === 'image'} asc={sortAsc} onSort={() => toggleSort('image')} />
-                <SortableTh label={'项目'} active={sortKey === 'project'} asc={sortAsc} onSort={() => toggleSort('project')} />
-                <SortableTh label={'创建时间'} active={sortKey === 'created'} asc={sortAsc} onSort={() => toggleSort('created')} />
+                <SortableTh label={t('主机')} active={sortKey === 'host'} asc={sortAsc} onSort={() => toggleSort('host')} />
+                <SortableTh label={t('名称')} active={sortKey === 'name'} asc={sortAsc} onSort={() => toggleSort('name')} />
+                <SortableTh label={t('状态')} active={sortKey === 'state'} asc={sortAsc} onSort={() => toggleSort('state')} />
+                <SortableTh label={t('镜像')} active={sortKey === 'image'} asc={sortAsc} onSort={() => toggleSort('image')} />
+                <SortableTh label={t('项目')} active={sortKey === 'project'} asc={sortAsc} onSort={() => toggleSort('project')} />
+                <SortableTh label={t('创建时间')} active={sortKey === 'created'} asc={sortAsc} onSort={() => toggleSort('created')} />
                 <th style={{ width: 80 }}>{t('操作')}</th>
               </tr>
             </thead>

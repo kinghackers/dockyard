@@ -203,7 +203,7 @@ export function ConnectionDialog({ initial, defaultGroupId, onClose, onSaved }: 
                     <input
                       value={caCertPath}
                       onChange={(e) => setCaCertPath(e.target.value)}
-                      placeholder="例：C:\certs\ca.pem"
+                      placeholder={t('例：{p0}', { p0: 'C:\\certs\\ca.pem' })}
                     />
                   </div>
                   <div className="form-row">
@@ -211,7 +211,7 @@ export function ConnectionDialog({ initial, defaultGroupId, onClose, onSaved }: 
                     <input
                       value={certPath}
                       onChange={(e) => setCertPath(e.target.value)}
-                      placeholder="例：C:\certs\cert.pem"
+                      placeholder={t('例：{p0}', { p0: 'C:\\certs\\cert.pem' })}
                     />
                   </div>
                   <div className="form-row">
@@ -219,7 +219,7 @@ export function ConnectionDialog({ initial, defaultGroupId, onClose, onSaved }: 
                     <input
                       value={keyPath}
                       onChange={(e) => setKeyPath(e.target.value)}
-                      placeholder="例：C:\certs\key.pem"
+                      placeholder={t('例：{p0}', { p0: 'C:\\certs\\key.pem' })}
                     />
                   </div>
                   <details style={{ fontSize: 12 }}>

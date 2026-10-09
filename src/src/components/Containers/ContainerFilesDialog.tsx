@@ -76,7 +76,7 @@ export function ContainerFilesDialog({ hostId, containerId, onClose }: Props) {
     try {
       const res = await window.dockerApi.uploadContainerFile(hostId, containerId, dir);
       if (res.ok) {
-        toast(`已上传到 ${dir}/${res.path?.replace(/^.*\//, '')}`, 'success');
+        toast(t('已上传到 {p0}', { p0: `${dir}/${res.path?.replace(/^.*\//, '')}` }), 'success');
         await load(dir);
       } else if (!res.canceled) {
         toast(res.error || t('上传失败'), 'error');
@@ -97,7 +97,7 @@ export function ContainerFilesDialog({ hostId, containerId, onClose }: Props) {
         </div>
         <div className="modal-body" style={{ gap: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-            <button className="btn ghost icon-btn" title="返回上级" onClick={() => void load(crumbs.length > 1 ? `/${crumbs.slice(0, -1).join('/')}` : '/')} style={{ width: 24, height: 24 }}>
+            <button className="btn ghost icon-btn" title={t('返回上级')} onClick={() => void load(crumbs.length > 1 ? `/${crumbs.slice(0, -1).join('/')}` : '/')} style={{ width: 24, height: 24 }}>
               <ArrowUp size={13} />
             </button>
             <button className="btn ghost icon-btn" title={t('刷新')} onClick={() => void load(dir)} disabled={loading} style={{ width: 24, height: 24 }}>
@@ -124,7 +124,7 @@ export function ContainerFilesDialog({ hostId, containerId, onClose }: Props) {
             </span>
             <div style={{ flex: 1 }} />
             <button className="btn" onClick={() => void upload()} title={t('上传文件到当前目录')}>
-              <Upload size={13} /> 上传
+              <Upload size={13} /> {t('上传')}
             </button>
           </div>
 

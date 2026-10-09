@@ -238,7 +238,7 @@ export function DashboardPage({ hostId, active = true }: { hostId?: string; acti
       <div className="page-header">
         <div className="page-title">
           <Activity size={18} color="var(--accent)" />
-          仪表板 · {conn?.name || targetHost}
+          {t('仪表板')} · {conn?.name || targetHost}
         </div>
         <div className="page-subtitle">
           {info?.serverVersion ? `Docker ${info.serverVersion}` : ''}
@@ -248,7 +248,7 @@ export function DashboardPage({ hostId, active = true }: { hostId?: string; acti
         </div>
         <div style={{ flex: 1 }} />
         <button className="btn" onClick={load} disabled={loading}>
-          <RefreshCw size={14} className={loading ? 'spinner' : ''} /> 刷新
+          <RefreshCw size={14} className={loading ? 'spinner' : ''} /> {t('刷新')}
         </button>
       </div>
 
@@ -385,7 +385,7 @@ export function DashboardPage({ hostId, active = true }: { hostId?: string; acti
             <Database size={15} color="var(--volume)" />
             <span className="name">{t('块 I/O')}</span>
             <div style={{ flex: 1, color: 'var(--text-dim)', fontSize: 12 }}>
-              读 {fmtBytes(stats.blockRead)} &nbsp;&nbsp; 写 {fmtBytes(stats.blockWrite)}
+              {t('读')}{fmtBytes(stats.blockRead)} &nbsp;&nbsp; {t('写')}{fmtBytes(stats.blockWrite)}
             </div>
           </div>
 

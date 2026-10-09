@@ -68,18 +68,18 @@ export function ComposeUpDialog({ hostId, onClose, onDeployed, toast }: Props) {
             <div style={{ display: 'flex', gap: 8 }}>
               <input
                 value={filePath}
-                placeholder="例如 D:\projects\myapp\docker-compose.yml"
+                placeholder={t('例如 {p0}', { p0: 'D:\\projects\\myapp\\docker-compose.yml' })}
                 onChange={(e) => setFilePath(e.target.value)}
               />
               <button className="btn" onClick={() => void pick()}>
-                <FolderOpen size={13} /> 浏览
+                <FolderOpen size={13} /> {t('浏览')}
               </button>
             </div>
           </div>
           <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6, lineHeight: 1.6 }}>
-            将在本机执行 <span className="mono">{t('docker compose -f &lt;文件&gt; up -d')}</span>，
+            {t('将在本机执行')} <span className="mono">{t('docker compose -f &lt;文件&gt; up -d')}</span>，
             {t('并按当前连接的 Docker 端点（DOCKER_HOST）部署。需要已安装 Docker CLI。')}
-            SSH 连接依赖本机 ssh 免密；TCP+TLS 会临时写入证书再清理。
+            {t('SSH 连接依赖本机 ssh 免密；TCP+TLS 会临时写入证书再清理。')}
           </div>
 
           {output && (

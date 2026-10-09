@@ -328,13 +328,13 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
     if (a.canStart) {
       items.push({
         key: 'start',
-        label: multi ? t("启动 {p0} 个", { p0: ids.length }) : '启动',
+        label: multi ? t("启动 {p0} 个", { p0: ids.length }) : t('启动'),
         icon: <Play size={13} />,
         onSelect: () =>
           void runOn(
             ids,
             (id) => window.dockerApi.startContainer(hostId, id),
-            multi ? t("已启动 {p0} 个", { p0: ids.length }) : '已启动',
+            multi ? t("已启动 {p0} 个", { p0: ids.length }) : t('已启动'),
             multi ? t("正在启动 {p0} 个…", { p0: ids.length }) : t("{p0}: 正在启动…", { p0: c.name })
           ),
       });
@@ -342,13 +342,13 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
     if (a.canStop) {
       items.push({
         key: 'stop',
-        label: multi ? t("停止 {p0} 个", { p0: ids.length }) : '停止',
+        label: multi ? t("停止 {p0} 个", { p0: ids.length }) : t('停止'),
         icon: <Square size={13} />,
         onSelect: () =>
           void runOn(
             ids,
             (id) => window.dockerApi.stopContainer(hostId, id),
-            multi ? t("已停止 {p0} 个", { p0: ids.length }) : '已停止',
+            multi ? t("已停止 {p0} 个", { p0: ids.length }) : t('已停止'),
             multi ? t("正在停止 {p0} 个…", { p0: ids.length }) : t("{p0}: 正在停止…", { p0: c.name })
           ),
       });
@@ -356,13 +356,13 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
     if (a.canRestart) {
       items.push({
         key: 'restart',
-        label: multi ? t("重启 {p0} 个", { p0: ids.length }) : '重启',
+        label: multi ? t("重启 {p0} 个", { p0: ids.length }) : t('重启'),
         icon: <RotateCw size={13} />,
         onSelect: () =>
           void runOn(
             ids,
             (id) => window.dockerApi.restartContainer(hostId, id),
-            multi ? t("已重启 {p0} 个", { p0: ids.length }) : '已重启',
+            multi ? t("已重启 {p0} 个", { p0: ids.length }) : t('已重启'),
             multi ? t("正在重启 {p0} 个…", { p0: ids.length }) : t("{p0}: 正在重启…", { p0: c.name })
           ),
       });
@@ -443,7 +443,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
       disabled: multi,
       onSelect: () => {
         void navigator.clipboard?.writeText(c.id);
-        toast('已复制容器 ID', 'info');
+        toast(t('已复制容器 ID'), 'info');
       },
     });
     items.push({
@@ -456,7 +456,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
     items.push({ key: 'sep2', label: '', separator: true, onSelect: () => {} });
     items.push({
       key: 'del',
-      label: multi ? t("删除 {p0} 个…", { p0: ids.length }) : '删除…',
+      label: multi ? t("删除 {p0} 个…", { p0: ids.length }) : t('删除…'),
       icon: <Trash2 size={13} />,
       danger: true,
       onSelect: () => void (multi ? removeMany(ids) : removeOne(c.id, c.name)),
@@ -471,10 +471,10 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
       <div className="content-toolbar">
         <button className="btn primary" onClick={() => setRunOpen(true)}>
-          <Plus size={13} /> 创建容器
+          <Plus size={13} /> {t('创建容器')}
         </button>
         <button className="btn" onClick={load} disabled={loading}>
-          <RefreshCw size={14} className={loading ? 'spinner' : ''} /> 刷新
+          <RefreshCw size={14} className={loading ? 'spinner' : ''} /> {t('刷新')}
         </button>
         <button
           className="btn"
@@ -488,7 +488,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
             )
           }
         >
-          <Play size={13} /> 启动
+          <Play size={13} /> {t('启动')}
         </button>
         <button
           className="btn"
@@ -502,7 +502,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
             )
           }
         >
-          <Square size={13} /> 停止
+          <Square size={13} /> {t('停止')}
         </button>
         <button
           className="btn"
@@ -516,7 +516,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
             )
           }
         >
-          <RotateCw size={13} /> 重启
+          <RotateCw size={13} /> {t('重启')}
         </button>
         <button
           className="btn"
@@ -530,7 +530,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
             )
           }
         >
-          <Pause size={13} /> 暂停
+          <Pause size={13} /> {t('暂停')}
         </button>
         <button
           className="btn"
@@ -544,7 +544,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
             )
           }
         >
-          <PlayCircle size={13} /> 恢复
+          <PlayCircle size={13} /> {t('恢复')}
         </button>
         <button
           className="btn"
@@ -559,7 +559,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
             )
           }
         >
-          <Skull size={13} /> 强制终止
+          <Skull size={13} /> {t('强制终止')}
         </button>
         <button
           className="btn"
@@ -569,7 +569,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
             openLogs(selected, list.find((c) => c.id === selected)?.name || '');
           }}
         >
-          <FileText size={13} /> 日志
+          <FileText size={13} /> {t('日志')}
         </button>
         <button
           className="btn"
@@ -580,7 +580,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
             openTerminal(selected, list.find((c) => c.id === selected)?.name || '');
           }}
         >
-          <TermIcon size={13} /> 终端
+          <TermIcon size={13} /> {t('终端')}
         </button>
         <button
           className="btn danger"
@@ -590,7 +590,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
             void removeOne(selected, selectedContainer?.name || selected);
           }}
         >
-          <Trash2 size={13} /> 删除
+          <Trash2 size={13} /> {t('删除')}
         </button>
         {checked.size > 0 && (
           <>
@@ -606,7 +606,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
                 )
               }
             >
-              <Play size={13} /> 批量启动
+              <Play size={13} /> {t('批量启动')}
             </button>
             <button
               className="btn"
@@ -618,13 +618,13 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
                 )
               }
             >
-              <Square size={13} /> 批量停止
+              <Square size={13} /> {t('批量停止')}
             </button>
             <button
               className="btn danger"
               onClick={() => void removeMany([...checked])}
             >
-              <Trash2 size={13} /> 批量删除
+              <Trash2 size={13} /> {t('批量删除')}
             </button>
             <button className="btn ghost" onClick={() => clearChecked()}>
               {t('清除选择')}
@@ -691,12 +691,12 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
                     style={{ width: 12, height: 12 }}
                   />
                 </th>
-                <SortableTh label={'名称'} active={sortKey === 'name'} asc={sortAsc} onSort={() => toggleSort('name')} />
-                <SortableTh label={'状态'} active={sortKey === 'state'} asc={sortAsc} onSort={() => toggleSort('state')} />
-                <SortableTh label={'镜像'} active={sortKey === 'image'} asc={sortAsc} onSort={() => toggleSort('image')} />
-                <SortableTh label={'项目'} active={sortKey === 'project'} asc={sortAsc} onSort={() => toggleSort('project')} />
+                <SortableTh label={t('名称')} active={sortKey === 'name'} asc={sortAsc} onSort={() => toggleSort('name')} />
+                <SortableTh label={t('状态')} active={sortKey === 'state'} asc={sortAsc} onSort={() => toggleSort('state')} />
+                <SortableTh label={t('镜像')} active={sortKey === 'image'} asc={sortAsc} onSort={() => toggleSort('image')} />
+                <SortableTh label={t('项目')} active={sortKey === 'project'} asc={sortAsc} onSort={() => toggleSort('project')} />
                 <th>{t('端口')}</th>
-                <SortableTh label={'创建时间'} active={sortKey === 'created'} asc={sortAsc} onSort={() => toggleSort('created')} />
+                <SortableTh label={t('创建时间')} active={sortKey === 'created'} asc={sortAsc} onSort={() => toggleSort('created')} />
                 <th style={{ width: 140 }}>{t('操作')}</th>
               </tr>
             </thead>
@@ -888,7 +888,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
           onClose={() => setRunOpen(false)}
           onCreated={async (id) => {
             setRunOpen(false);
-            toast('容器已创建', 'success');
+            toast(t('容器已创建'), 'success');
             await load();
             setSelected(id);
           }}

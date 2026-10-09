@@ -97,14 +97,14 @@ export function ComposeListPage({ hostId }: { hostId: string }) {
       <div className="page-header">
         <div className="page-title">
           <Layers size={18} color="var(--compose)" />
-          Docker Compose 项目
+          {t('Docker Compose 项目')}
         </div>
         <div style={{ flex: 1 }} />
         <button className="btn primary" onClick={() => setUpOpen(true)}>
-          <FolderUp size={13} /> 从文件部署
+          <FolderUp size={13} /> {t('从文件部署')}
         </button>
         <button className="btn" onClick={load} disabled={loading}>
-          <RefreshCw size={14} className={loading ? 'spinner' : ''} /> 刷新
+          <RefreshCw size={14} className={loading ? 'spinner' : ''} /> {t('刷新')}
         </button>
       </div>
 
@@ -143,14 +143,14 @@ export function ComposeListPage({ hostId }: { hostId: string }) {
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600, color: 'var(--text-bright)', fontSize: 14 }}>{p.name}</div>
                   <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>
-                    {p.services.length} 个服务 · {p.running}/{p.total} 个容器运行中
+                    {p.services.length} {t('个服务')} · {p.running}/{p.total} {t('个容器运行中')}
                   </div>
                 </div>
                 <button className="btn" onClick={() => void startProject(p)}>
-                  <Play size={13} /> 启动全部
+                  <Play size={13} /> {t('启动全部')}
                 </button>
                 <button className="btn" onClick={() => void stopProject(p)}>
-                  <Square size={13} /> 停止全部
+                  <Square size={13} /> {t('停止全部')}
                 </button>
                 <button
                   className="btn primary"
@@ -164,7 +164,7 @@ export function ComposeListPage({ hostId }: { hostId: string }) {
                     })
                   }
                 >
-                  打开 <ChevronRight size={13} />
+                  {t('打开')} <ChevronRight size={13} />
                 </button>
               </div>
 

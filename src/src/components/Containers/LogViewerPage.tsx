@@ -184,7 +184,7 @@ export function LogViewerPage({ hostId, containerId }: { hostId: string; contain
     setBuffer([]);
     partialRef.current = '';
     setReloadToken((t) => t + 1);
-    toast('已重新加载日志', 'info');
+    toast(t('已重新加载日志'), 'info');
   };
 
   const exportLog = () => {
@@ -238,13 +238,13 @@ export function LogViewerPage({ hostId, containerId }: { hostId: string; contain
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, overflow: 'hidden' }}>
       <div className="content-toolbar">
         <button className="btn" onClick={handleReload}>
-          <RefreshCw size={14} /> 重新加载
+          <RefreshCw size={14} /> {t('重新加载')}
         </button>
         <button className={`btn ${paused ? 'primary' : ''}`} onClick={() => setPaused(!paused)}>
           {paused ? t('恢复滚动') : t('暂停')}
         </button>
         <button className="btn" onClick={exportLog}>
-          <Download size={13} /> 导出
+          <Download size={13} /> {t('导出')}
         </button>
         <button
           className="btn"
@@ -254,7 +254,7 @@ export function LogViewerPage({ hostId, containerId }: { hostId: string; contain
             partialRef.current = '';
           }}
         >
-          <Trash2 size={13} /> 清空
+          <Trash2 size={13} /> {t('清空')}
         </button>
         <div style={{ position: 'relative', marginLeft: 8 }}>
           <Search size={13} style={{ position: 'absolute', left: 8, top: 8, color: 'var(--text-muted)' }} />

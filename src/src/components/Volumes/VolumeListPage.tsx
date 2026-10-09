@@ -123,7 +123,7 @@ export function VolumeListPage({ hostId }: { hostId: string }) {
     if (!ok) return;
     try {
       await window.dockerApi.removeVolume(hostId, name, true);
-      toast('数据卷已删除', 'success');
+      toast(t('数据卷已删除'), 'success');
       setSelected(null);
       setChecked((prev) => {
         const next = new Set(prev);
@@ -197,7 +197,7 @@ export function VolumeListPage({ hostId }: { hostId: string }) {
         disabled: multi,
         onSelect: () => {
           void navigator.clipboard?.writeText(v.name);
-          toast('已复制数据卷名', 'info');
+          toast(t('已复制数据卷名'), 'info');
         },
       },
       {
@@ -206,13 +206,13 @@ export function VolumeListPage({ hostId }: { hostId: string }) {
         disabled: multi,
         onSelect: () => {
           void navigator.clipboard?.writeText(v.mountpoint);
-          toast('已复制挂载点', 'info');
+          toast(t('已复制挂载点'), 'info');
         },
       },
       { key: 'sep', label: '', separator: true, onSelect: () => {} },
       {
         key: 'del',
-        label: multi ? t("删除 {p0} 个…", { p0: ids.length }) : '删除…',
+        label: multi ? t("删除 {p0} 个…", { p0: ids.length }) : t('删除…'),
         icon: <Trash2 size={13} />,
         danger: true,
         onSelect: () => void (multi ? removeMany(ids) : removeOne(v.name)),
@@ -229,10 +229,10 @@ export function VolumeListPage({ hostId }: { hostId: string }) {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
       <div className="content-toolbar">
         <button className="btn primary" onClick={() => setCreateOpen(true)}>
-          <Plus size={13} /> 创建数据卷
+          <Plus size={13} /> {t('创建数据卷')}
         </button>
         <button className="btn" onClick={load} disabled={loading}>
-          <RefreshCw size={14} className={loading ? 'spinner' : ''} /> 刷新
+          <RefreshCw size={14} className={loading ? 'spinner' : ''} /> {t('刷新')}
         </button>
         <button
           className="btn danger"
@@ -242,14 +242,14 @@ export function VolumeListPage({ hostId }: { hostId: string }) {
             void removeOne(selected);
           }}
         >
-          <Trash2 size={13} /> 删除
+          <Trash2 size={13} /> {t('删除')}
         </button>
         {checked.size > 0 && (
           <>
             <div style={{ width: 1, height: 18, background: 'var(--border)', margin: '0 4px' }} />
             <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>{t('已选')}{checked.size}</span>
             <button className="btn danger" onClick={() => void removeMany([...checked])}>
-              <Trash2 size={13} /> 批量删除
+              <Trash2 size={13} /> {t('批量删除')}
             </button>
             <button className="btn ghost" onClick={() => setChecked(new Set())}>
               {t('清除选择')}
@@ -293,11 +293,11 @@ export function VolumeListPage({ hostId }: { hostId: string }) {
                     style={{ width: 12, height: 12 }}
                   />
                 </th>
-                <SortableTh label={'名称'} active={sortKey === 'name'} asc={sortAsc} onSort={() => toggleSort('name')} />
-                <SortableTh label={'驱动'} active={sortKey === 'driver'} asc={sortAsc} onSort={() => toggleSort('driver')} />
-                <SortableTh label={'挂载点'} active={sortKey === 'mountpoint'} asc={sortAsc} onSort={() => toggleSort('mountpoint')} />
-                <SortableTh label={'作用域'} active={sortKey === 'scope'} asc={sortAsc} onSort={() => toggleSort('scope')} />
-                <SortableTh label={'创建时间'} active={sortKey === 'created'} asc={sortAsc} onSort={() => toggleSort('created')} />
+                <SortableTh label={t('名称')} active={sortKey === 'name'} asc={sortAsc} onSort={() => toggleSort('name')} />
+                <SortableTh label={t('驱动')} active={sortKey === 'driver'} asc={sortAsc} onSort={() => toggleSort('driver')} />
+                <SortableTh label={t('挂载点')} active={sortKey === 'mountpoint'} asc={sortAsc} onSort={() => toggleSort('mountpoint')} />
+                <SortableTh label={t('作用域')} active={sortKey === 'scope'} asc={sortAsc} onSort={() => toggleSort('scope')} />
+                <SortableTh label={t('创建时间')} active={sortKey === 'created'} asc={sortAsc} onSort={() => toggleSort('created')} />
               </tr>
             </thead>
             <tbody>
@@ -358,7 +358,7 @@ export function VolumeListPage({ hostId }: { hostId: string }) {
           onClose={() => setCreateOpen(false)}
           onCreated={async () => {
             setCreateOpen(false);
-            toast('数据卷已创建', 'success');
+            toast(t('数据卷已创建'), 'success');
             await load();
           }}
         />

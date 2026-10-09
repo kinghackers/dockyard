@@ -12,7 +12,7 @@ export function StatusBar() {
   return (
     <div className="status-bar">
       <span>
-        连接: {online}/{connections.length}
+        {t('连接:')} {online}/{connections.length}
       </span>
       {refreshing && <span className="spinner" style={{ width: 10, height: 10 }} />}
       <div style={{ flex: 1 }} />

@@ -243,13 +243,13 @@ export function ComposeLogsPage({ hostId, projectName }: { hostId: string; proje
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, overflow: 'hidden' }}>
       <div className="content-toolbar">
         <button className="btn" onClick={handleReload}>
-          <RefreshCw size={14} /> 重新加载
+          <RefreshCw size={14} /> {t('重新加载')}
         </button>
         <button className={`btn ${paused ? 'primary' : ''}`} onClick={() => setPaused(!paused)}>
           {paused ? t('恢复滚动') : t('暂停')}
         </button>
         <button className="btn" onClick={exportLog}>
-          <Download size={13} /> 导出
+          <Download size={13} /> {t('导出')}
         </button>
         <button
           className="btn"
@@ -258,7 +258,7 @@ export function ComposeLogsPage({ hostId, projectName }: { hostId: string; proje
             pausedBufferRef.current = [];
           }}
         >
-          <Trash2 size={13} /> 清空
+          <Trash2 size={13} /> {t('清空')}
         </button>
 
         <select
@@ -309,7 +309,7 @@ export function ComposeLogsPage({ hostId, projectName }: { hostId: string; proje
         >
           <Radio size={12} />
           {status === 'connecting' && t('连接中…')}
-          {status === 'live' && (paused ? '已暂停滚动 · 仍在接收' : t("{p0} 个服务实时跟随", { p0: containers.length }))}
+          {status === 'live' && (paused ? t('已暂停滚动 · 仍在接收') : t("{p0} 个服务实时跟随", { p0: containers.length }))}
           {status === 'error' && t('错误: {p0}', { p0: error || t('未知') })}
         </span>
         <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 8 }}>

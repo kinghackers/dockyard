@@ -61,12 +61,12 @@ function HostCard({
         <span className={`host-status-dot ${online ? 'online' : 'offline'}`} style={{ marginLeft: 'auto' }} />
       </div>
       <div className="stat-label">
-        {KIND_LABEL[conn.kind]} · {online ? t("已连接 · v{p0}", { p0: info?.serverVersion || '?' }) : status?.error || '未连接'}
+        {KIND_LABEL[conn.kind]} · {online ? t("已连接 · v{p0}", { p0: info?.serverVersion || '?' }) : status?.error || t('未连接')}
       </div>
       {online && info ? (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 12px', marginTop: 8 }}>
           <span className="stat-sub" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <Boxes size={12} /> {t('容器')}{info.containersRunning ?? 0}/{info.containers ?? 0} 运行
+            <Boxes size={12} /> {t('容器')}{info.containersRunning ?? 0}/{info.containers ?? 0} {t('运行中')}
           </span>
           <span className="stat-sub" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
             <Images size={12} /> {t('镜像')}{info.images ?? 0}
@@ -85,7 +85,7 @@ function HostCard({
       )}
       {online && lastEvent && (
         <div className="stat-sub" style={{ marginTop: 8, borderTop: '1px solid var(--border)', paddingTop: 6 }}>
-          最近：{lastEvent.action}
+          {t('最近：')}{lastEvent.action}
           {lastEvent.name ? ` · ${lastEvent.name}` : ''}
           <span style={{ marginLeft: 6, opacity: 0.7 }}>{timeLabel(lastEvent.time)}</span>
         </div>
@@ -137,13 +137,13 @@ export function HomePage({ active = true }: { active?: boolean }) {
         </div>
         <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
           <button className="btn ghost" onClick={() => openTab({ id: 'aggregateContainers', title: t('所有容器'), kind: 'aggregateContainers' })}>
-            <LayoutGrid size={14} /> 所有容器
+            <LayoutGrid size={14} /> {t('所有容器')}
           </button>
           <button className="btn ghost" onClick={() => setCleanupOpen(true)} title={t('docker system df + 按需清理')}>
-            <Trash2 size={14} /> 磁盘清理
+            <Trash2 size={14} /> {t('磁盘清理')}
           </button>
           <button className="btn ghost" onClick={() => openTab({ id: 'settings', title: t('设置'), kind: 'settings' })}>
-            <Settings size={14} /> 设置
+            <Settings size={14} /> {t('设置')}
           </button>
         </div>
       </div>
@@ -192,7 +192,7 @@ export function HomePage({ active = true }: { active?: boolean }) {
         <div className="stat-sub" style={{ fontSize: 12, lineHeight: 1.9 }}>
           <div>
             <strong style={{ color: 'var(--text-bright)' }}>Dockyard</strong>（docker-manager）v{pkg.version}
-            {' · '}Electron 桌面端 · 数据仅保存在本机
+            {' · '}{t('Electron 桌面端 · 数据仅保存在本机')}
           </div>
           <div style={{ color: 'var(--text-muted)' }}>
             {t('连接配置与凭据存储于本机配置文件（支持加密）；仪表板、容器、镜像等页面在对应连接自己的标签页内切换。')}

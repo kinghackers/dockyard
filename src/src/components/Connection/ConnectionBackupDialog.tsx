@@ -93,7 +93,7 @@ export function ConnectionBackupDialog({
       }
       toast(t("已导入 {p0} 个连接、{p1} 个目录", { p0: n, p1: importedGroups.length }), 'success');
       if (!data.includeSecrets) {
-        toast('备份不含密码/密钥，请编辑连接补全', 'info');
+        toast(t('备份不含密码/密钥，请编辑连接补全'), 'info');
       }
       await onImported();
       onClose();
@@ -115,7 +115,7 @@ export function ConnectionBackupDialog({
         </div>
         <div className="modal-body">
           <div style={{ fontSize: 12, color: 'var(--text-dim)', lineHeight: 1.7 }}>
-            将当前 {connections.length} 个连接、{groups.length} 个目录导出为 JSON，或从备份文件恢复。
+            {t('将当前 {p0} 个连接、{p1} 个目录导出为 JSON，或从备份文件恢复。', { p0: connections.length, p1: groups.length })}
             {t('恢复时按 ID 合并：同 ID 覆盖，新 ID 追加。')}
           </div>
 
@@ -156,14 +156,14 @@ export function ConnectionBackupDialog({
         </div>
         <div className="modal-footer">
           <button className="btn" onClick={() => void importJson()} disabled={busy}>
-            {busy ? <Loader2 size={13} className="spinner" /> : <Upload size={13} />} 导入
+            {busy ? <Loader2 size={13} className="spinner" /> : <Upload size={13} />} {t('导入')}
           </button>
           <div style={{ flex: 1 }} />
           <button className="btn" onClick={onClose}>
             {t('关闭')}
           </button>
           <button className="btn primary" onClick={exportJson}>
-            <Download size={13} /> 导出
+            <Download size={13} /> {t('导出')}
           </button>
         </div>
       </div>

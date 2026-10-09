@@ -361,7 +361,7 @@ export function ComposeProjectPage({
       icon: <Copy size={13} />,
       onSelect: () => {
         void navigator.clipboard?.writeText(c.id);
-        toast('已复制容器 ID', 'info');
+        toast(t('已复制容器 ID'), 'info');
       },
     });
     items.push({ key: 'sep2', label: '', separator: true, onSelect: () => {} });
@@ -410,13 +410,13 @@ export function ComposeProjectPage({
           <div>
             <div style={{ fontWeight: 600, color: 'var(--text-bright)' }}>{projectName}</div>
             <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>
-              {running}/{containers.length} 个容器运行中
+              {running}/{containers.length} {t('个容器运行中')}
               {project ? t(" · {p0} 个服务", { p0: project.services.length }) : ''}
             </div>
           </div>
         </div>
         <button className="btn" onClick={load} disabled={loading}>
-          <RefreshCw size={14} className={loading ? 'spinner' : ''} /> 刷新
+          <RefreshCw size={14} className={loading ? 'spinner' : ''} /> {t('刷新')}
         </button>
         <button
           className="btn"
@@ -438,7 +438,7 @@ export function ComposeProjectPage({
             );
           }}
         >
-          <Play size={13} /> 启动全部
+          <Play size={13} /> {t('启动全部')}
         </button>
         <button
           className="btn"
@@ -461,7 +461,7 @@ export function ComposeProjectPage({
             );
           }}
         >
-          <Square size={13} /> 停止全部
+          <Square size={13} /> {t('停止全部')}
         </button>
         <button
           className="btn"
@@ -481,13 +481,13 @@ export function ComposeProjectPage({
             );
           }}
         >
-          <RotateCw size={13} /> 重启全部
+          <RotateCw size={13} /> {t('重启全部')}
         </button>
         <button className="btn" onClick={() => void composePull()}>
-          <Download size={13} /> 更新镜像
+          <Download size={13} /> {t('更新镜像')}
         </button>
         <button className="btn danger" onClick={() => void composeDown()}>
-          <Trash2 size={13} /> 项目下线
+          <Trash2 size={13} /> {t('项目下线')}
         </button>
         <button
           className="btn"
@@ -501,7 +501,7 @@ export function ComposeProjectPage({
             })
           }
         >
-          <FileText size={13} /> 项目日志
+          <FileText size={13} /> {t('项目日志')}
         </button>
         {checked.size > 0 && (
           <>
@@ -513,7 +513,7 @@ export function ComposeProjectPage({
                 void runChecked((id) => window.dockerApi.startContainer(hostId, id), t('已启动'), t('正在启动所选…'))
               }
             >
-              <Play size={13} /> 启动
+              <Play size={13} /> {t('启动')}
             </button>
             <button
               className="btn"
@@ -521,7 +521,7 @@ export function ComposeProjectPage({
                 void runChecked((id) => window.dockerApi.stopContainer(hostId, id), t('已停止'), t('正在停止所选…'))
               }
             >
-              <Square size={13} /> 停止
+              <Square size={13} /> {t('停止')}
             </button>
             <button
               className="btn"
@@ -529,7 +529,7 @@ export function ComposeProjectPage({
                 void runChecked((id) => window.dockerApi.restartContainer(hostId, id), t('已重启'), t('正在重启所选…'))
               }
             >
-              <RotateCw size={13} /> 重启
+              <RotateCw size={13} /> {t('重启')}
             </button>
             <button className="btn ghost" onClick={() => clearChecked()}>
               {t('清除选择')}
@@ -556,7 +556,7 @@ export function ComposeProjectPage({
                   });
                 }}
               >
-                <FileText size={13} /> 日志
+                <FileText size={13} /> {t('日志')}
               </button>
               <button
                 className="btn"
@@ -573,7 +573,7 @@ export function ComposeProjectPage({
                   });
                 }}
               >
-                <TermIcon size={13} /> 终端
+                <TermIcon size={13} /> {t('终端')}
               </button>
             </>
           );
@@ -603,10 +603,10 @@ export function ComposeProjectPage({
                     style={{ width: 12, height: 12 }}
                   />
                 </th>
-                <SortableTh label={'服务'} active={sortKey === 'service'} asc={sortAsc} onSort={() => toggleSort('service')} />
-                <SortableTh label={'容器'} active={sortKey === 'name'} asc={sortAsc} onSort={() => toggleSort('name')} />
-                <SortableTh label={'状态'} active={sortKey === 'state'} asc={sortAsc} onSort={() => toggleSort('state')} />
-                <SortableTh label={'镜像'} active={sortKey === 'image'} asc={sortAsc} onSort={() => toggleSort('image')} />
+                <SortableTh label={t('服务')} active={sortKey === 'service'} asc={sortAsc} onSort={() => toggleSort('service')} />
+                <SortableTh label={t('容器')} active={sortKey === 'name'} asc={sortAsc} onSort={() => toggleSort('name')} />
+                <SortableTh label={t('状态')} active={sortKey === 'state'} asc={sortAsc} onSort={() => toggleSort('state')} />
+                <SortableTh label={t('镜像')} active={sortKey === 'image'} asc={sortAsc} onSort={() => toggleSort('image')} />
                 <th>{t('端口')}</th>
                 <th>{t('操作')}</th>
               </tr>

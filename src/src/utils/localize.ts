@@ -168,9 +168,9 @@ export function localizeStatusChip(status: string, state: string): string {
   // Prefer a short Chinese label; fall back to localized full status.
   switch (state) {
     case 'running':
-      if (/\(unhealthy\)/i.test(status)) return '不健康';
-      if (/\(health:\s*starting\)/i.test(status)) return '健康检查中';
-      if (/\(healthy\)/i.test(status)) return '运行中 · 健康';
+      if (/\(unhealthy\)/i.test(status)) return t('不健康');
+      if (/\(health:\s*starting\)/i.test(status)) return t('健康检查中');
+      if (/\(healthy\)/i.test(status)) return t('运行中 · 健康');
       return t('运行中');
     case 'exited':
       return t('已退出');

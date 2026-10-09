@@ -61,7 +61,7 @@ export function TagImageDialog({ initialRepo = '', initialTag = 'latest', onClos
             </div>
           </div>
           <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>
-            将为该镜像追加 <span className="mono">{`${repo.trim() || 'name'}:${tag.trim() || 'latest'}`}</span>
+            {t('将为该镜像追加')} <span className="mono">{`${repo.trim() || 'name'}:${tag.trim() || 'latest'}`}</span>
           </div>
         </div>
         <div className="modal-footer">

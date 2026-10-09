@@ -90,7 +90,7 @@ export function CleanupDialog({ hostId, onClose, onDone }: Props) {
       if (unusedNetworks) parts.push(t("{p0} 个网络", { p0: res.networksDeleted }));
       if (unusedVolumes) parts.push(t("{p0} 个数据卷", { p0: res.volumesDeleted }));
       if (buildCache) parts.push(t("构建缓存 {p0}", { p0: fmtBytes(res.buildCacheBytes) }));
-      toast(parts.length ? t("已清理：{p0}", { p0: parts.join('、') }) : '未选择任何清理项', parts.length ? 'success' : 'info');
+      toast(parts.length ? t("已清理：{p0}", { p0: parts.join('、') }) : t('未选择任何清理项'), parts.length ? 'success' : 'info');
       await onDone();
       onClose();
     } catch (e) {
@@ -138,7 +138,7 @@ export function CleanupDialog({ hostId, onClose, onDone }: Props) {
         <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 520 }}>
           <div className="modal-header">
             <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <HardDrive size={15} /> 磁盘清理
+              <HardDrive size={15} /> {t('磁盘清理')}
             </span>
             <button className="btn ghost icon-btn" onClick={onClose}>
               <X size={15} />
@@ -160,20 +160,20 @@ export function CleanupDialog({ hostId, onClose, onDone }: Props) {
             )}
             {error ? (
               <div style={{ color: 'var(--error)', fontSize: 12, padding: '8px 0' }}>
-                获取磁盘占用失败：{error}
+                {t('获取磁盘占用失败：{p0}', { p0: error })}
                 <button className="btn" style={{ marginLeft: 10, height: 24 }} onClick={() => void load()}>
                   {t('重试')}
                 </button>
               </div>
             ) : !df ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-dim)', padding: 8 }}>
-                <Loader2 size={14} className="spinner" /> 正在统计磁盘占用…
+                <Loader2 size={14} className="spinner" /> {t('正在统计磁盘占用…')}
               </div>
             ) : (
               <>
                 <div style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 10 }}>
-                  共 {df.images} 个镜像 / {df.containers} 个容器 / {df.volumes} 个数据卷，
-                  可回收约 <b style={{ color: 'var(--warning)' }}>{fmtBytes(df.reclaimableBytes)}</b>。
+                  {t('共 {p0} 个镜像 / {p1} 个容器 / {p2} 个数据卷，', { p0: df.images, p1: df.containers, p2: df.volumes })}
+                  {t('可回收约')} <b style={{ color: 'var(--warning)' }}>{fmtBytes(df.reclaimableBytes)}</b>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {row(
@@ -213,7 +213,7 @@ export function CleanupDialog({ hostId, onClose, onDone }: Props) {
               onClick={() => void run()}
               disabled={busy || !df || (!danglingImages && !stoppedContainers && !unusedNetworks && !unusedVolumes && !buildCache)}
             >
-              {busy ? <Loader2 size={13} className="spinner" /> : <Trash2 size={13} />} 清理
+              {busy ? <Loader2 size={13} className="spinner" /> : <Trash2 size={13} />} {t('清理')}
             </button>
           </div>
         </div>

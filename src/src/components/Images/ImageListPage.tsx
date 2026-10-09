@@ -174,7 +174,7 @@ export function ImageListPage({ hostId }: { hostId: string }) {
   const pushOne = async (img: ImageSummary) => {
     const name = img.repoTags[0];
     if (!name) {
-      toast('该镜像没有仓库标签，请先「打标签」再推送', 'error');
+      toast(t('该镜像没有仓库标签，请先「打标签」再推送'), 'error');
       return;
     }
     if (pushing) return;
@@ -217,7 +217,7 @@ export function ImageListPage({ hostId }: { hostId: string }) {
     try {
       const res = await window.dockerApi.loadImage(hostId);
       if (res.ok) {
-        toast('镜像导入完成', 'success');
+        toast(t('镜像导入完成'), 'success');
         await load();
       } else if (!res.canceled) {
         toast(res.error || t('导入失败'), 'error');
@@ -255,7 +255,7 @@ export function ImageListPage({ hostId }: { hostId: string }) {
     if (!ok) return;
     try {
       await window.dockerApi.removeImage(hostId, id, false);
-      toast('镜像已删除', 'success');
+      toast(t('镜像已删除'), 'success');
       setSelected(null);
       uncheck(id);
       await load();
@@ -367,7 +367,7 @@ export function ImageListPage({ hostId }: { hostId: string }) {
         disabled: multi,
         onSelect: () => {
           void navigator.clipboard?.writeText(img.id);
-          toast('已复制镜像 ID', 'info');
+          toast(t('已复制镜像 ID'), 'info');
         },
       },
       {
@@ -377,13 +377,13 @@ export function ImageListPage({ hostId }: { hostId: string }) {
         disabled: multi || img.repoTags.length === 0,
         onSelect: () => {
           void navigator.clipboard?.writeText(img.repoTags[0]);
-          toast('已复制镜像名', 'info');
+          toast(t('已复制镜像名'), 'info');
         },
       },
       { key: 'sep', label: '', separator: true, onSelect: () => {} },
       {
         key: 'del',
-        label: multi ? t("删除 {p0} 个…", { p0: ids.length }) : '删除…',
+        label: multi ? t("删除 {p0} 个…", { p0: ids.length }) : t('删除…'),
         icon: <Trash2 size={13} />,
         danger: true,
         onSelect: () => void (multi ? removeMany(ids) : removeOne(img.id, label)),
@@ -404,17 +404,17 @@ export function ImageListPage({ hostId }: { hostId: string }) {
           disabled={!selectedImage}
           onClick={() => selectedImage && runOne(selectedImage)}
         >
-          <Play size={13} /> 运行
+          <Play size={13} /> {t('运行')}
         </button>
         <button className="btn" onClick={load} disabled={loading}>
-          <RefreshCw size={14} className={loading ? 'spinner' : ''} /> 刷新
+          <RefreshCw size={14} className={loading ? 'spinner' : ''} /> {t('刷新')}
         </button>
         <button
           className="btn"
           disabled={!selectedImage}
           onClick={() => selectedImage && tagOne(selectedImage)}
         >
-          <Tag size={13} /> 打标签
+          <Tag size={13} /> {t('打标签')}
         </button>
         <button
           className="btn"
@@ -439,14 +439,14 @@ export function ImageListPage({ hostId }: { hostId: string }) {
             void removeOne(selected, tagsLabel(selectedImage));
           }}
         >
-          <Trash2 size={13} /> 删除
+          <Trash2 size={13} /> {t('删除')}
         </button>
         {checked.size > 0 && (
           <>
             <div style={{ width: 1, height: 18, background: 'var(--border)', margin: '0 4px' }} />
             <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>{t('已选')}{checked.size}</span>
             <button className="btn danger" onClick={() => void removeMany([...checked])}>
-              <Trash2 size={13} /> 批量删除
+              <Trash2 size={13} /> {t('批量删除')}
             </button>
             <button className="btn ghost" onClick={() => clearChecked()}>
               {t('清除选择')}
@@ -475,10 +475,10 @@ export function ImageListPage({ hostId }: { hostId: string }) {
           <Download size={13} /> {pulling ? t('拉取中…') : t('拉取镜像')}
         </button>
         <button className="btn" disabled={pulling} onClick={() => void loadFromFile()} title={t('从 tar 文件导入镜像（docker load）')}>
-          <Upload size={13} /> 导入
+          <Upload size={13} /> {t('导入')}
         </button>
         <button className="btn" onClick={() => setCleanupOpen(true)} title={t('清理悬空镜像、已停止容器、未使用网络/数据卷')}>
-          <Trash2 size={13} /> 清理
+          <Trash2 size={13} /> {t('清理')}
         </button>
         <div style={{ position: 'relative' }}>
           <Search size={13} style={{ position: 'absolute', left: 8, top: 8, color: 'var(--text-muted)' }} />
@@ -532,10 +532,10 @@ export function ImageListPage({ hostId }: { hostId: string }) {
                     style={{ width: 12, height: 12 }}
                   />
                 </th>
-                <SortableTh label={'仓库:标签'} active={sortKey === 'tags'} asc={sortAsc} onSort={() => toggleSort('tags')} />
+                <SortableTh label={t('仓库:标签')} active={sortKey === 'tags'} asc={sortAsc} onSort={() => toggleSort('tags')} />
                 <SortableTh label={'ID'} active={sortKey === 'id'} asc={sortAsc} onSort={() => toggleSort('id')} />
-                <SortableTh label={'大小'} active={sortKey === 'size'} asc={sortAsc} onSort={() => toggleSort('size')} />
-                <SortableTh label={'创建时间'} active={sortKey === 'created'} asc={sortAsc} onSort={() => toggleSort('created')} />
+                <SortableTh label={t('大小')} active={sortKey === 'size'} asc={sortAsc} onSort={() => toggleSort('size')} />
+                <SortableTh label={t('创建时间')} active={sortKey === 'created'} asc={sortAsc} onSort={() => toggleSort('created')} />
               </tr>
             </thead>
             <tbody>
@@ -612,7 +612,7 @@ export function ImageListPage({ hostId }: { hostId: string }) {
           onClose={() => setRunImage(null)}
           onCreated={async () => {
             setRunImage(null);
-            toast('容器已创建并启动', 'success');
+            toast(t('容器已创建并启动'), 'success');
           }}
         />
       )}

@@ -73,7 +73,7 @@ export function ImageHistoryDialog({ hostId, imageId, title, onClose, toast }: P
         <div className="modal-body" style={{ maxHeight: '60vh', overflow: 'auto' }}>
           {!detail && !error && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-dim)' }}>
-              <Loader2 size={14} className="spinner" /> 加载中…
+              <Loader2 size={14} className="spinner" /> {t('加载中…')}
             </div>
           )}
           {error && (
@@ -109,7 +109,7 @@ export function ImageHistoryDialog({ hostId, imageId, title, onClose, toast }: P
               >
                 <strong>{t('构建层（')}{detail.history.length}）</strong>
                 <button className="btn ghost" style={{ marginLeft: 'auto', height: 24 }} onClick={copyHistory}>
-                  {copied ? <Check size={12} /> : <Copy size={12} />} 复制
+                  {copied ? <Check size={12} /> : <Copy size={12} />} {t('复制')}
                 </button>
               </div>
 

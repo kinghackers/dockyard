@@ -328,7 +328,7 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
         label: t('更新镜像'),
         icon: <Download size={13} />,
         onSelect: () =>
-          void runSidebarAction(t("正在更新 {p0} 镜像…", { p0: p.name }), '镜像已更新', async () => {
+          void runSidebarAction(t("正在更新 {p0} 镜像…", { p0: p.name }), t('镜像已更新'), async () => {
             const res = await window.dockerApi.composeProjectPull(conn.id, p.name);
             if (!res.ok) throw new Error(res.output || t("更新失败（退出码 {p0}）", { p0: res.exitCode ?? '-' }));
           }),
@@ -512,7 +512,7 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
                 danger: true,
               });
               if (!ok) return;
-              await runSidebarAction(t("正在删除 {p0}…", { p0: name }), '已删除', () =>
+              await runSidebarAction(t("正在删除 {p0}…", { p0: name }), t('已删除'), () =>
                 window.dockerApi.removeContainer(conn.id, id, true)
               );
             })(),
@@ -879,7 +879,7 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
                 openView(conn.id, 'images');
               }}
               onContextMenu={(e) =>
-                ctx.open(e, categoryMenu(`images:${conn.id}`, 'images', '镜像列表'))
+                ctx.open(e, categoryMenu(`images:${conn.id}`, 'images', t('镜像列表')))
               }
             >
               <span className="twisty" />
@@ -897,7 +897,7 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
                 openView(conn.id, 'networks');
               }}
               onContextMenu={(e) =>
-                ctx.open(e, categoryMenu(`networks:${conn.id}`, 'networks', '网络列表'))
+                ctx.open(e, categoryMenu(`networks:${conn.id}`, 'networks', t('网络列表')))
               }
             >
               <span className="twisty" />
@@ -915,7 +915,7 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
                 openView(conn.id, 'volumes');
               }}
               onContextMenu={(e) =>
-                ctx.open(e, categoryMenu(`volumes:${conn.id}`, 'volumes', '数据卷列表'))
+                ctx.open(e, categoryMenu(`volumes:${conn.id}`, 'volumes', t('数据卷列表')))
               }
             >
               <span className="twisty" />
@@ -1013,7 +1013,7 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
             <Server size={32} strokeWidth={1.2} color="var(--text-muted)" />
             <div style={{ fontSize: 12 }}>{t('还没有 Docker 连接')}</div>
             <button className="btn primary" onClick={() => onAddConnection()}>
-              <Plus size={14} /> 添加连接
+              <Plus size={14} /> {t('添加连接')}
             </button>
           </div>
         )}

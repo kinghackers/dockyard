@@ -76,7 +76,7 @@ export function TerminalPage({ hostId, containerId }: { hostId: string; containe
     const unsubEnd = window.dockerApi.onExecEnd((p) => {
       if (p.sessionId !== sessionId) return;
       setStatus('closed');
-      term.writeln('\r\n\x1b[33m[会话已结束]\x1b[0m');
+      term.writeln(`\r\n\x1b[33m[${t('会话已结束')}]\x1b[0m`);
     });
 
     const cleanup = () => {
@@ -147,7 +147,7 @@ export function TerminalPage({ hostId, containerId }: { hostId: string; containe
     cleanupRef.current?.();
     cleanupRef.current = null;
     // leave a visible trace in the scrollback and drop keyboard focus
-    termRef.current?.writeln('\r\n\x1b[33m[已手动断开]\x1b[0m');
+    termRef.current?.writeln(`\r\n\x1b[33m[${t('已手动断开')}]\x1b[0m`);
     termRef.current?.blur();
     setStatus('closed');
   };
@@ -161,17 +161,17 @@ export function TerminalPage({ hostId, containerId }: { hostId: string; containe
             void start();
           }}
         >
-          <RefreshCw size={14} /> 重新连接
+          <RefreshCw size={14} /> {t('重新连接')}
         </button>
         <button className="btn" onClick={disconnect} disabled={status === 'closed'}>
-          <XCircle size={13} /> 断开
+          <XCircle size={13} /> {t('断开')}
         </button>
         <div style={{ flex: 1 }} />
         <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
           {status === 'connecting' && t('连接中…')}
           {status === 'open' && (containerId ? t('已连接 · /bin/sh') : t('已连接 · 主机 shell'))}
           {status === 'closed' && t('已断开')}
-          {status === 'error' && `错误: ${error || '未知'}`}
+          {status === 'error' && `${t('错误')}: ${error || t('未知')}`}
         </span>
       </div>
       <div style={{ position: 'relative', flex: 1, minHeight: 0 }}>
@@ -193,7 +193,7 @@ export function TerminalPage({ hostId, containerId }: { hostId: string; containe
               {status === 'error' ? t('连接失败：{p0}', { p0: error || t('未知错误') }) : t('会话已断开')}
             </span>
             <button className="btn primary" onClick={() => void start()}>
-              <RefreshCw size={13} /> 重新连接
+              <RefreshCw size={13} /> {t('重新连接')}
             </button>
           </div>
         )}

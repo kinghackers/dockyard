@@ -101,13 +101,13 @@ export function ContainerDetailPage({
     if (memLimitMB.trim() && Number.isFinite(m) && m > 0) opts.memoryMB = m;
     if (cpuCores.trim() && Number.isFinite(c) && c > 0) opts.cpuCores = c;
     if (Object.keys(opts).length === 0) {
-      toast('请至少填写一项要修改的限制', 'error');
+      toast(t('请至少填写一项要修改的限制'), 'error');
       return;
     }
     setSavingRes(true);
     try {
       await window.dockerApi.updateContainerResources(hostId, containerId, opts);
-      toast('资源限制已更新', 'success');
+      toast(t('资源限制已更新'), 'success');
       await load();
     } catch (e) {
       toast(e instanceof Error ? e.message : String(e), 'error');
@@ -284,7 +284,7 @@ export function ContainerDetailPage({
         </div>
         <div style={{ flex: 1 }} />
         <button className="btn" onClick={load} disabled={loading}>
-          <RefreshCw size={14} className={loading ? 'spinner' : ''} /> 刷新
+          <RefreshCw size={14} className={loading ? 'spinner' : ''} /> {t('刷新')}
         </button>
         {acts?.canStart && (
           <button
@@ -297,7 +297,7 @@ export function ContainerDetailPage({
               )
             }
           >
-            <Play size={13} /> 启动
+            <Play size={13} /> {t('启动')}
           </button>
         )}
         {acts?.canStop && (
@@ -311,7 +311,7 @@ export function ContainerDetailPage({
               )
             }
           >
-            <Square size={13} /> 停止
+            <Square size={13} /> {t('停止')}
           </button>
         )}
         {acts?.canRestart && (
@@ -325,7 +325,7 @@ export function ContainerDetailPage({
               )
             }
           >
-            <RotateCw size={13} /> 重启
+            <RotateCw size={13} /> {t('重启')}
           </button>
         )}
         {acts?.canKill && (
@@ -339,21 +339,21 @@ export function ContainerDetailPage({
               )
             }
           >
-            <Skull size={13} /> 强制终止
+            <Skull size={13} /> {t('强制终止')}
           </button>
         )}
         <button className="btn" onClick={() => setFilesOpen(true)} title={t('浏览容器文件系统，支持上传/下载')}>
-          <FolderOpen size={13} /> 文件
+          <FolderOpen size={13} /> {t('文件')}
         </button>
         <button
           className="btn"
           onClick={() => setCommitOpen(true)}
           title={t('将容器当前文件系统状态提交为新镜像（docker commit）')}
         >
-          <Save size={13} /> 另存为镜像…
+          <Save size={13} /> {t('另存为镜像')}…
         </button>
         <button className="btn" onClick={() => setRenameOpen(true)}>
-          <Pencil size={13} /> 重命名…
+          <Pencil size={13} /> {t('重命名')}…
         </button>
         <button
           className="btn"
@@ -368,7 +368,7 @@ export function ContainerDetailPage({
             })
           }
         >
-          <FileText size={13} /> 日志
+          <FileText size={13} /> {t('日志')}
         </button>
         {acts?.canExec && (
           <button
@@ -383,7 +383,7 @@ export function ContainerDetailPage({
               })
             }
           >
-            <TermIcon size={13} /> 终端
+            <TermIcon size={13} /> {t('终端')}
           </button>
         )}
         <button
@@ -411,7 +411,7 @@ export function ContainerDetailPage({
             })();
           }}
         >
-          <Trash2 size={13} /> 删除
+          <Trash2 size={13} /> {t('删除')}
         </button>
       </div>
 
@@ -421,15 +421,15 @@ export function ContainerDetailPage({
           <div style={{ flex: 1, fontSize: 12, color: 'var(--text)' }}>
             <strong style={{ color: 'var(--warning)' }}>{t('检测到频繁自动重启')}</strong>
             <span style={{ marginLeft: 8 }}>
-              已重启 {detail.restartCount ?? 0} 次
+              {t('已重启 {p0} 次', { p0: detail.restartCount ?? 0 })}
               {detail.restartPolicy && detail.restartPolicy !== 'no'
                 ? t(" · 重启策略 {p0}", { p0: detail.restartPolicy })
                 : ''}
-              。建议先看日志定位故障原因；若需止住重启循环，可关闭自动重启并停止容器。
+              {t('建议先看日志定位故障原因；若需止住重启循环，可关闭自动重启并停止容器。')}
             </span>
           </div>
           <button className="btn" onClick={() => void stopRestartLoopHere()}>
-            <ShieldOff size={13} /> 停止重启循环
+            <ShieldOff size={13} /> {t('停止重启循环')}
           </button>
           <button
             className="btn"
@@ -443,7 +443,7 @@ export function ContainerDetailPage({
               })
             }
           >
-            <FileText size={13} /> 查看日志
+            <FileText size={13} /> {t('查看日志')}
           </button>
         </div>
       )}
@@ -469,7 +469,7 @@ export function ContainerDetailPage({
             <AlertTriangle size={14} color="var(--warning)" />
             <strong>{t('排障提示')}</strong>
             <button className="btn ghost" style={{ marginLeft: 'auto', height: 24 }} onClick={openLogs}>
-              <FileText size={12} /> 查看日志
+              <FileText size={12} /> {t('查看日志')}
             </button>
             {acts?.canExec && (
               <button
@@ -485,7 +485,7 @@ export function ContainerDetailPage({
                   })
                 }
               >
-                <TermIcon size={12} /> 终端
+                <TermIcon size={12} /> {t('终端')}
               </button>
             )}
           </div>
@@ -548,7 +548,7 @@ export function ContainerDetailPage({
                 CPU
                 {isRunning && live && (
                   <span style={{ color: 'var(--success)', fontSize: 10, marginLeft: 6, textTransform: 'none' }}>
-                    ● 实时
+                    ● {t('实时')}
                   </span>
                 )}
               </div>
@@ -558,7 +558,7 @@ export function ContainerDetailPage({
               <div className="stat-label">{t('内存')}</div>
               <div className="stat-value">{fmtBytes(memUsage)}</div>
               <div className="stat-sub">
-                限额 {memLimit ? fmtBytes(memLimit) : t('无限制')}
+                {t('限额')} {memLimit ? fmtBytes(memLimit) : t('无限制')}
                 {memLimit ? ` · ${memPercent.toFixed(1)}%` : ''}
               </div>
             </div>
@@ -572,7 +572,7 @@ export function ContainerDetailPage({
             <div className="stat-card">
               <div className="stat-label">{t('块 I/O')}</div>
               <div className="stat-value" style={{ fontSize: 15 }}>
-                读 {fmtBytes(blockRead)}
+                {t('读')}{fmtBytes(blockRead)}
               </div>
               <div className="stat-sub">{t('写')}{fmtBytes(blockWrite)}</div>
             </div>
@@ -588,7 +588,7 @@ export function ContainerDetailPage({
             <dd>{detail.command || '-'}</dd>
             <dt>{t('状态')}</dt>
             <dd>
-              {localizeContainerStatus(detail.status)} · 退出码 {detail.exitCode ?? '-'}
+              {localizeContainerStatus(detail.status)} · {t('退出码')} {detail.exitCode ?? '-'}
               {detail.oomKilled ? ' · OOM' : ''}
               {detail.health?.status ? t(" · 健康检查 {p0}", { p0: detail.health.status }) : ''}
             </dd>
@@ -631,9 +631,9 @@ export function ContainerDetailPage({
             <>
               <div className="section-title">{t('健康检查')}</div>
               <div style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 8 }}>
-                状态 {detail.health.status || '-'}
+                {t('状态')} {detail.health.status || '-'}
                 {detail.health.failingStreak ? t(" · 连续失败 {p0} 次", { p0: detail.health.failingStreak }) : ''}
-                {' · '}最近 {Math.min(detail.health.log?.length || 0, 5)} 次探测：
+                {' · '}{t('最近 {p0} 次探测：', { p0: Math.min(detail.health.log?.length || 0, 5) })}
               </div>
               <div className="log-view" style={{ maxHeight: 240, overflow: 'auto', fontSize: 11 }}>
                 {(detail.health.log || []).slice(-5).reverse().map((h, i) => (
@@ -641,7 +641,7 @@ export function ContainerDetailPage({
                     <span className="log-line-ts">
                       [{h.start ? h.start.replace(/\.\d+Z?$/, '').replace('T', ' ') : '-'}]{' '}
                     </span>
-                    退出码 {h.exitCode ?? '-'}：{String(h.output || '').trim().slice(0, 400) || t('(无输出)')}
+                    {t('退出码 {p0}：', { p0: h.exitCode ?? '-' })}{String(h.output || '').trim().slice(0, 400) || t('(无输出)')}
                   </div>
                 ))}
               </div>
@@ -754,7 +754,7 @@ export function ContainerDetailPage({
           onSubmit={async (name) => {
             try {
               await window.dockerApi.renameContainer(hostId, containerId, name);
-              toast('已重命名', 'success');
+              toast(t('已重命名'), 'success');
               setRenameOpen(false);
               await load();
             } catch (e) {

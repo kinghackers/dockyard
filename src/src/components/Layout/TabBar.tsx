@@ -33,13 +33,23 @@ export function TabBar() {
   const [dragId, setDragId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
 
+  // Fixed UI labels (home / settings / aggregate) are re-derived from kind so
+  // they track the active locale — tab titles are otherwise frozen at the
+  // moment the tab was opened (the home view is created before locale resolves).
+  const fixedKindTitle = (kind: ViewKind): string | null => {
+    if (kind === 'home') return t('主页');
+    if (kind === 'settings') return t('设置');
+    if (kind === 'aggregateContainers') return t('所有容器');
+    return null;
+  };
+
   return (
     <div className="tab-bar">
       {/* primary surface — always present, not closable, title follows the tree */}
       <div
         className={`tab-item ${mainActive ? 'active' : ''}`}
         onClick={() => setActiveTab(MAIN_VIEW_ID)}
-        title={mainView.title}
+        title={fixedKindTitle(mainView.kind) ?? mainView.title}
       >
         {kindIcon[mainView.kind] || null}
         <span
@@ -49,7 +59,7 @@ export function TabBar() {
             whiteSpace: 'nowrap',
           }}
         >
-          {mainView.title}
+          {fixedKindTitle(mainView.kind) ?? mainView.title}
         </span>
       </div>
 
@@ -85,23 +95,23 @@ export function TabBar() {
             // middle-click closes, like browser tabs
             if (e.button === 1 && tab.closable !== false) closeTab(tab.id);
           }}
-          title={tab.title}
+          title={fixedKindTitle(tab.kind) ?? tab.title}
         >
           {kindIcon[tab.kind] || null}
-          <span
-            style={{
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {tab.title}
-          </span>
-          {tab.closable !== false && (
             <span
-              className="tab-close"
-              role="button"
-              aria-label={t("关闭 {p0}", { p0: tab.title })}
+              style={{
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {fixedKindTitle(tab.kind) ?? tab.title}
+            </span>
+            {tab.closable !== false && (
+              <span
+                className="tab-close"
+                role="button"
+                aria-label={t("关闭 {p0}", { p0: fixedKindTitle(tab.kind) ?? tab.title })}
               onClick={(e) => {
                 e.stopPropagation();
                 closeTab(tab.id);

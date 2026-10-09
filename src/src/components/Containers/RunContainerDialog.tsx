@@ -251,7 +251,7 @@ export function RunContainerDialog({ hostId, initialImage, onClose, onCreated }:
                 style={{ height: 22, fontSize: 11 }}
                 onClick={() => setPorts([...ports, { privatePort: 80, publicPort: 0, type: 'tcp' }])}
               >
-                <Plus size={12} /> 添加
+                <Plus size={12} /> {t('添加')}
               </button>
             </label>
             {ports.map((p, i) => (
@@ -307,7 +307,7 @@ export function RunContainerDialog({ hostId, initialImage, onClose, onCreated }:
                 style={{ height: 22, fontSize: 11 }}
                 onClick={() => setVolumes([...volumes, { source: '', destination: '' }])}
               >
-                <Plus size={12} /> 添加
+                <Plus size={12} /> {t('添加')}
               </button>
             </label>
             {volumes.map((v, i) => (
@@ -372,7 +372,7 @@ export function RunContainerDialog({ hostId, initialImage, onClose, onCreated }:
                 style={{ height: 22, fontSize: 11 }}
                 onClick={() => setEnv([...env, { key: '', value: '' }])}
               >
-                <Plus size={12} /> 添加
+                <Plus size={12} /> {t('添加')}
               </button>
             </label>
             {env.map((e, i) => (
