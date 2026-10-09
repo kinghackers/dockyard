@@ -332,6 +332,19 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   recentEvents: loadUiPref<AppState['recentEvents']>(EVENTS_PREF, []).slice(0, loadUiPref('settings.eventMaxCount', MAX_RECENT_EVENTS)),
   pushEvent: (e) => {
+    // drop exact duplicates (same host/type/action/name/second arriving
+    // back-to-back — e.g. mirrored connections to one engine)
+    const head = get().recentEvents[0];
+    if (
+      head &&
+      head.hostId === e.hostId &&
+      head.type === e.type &&
+      head.action === e.action &&
+      head.name === e.name &&
+      head.time === e.time
+    ) {
+      return;
+    }
     const item = {
       id: `${e.time}-${Math.random().toString(36).slice(2, 7)}`,
       hostId: e.hostId,

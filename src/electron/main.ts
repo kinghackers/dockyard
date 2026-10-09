@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell, Menu, ipcMain, Notification } from 'electron';
+import { app, BrowserWindow, shell, Menu, ipcMain, Notification, session } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
 import { DockerConnectionManager } from './docker/connectionManager';
@@ -94,6 +94,29 @@ app.whenReady().then(() => {
   }
   manager = new DockerConnectionManager(dataDir);
   registerIpc(manager, () => (mainWindow ? [mainWindow] : []));
+
+  // Production-only CSP (dev needs Vite's inline HMR scripts/styles).
+  // style-src unsafe-inline is required: components use inline style props.
+  if (!isDev) {
+    const CSP = [
+      "default-src 'self'",
+      "script-src 'self'",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data:",
+      "font-src 'self' data:",
+      "connect-src 'self'",
+      "object-src 'none'",
+      "base-uri 'none'",
+    ].join('; ');
+    session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+      callback({
+        responseHeaders: {
+          ...details.responseHeaders,
+          'Content-Security-Policy': [CSP],
+        },
+      });
+    });
+  }
 
   // OS notification bridge for the renderer (e.g. abnormal container exits)
   ipcMain.on('ui:notify', (_e, p: { title?: string; body?: string }) => {

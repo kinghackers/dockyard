@@ -864,6 +864,7 @@ export class DockerConnectionManager {
     let aborted = false;
     let stream: NodeJS.ReadableStream | null = null;
     let reconnectTimer: NodeJS.Timeout | null = null;
+    let retryDelay = 1500;
 
     const attach = () => {
       if (aborted) return;
@@ -909,9 +910,13 @@ export class DockerConnectionManager {
         });
         s.on('end', () => {
           if (aborted) return;
-          // brief backoff then re-attach
-          reconnectTimer = setTimeout(attach, 1500);
+          // exponential backoff: an unreachable daemon should not be hammered
+          // every 1.5s forever (resets once a stream comes back up)
+          reconnectTimer = setTimeout(attach, retryDelay);
+          retryDelay = Math.min(retryDelay * 2, 30_000);
         });
+        // stream established — reset the backoff for the next drop
+        retryDelay = 1500;
       });
     };
 
