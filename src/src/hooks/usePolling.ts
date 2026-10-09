@@ -77,9 +77,10 @@ export function usePolling({ active, reloadKey, intervalMs, onLoad, catchUp = tr
       return;
     }
 
-    // catch-up on (re)activation: mounted, host switched, or surface visible
-    // again; frozen surfaces (catchUp=false) just resume the normal cadence
-    if (stale() && catchUpRef.current) void tick();
+    // first load (or data-source switch via reloadKey) always runs
+    // immediately; the reactivation catch-up honors catchUp
+    const needsFirstLoad = lastLoadedAt.current === 0;
+    if (needsFirstLoad || (stale() && catchUpRef.current)) void tick();
     else timer = setTimeout(() => void tick(), interval());
 
     // returning to the app window after a long time away — refresh if stale
