@@ -34,3 +34,4 @@ coverage/
 
 # Local assistant workspace (project memory stays out of the repo)
 .workbuddy/
+.e2e/
