@@ -1,0 +1,55 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+# 发布 GitHub Release 需要写入 contents 权限
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build Windows installer & publish GitHub Release
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # dist = vite build + build-electron.mjs + electron-builder --win
+      # 产物写入 release/（见 package.json build.directories.output）
+      - name: Build & package Windows installer (NSIS)
+        # 当前 build.win.sign 为 null（未做代码签名），安装包在 Windows 上会触发 SmartScreen 警告（P2 待办）
+        run: npm run dist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          # 仅上传 Windows NSIS 安装包与自动更新元数据
+          files: |
+            release/*Setup.exe
+            release/*.blockmap
+            release/latest.yml
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # TODO(P2): 增加 macOS / Linux target 与对应 runner（macos-latest / ubuntu-latest）
+      #           macOS 需配置 Developer ID 证书做 codesign + notarize；Windows 需 EV 代码签名消除 SmartScreen 警告
