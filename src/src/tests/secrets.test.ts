@@ -56,11 +56,15 @@ describe('secrets on-disk format', () => {
 
   it('falls back to plaintext when encryption is unavailable', () => {
     state.available = false;
-    expect(encryptSecret('pw')).toBe('pw');
-    // encrypted blobs cannot be decrypted without safeStorage → undefined,
-    // so data is not silently mis-decrypted
-    expect(decryptSecret('enc:v1:AAAA')).toBeUndefined();
-    state.available = true;
+    try {
+      expect(encryptSecret('pw')).toBe('pw');
+      // encrypted blobs cannot be decrypted without safeStorage → undefined,
+      // so data is not silently mis-decrypted
+      expect(decryptSecret('enc:v1:AAAA')).toBeUndefined();
+    } finally {
+      // a failure here must not poison the next test's encryption state
+      state.available = true;
+    }
   });
 
   it('flags records that still hold plaintext secrets', () => {

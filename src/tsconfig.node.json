@@ -13,5 +13,5 @@
     "declaration": false,
     "sourceMap": true
   },
-  "include": ["electron/**/*", "scripts/**/*"]
+  "include": ["electron/**/*", "scripts/**/*", "vite.config.ts", "vitest.config.ts"]
 }

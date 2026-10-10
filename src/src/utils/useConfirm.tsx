@@ -13,7 +13,9 @@ interface ConfirmOptions {
  * then `if (await confirm({ title, message, danger })) ...`
  * Render `{dialog}` next to the page content.
  */
-export function useConfirm(): [ReactNode, (opts: ConfirmOptions) => Promise<boolean>] {
+export function useConfirm(
+  active = true
+): [ReactNode, (opts: ConfirmOptions) => Promise<boolean>] {
   const [pending, setPending] = useState<
     (ConfirmOptions & { resolve: (ok: boolean) => void }) | null
   >(null);
@@ -52,6 +54,7 @@ export function useConfirm(): [ReactNode, (opts: ConfirmOptions) => Promise<bool
       message={pending.message}
       confirmLabel={pending.confirmLabel}
       danger={pending.danger}
+      active={active}
       onConfirm={() => settle(true)}
       onCancel={() => settle(false)}
     />

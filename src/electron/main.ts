@@ -117,7 +117,14 @@ function createWindow() {
   });
 }
 
+// single instance: a second launch must not fight over userData (config
+// writes, compose TLS staging dirs) — it just focuses the existing window
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) app.quit();
+if (gotLock) app.on('second-instance', () => showMainWindow());
+
 app.whenReady().then(() => {
+  if (!gotLock) return; // losing the lock → quitting, never create a window
   Menu.setApplicationMenu(null);
   if (process.platform === 'win32') {
     // required for toast notifications to attribute to this app

@@ -66,7 +66,7 @@ export function ImageListPage({ hostId, active = true }: { hostId: string; activ
   const [historyFor, setHistoryFor] = useState<ImageSummary | null>(null);
   const [cleanupOpen, setCleanupOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [confirmDialog, confirm] = useConfirm();
+  const [confirmDialog, confirm] = useConfirm(active);
   const pullOffRef = useRef<(() => void) | null>(null);
   const filterRef = useRef<HTMLInputElement>(null);
   const ctx = useContextMenu();

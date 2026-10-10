@@ -30,7 +30,7 @@ export function NetworkListPage({ hostId, active = true }: { hostId: string; act
   const [expanded, setExpanded] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [confirmDialog, confirm] = useConfirm();
+  const [confirmDialog, confirm] = useConfirm(active);
   const filterRef = useRef<HTMLInputElement>(null);
   const ctx = useContextMenu();
 

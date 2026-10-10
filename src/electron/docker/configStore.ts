@@ -11,6 +11,9 @@ export interface JsonStoreReadResult<T> {
   corruptedBackup?: string;
 }
 
+/** disambiguates backups taken within the same millisecond */
+let corruptSeq = 0;
+
 /**
  * Read a JSON file written by writeJsonStore. A corrupt file is renamed to
  * `<file>.corrupt-<timestamp>.bak` (preserving it for manual recovery) and
@@ -22,7 +25,7 @@ export function readJsonStore<T>(file: string): JsonStoreReadResult<T> {
   try {
     return { value: JSON.parse(fs.readFileSync(file, 'utf8')) as T };
   } catch (err) {
-    const backup = `${file}.corrupt-${Date.now().toString(36)}.bak`;
+    const backup = `${file}.corrupt-${Date.now().toString(36)}-${(corruptSeq++).toString(36)}.bak`;
     try {
       fs.renameSync(file, backup);
     } catch {

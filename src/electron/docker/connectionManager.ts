@@ -155,7 +155,7 @@ function parseStatsSample(stats: Docker.ContainerStats): ContainerStatsSample {
 
 export class DockerConnectionManager {
   private connections = new Map<string, ManagedConnection>();
-  private connecting = new Map<string, Promise<ConnectionStatus>>();
+  private connecting = new Map<string, { epoch: number; p: Promise<ConnectionStatus> }>();
   /** bumped on every disconnect — lets an in-flight connect detect cancellation */
   private epoch = new Map<string, number>();
   private configPath: string;
@@ -301,12 +301,20 @@ export class DockerConnectionManager {
 
   async connect(id: string): Promise<ConnectionStatus> {
     // concurrent connects for one id (double-click, renderer retry) would each
-    // build a tunnel and the loser would overwrite+leak the winner's — dedupe
+    // build a tunnel and the loser would overwrite+leak the winner's — dedupe.
+    // A disconnect since the in-flight attempt started invalidates it (it will
+    // resolve as cancelled); the caller's intent is then a fresh connect.
     const inFlight = this.connecting.get(id);
-    if (inFlight) return inFlight;
-    const p = this.doConnect(id).finally(() => this.connecting.delete(id));
-    this.connecting.set(id, p);
-    return p;
+    if (inFlight && inFlight.epoch === (this.epoch.get(id) || 0)) return inFlight.p;
+    const entry: { epoch: number; p: Promise<ConnectionStatus> } = {
+      epoch: this.epoch.get(id) || 0,
+      p: null as unknown as Promise<ConnectionStatus>,
+    };
+    entry.p = this.doConnect(id).finally(() => {
+      if (this.connecting.get(id) === entry) this.connecting.delete(id);
+    });
+    this.connecting.set(id, entry);
+    return entry.p;
   }
 
   private async doConnect(id: string): Promise<ConnectionStatus> {
@@ -326,13 +334,16 @@ export class DockerConnectionManager {
       const docker = built.docker;
       const info = await this.fetchInfo(docker);
       if ((this.epoch.get(id) || 0) !== myEpoch) {
-        // disconnect() raced this connect — honor it instead of resurrecting
+        // disconnect() raced this connect — honor it instead of resurrecting.
+        // No `error` field: a cancelled connect is not a failure (an error
+        // here would re-arm the renderer's auto-reconnect and undo the
+        // manual disconnect that cancelled us)
         try {
           await tunnel?.close();
         } catch {
           /* ignore */
         }
-        return { id, connected: false, error: '连接已被取消' };
+        return { id, connected: false };
       }
       const managed: ManagedConnection = {
         config: cfg,
@@ -379,6 +390,11 @@ export class DockerConnectionManager {
   }
 
   async disconnectAll() {
+    // also cancel in-flight connects for hosts not yet registered (e.g. quit
+    // during a first-ever connect) or they would register a tunnel nobody closes
+    for (const id of this.connecting.keys()) {
+      this.epoch.set(id, (this.epoch.get(id) || 0) + 1);
+    }
     for (const id of [...this.connections.keys()]) {
       await this.disconnect(id);
     }
@@ -917,7 +933,19 @@ export class DockerConnectionManager {
         }
         if (err || !s) {
           onError?.(err || new Error('事件流不可用'));
+          // a failed (re-)subscribe must retry too — tunnel/daemon errors
+          // arrive here via the callback, not as stream 'error' events, and
+          // dying here would kill auto-refresh forever
+          scheduleReconnect();
           return;
+        }
+        // a late 'error' from the stream being replaced must not spawn a
+        // second concurrent subscription — detach it first
+        try {
+          stream?.removeAllListeners?.();
+          (stream as { destroy?: () => void } | null)?.destroy?.();
+        } catch {
+          /* ignore */
         }
         stream = s;
         s.on('data', (buf: Buffer) => {

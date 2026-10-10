@@ -72,7 +72,7 @@ export function ContainerListPage({ hostId, active = true }: { hostId: string; a
   const [runOpen, setRunOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [renameFor, setRenameFor] = useState<ContainerSummary | null>(null);
-  const [confirmDialog, confirm] = useConfirm();
+  const [confirmDialog, confirm] = useConfirm(active);
   const ctx = useContextMenu();
   const filterRef = useRef<HTMLInputElement>(null);
 

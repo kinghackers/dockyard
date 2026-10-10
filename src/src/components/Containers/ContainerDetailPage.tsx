@@ -54,7 +54,7 @@ export function ContainerDetailPage({
   const [memLimitMB, setMemLimitMB] = useState('');
   const [cpuCores, setCpuCores] = useState('');
   const [savingRes, setSavingRes] = useState(false);
-  const [confirmDialog, confirm] = useConfirm();
+  const [confirmDialog, confirm] = useConfirm(active);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -117,9 +117,16 @@ export function ContainerDetailPage({
 
   // live CPU / memory / net / block I/O stream while running
   const isRunning = detail?.state === 'running';
+  // container switch invalidates the last live samples (they are kept frozen
+  // while a keep-alive tab is hidden so the panel shows what you left)
   useEffect(() => {
-    if (!isRunning) {
-      setLive(null);
+    setLive(null);
+  }, [hostId, containerId]);
+  useEffect(() => {
+    if (!isRunning || !active) {
+      // stopped container: stale samples make no sense. Hidden tab: the
+      // cleanup below already closed the stream and values stay frozen
+      if (!isRunning) setLive(null);
       return;
     }
     let cancelled = false;
@@ -127,6 +134,7 @@ export function ContainerDetailPage({
     let offData: (() => void) | null = null;
     let offErr: (() => void) | null = null;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let failures = 0;
 
     const detach = () => {
       offData?.();
@@ -134,12 +142,16 @@ export function ContainerDetailPage({
       offData = null;
       offErr = null;
     };
-    const retryLater = (ms: number) => {
+    const retryLater = () => {
       if (cancelled || retryTimer) return;
+      // capped exponential backoff: persistently failing stats should not
+      // churn IPC every 5s forever (reset once a sample arrives)
+      const delay = Math.min(5000 * 2 ** failures, 30_000);
+      failures += 1;
       retryTimer = setTimeout(() => {
         retryTimer = null;
         void open();
-      }, ms);
+      }, delay);
     };
 
     const open = async () => {
@@ -150,16 +162,17 @@ export function ContainerDetailPage({
       detach();
       offData = window.dockerApi.onStatsData((p) => {
         if (p.hostId === hostId && p.containerId === containerId) {
+          failures = 0;
           setLive(p.sample);
         }
       });
       offErr = window.dockerApi.onStatsError((p) => {
         if (p.key !== `${hostId}:${containerId}`) return;
         // stats may be briefly unavailable (restart race) — drop the stream
-        // and retry: this effect only re-runs when isRunning flips
+        // and retry: this effect only re-runs when isRunning/active flips
         close?.();
         close = null;
-        retryLater(5000);
+        retryLater();
       });
       close = () => {
         void window.dockerApi.closeStats(hostId, containerId);
@@ -172,11 +185,11 @@ export function ContainerDetailPage({
           close = null;
         }
       } catch {
-        // openStats failed (e.g. container mid-restart) — retry shortly
+        // openStats failed (e.g. container mid-restart) — retry with backoff
         close?.();
         close = null;
         detach();
-        retryLater(5000);
+        retryLater();
       }
     };
 
@@ -187,9 +200,8 @@ export function ContainerDetailPage({
       if (retryTimer) clearTimeout(retryTimer);
       detach();
       close?.();
-      setLive(null);
     };
-  }, [hostId, containerId, isRunning]);
+  }, [hostId, containerId, isRunning, active]);
 
   const action = async (fn: () => Promise<unknown>, msg: string, pendingMsg = t('处理中…')) => {
     await runAction(toast, { pending: pendingMsg, ok: msg, name: detail?.name }, fn);

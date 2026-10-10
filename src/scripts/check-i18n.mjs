@@ -21,9 +21,10 @@ const SKIP_DIRS = new Set(['node_modules', 'dist', 'tests', 'i18n', 'styles']);
 
 /**
  * Lines whose raw source contains the token `i18n:allow-zh` are exempt from
- * the bare-Chinese check (JS: a line comment; JSX: a brace-wrapped comment).
- * Use only for intentionally-multilingual UI (locale names) and zh strings
- * routed through dynamic t() indirection (e.g. unitOf('分钟')).
+ * the bare-Chinese check — the token must sit on the SAME line as the zh text
+ * (JS: a trailing line comment; JSX: a trailing {/* … * /} comment). Use only
+ * for intentionally-multilingual UI (locale names) and zh strings routed
+ * through dynamic t() indirection (e.g. unitOf('分钟')).
  */
 const ALLOW = /i18n:allow-zh/;
 
@@ -61,12 +62,9 @@ for (const f of files) {
   const rawLines = fs.readFileSync(f, 'utf8').split('\n');
   const allowedLines = new Set();
   rawLines.forEach((l, i) => {
-    if (ALLOW.test(l)) {
-      // the directive line itself and the line right below (JSX comments sit
-      // above the text they annotate)
-      allowedLines.add(i + 1);
-      allowedLines.add(i + 2);
-    }
+    // same-line only: an above-line exemption would silently cover whatever
+    // code lands on the next line in future edits
+    if (ALLOW.test(l)) allowedLines.add(i + 1);
   });
   // on allowed lines, quoted zh strings count as used keys when they exist in
   // en.ts (dynamic t() indirection like unitOf('分钟'))

@@ -68,7 +68,7 @@ export function ComposeProjectPage({
   } = useMultiSelect();
   const [sortKey, setSortKey] = useState<SortKey>(() => loadUiPref('compose.sortKey', 'service'));
   const [sortAsc, setSortAsc] = useState(() => loadUiPref('compose.sortAsc', true));
-  const [confirmDialog, confirm] = useConfirm();
+  const [confirmDialog, confirm] = useConfirm(active);
   const ctx = useContextMenu();
 
   const load = useCallback(async () => {

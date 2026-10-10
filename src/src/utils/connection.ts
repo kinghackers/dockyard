@@ -19,8 +19,8 @@ export function connectOnce(hostId: string): Promise<import('../types/docker').C
 
 export function isNotConnectedError(e: unknown): boolean {
   const msg = e instanceof Error ? e.message : String(e);
-  // i18n:allow-zh — matches main-process error text, not user-visible
-  return /Not connected|not connected|未连接/i.test(msg);
+  // matches main-process zh error text, not user-visible — hence the token
+  return /Not connected|not connected|未连接/i.test(msg); // i18n:allow-zh
 }
 
 /**

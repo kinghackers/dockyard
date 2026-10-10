@@ -124,8 +124,9 @@ export default function App() {
       if (status.connected) {
         const name = useAppStore.getState().connections.find((c) => c.id === id)?.name || id;
         toast(t("已连接 {p0}", { p0: name }), 'success');
-      } else {
-        toast(status.error || t('连接失败'), 'error');
+      } else if (status.error) {
+        // no error = the connect was cancelled by a racing disconnect — silent
+        toast(status.error, 'error');
       }
     } catch (e) {
       toast(e instanceof Error ? e.message : String(e), 'error');

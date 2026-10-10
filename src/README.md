@@ -40,7 +40,7 @@
 ```bash
 npm install
 npm run dev        # 同时启动 Vite 与 Electron，支持热更新
-npm run verify     # 类型检查 + 单元测试 + IPC 一致性检验
+npm run verify     # 类型检查 + 单元测试 + IPC/逻辑/i18n 检验 + e2e 冒烟
 npm start          # 以 dist/ 产物启动生产模式（改完源码需先 npm run build）
 ```
 

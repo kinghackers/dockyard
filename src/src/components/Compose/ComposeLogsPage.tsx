@@ -58,6 +58,7 @@ export function ComposeLogsPage({
 }) {
   const t = useT();
   const toast = useAppStore((s) => s.toast);
+  const containersVersion = useAppStore((s) => s.containersVersion);
   const [containers, setContainers] = useState<ContainerSummary[]>([]);
   const [lines, setLines] = useState<Line[]>([]);
   const [paused, setPaused] = useState(false);
@@ -71,6 +72,10 @@ export function ComposeLogsPage({
   const lineIdRef = useRef(0);
   const partialsRef = useRef<Record<string, string>>({});
   const pausedBufferRef = useRef<Line[]>([]);
+  /** container ids this page currently streams (survives membership refreshes) */
+  const openedRef = useRef<Set<string>>(new Set());
+  /** last membership fingerprint — skips no-op refreshes */
+  const membersKeyRef = useRef('');
 
   useEffect(() => {
     pausedRef.current = paused;
@@ -105,17 +110,21 @@ export function ComposeLogsPage({
     }
   }, []);
 
-  // load project members
+  // load project members; docker events refresh membership because service
+  // restarts get NEW container ids that must be followed too
   useEffect(() => {
     let cancelled = false;
     void (async () => {
       try {
         const all = await window.dockerApi.listContainers(hostId, true);
         const members = all.filter((c) => c.composeProject === projectName);
-        if (!cancelled) {
-          setContainers(members);
-          setStatus('connecting');
-        }
+        if (cancelled) return;
+        // skip no-op refreshes so the stream effect below does not churn
+        const key = members.map((c) => `${c.id}:${serviceOf(c)}`).sort().join('|');
+        if (key === membersKeyRef.current) return;
+        membersKeyRef.current = key;
+        setContainers(members);
+        setStatus('connecting');
       } catch (e) {
         if (!cancelled) {
           setError(e instanceof Error ? e.message : String(e));
@@ -126,20 +135,24 @@ export function ComposeLogsPage({
     return () => {
       cancelled = true;
     };
-  }, [hostId, projectName]);
+  }, [hostId, projectName, containersVersion]);
 
-  // open one log stream per container
+  // follow one log stream per member container. Membership changes apply
+  // incrementally — a full teardown would lose line continuity and re-tail
+  // duplicates on every refresh
   useEffect(() => {
     if (containers.length === 0) return;
     let disposed = false;
     const unsubs: Array<() => void> = [];
-    const opened: string[] = [];
+    const retryTimers: ReturnType<typeof setTimeout>[] = [];
 
     const nameById = new Map(containers.map((c) => [c.id, serviceOf(c)]));
+    const wanted = new Set(containers.map((c) => c.id));
+    const keyOf = (k: string) => (k.startsWith(`${hostId}:`) ? k.slice(hostId.length + 1) : k);
 
     unsubs.push(
       window.dockerApi.onLogData((p) => {
-        const cid = p.key.startsWith(`${hostId}:`) ? p.key.slice(hostId.length + 1) : p.key;
+        const cid = keyOf(p.key);
         const service = nameById.get(cid);
         // only this project's streams — single-container viewers on the same
         // host share the channel and would otherwise leak lines in here
@@ -152,19 +165,47 @@ export function ComposeLogsPage({
     );
     unsubs.push(
       window.dockerApi.onLogError((p) => {
-        const cid = p.key.startsWith(`${hostId}:`) ? p.key.slice(hostId.length + 1) : p.key;
-        if (!nameById.get(cid)) return;
+        if (!nameById.get(keyOf(p.key))) return;
         setError(p.error);
+      })
+    );
+    unsubs.push(
+      window.dockerApi.onLogEnd((p) => {
+        const cid = keyOf(p.key);
+        if (!nameById.get(cid)) return;
+        // docker ends tail streams when containers stop — re-follow shortly
+        // (same recovery LogViewerPage uses for single-container tabs)
+        openedRef.current.delete(cid);
+        retryTimers.push(
+          setTimeout(() => {
+            if (disposed || openedRef.current.has(cid)) return;
+            openedRef.current.add(cid);
+            void window.dockerApi.openLogs(hostId, cid, TAIL_LINES).catch((e) => {
+              openedRef.current.delete(cid);
+              console.error('openLogs', cid, e);
+            });
+          }, 2000)
+        );
       })
     );
 
     void (async () => {
+      // stop following containers that left the project (e.g. replaced by a restart)
+      for (const id of [...openedRef.current]) {
+        if (!wanted.has(id)) {
+          openedRef.current.delete(id);
+          delete partialsRef.current[id];
+          void window.dockerApi.closeLogs(hostId, id);
+        }
+      }
+      // follow containers we are not yet streaming
       for (const c of containers) {
-        if (disposed) break;
+        if (disposed || openedRef.current.has(c.id)) continue;
+        openedRef.current.add(c.id);
         try {
           await window.dockerApi.openLogs(hostId, c.id, TAIL_LINES);
-          opened.push(c.id);
         } catch (e) {
+          openedRef.current.delete(c.id);
           // one bad container should not kill the whole aggregate
           console.error('openLogs', c.id, e);
         }
@@ -174,12 +215,22 @@ export function ComposeLogsPage({
 
     return () => {
       disposed = true;
+      for (const t of retryTimers) clearTimeout(t);
       for (const u of unsubs) u();
-      for (const id of opened) {
-        void window.dockerApi.closeLogs(hostId, id);
-      }
     };
   }, [hostId, containers, pushLine]);
+
+  // leaving the view entirely: stop every stream this page opened
+  useEffect(() => {
+    return () => {
+      for (const id of openedRef.current) {
+        void window.dockerApi.closeLogs(hostId, id);
+      }
+      openedRef.current.clear();
+      partialsRef.current = {};
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hostId, projectName]);
 
   useEffect(() => {
     if (!paused && bodyRef.current) {

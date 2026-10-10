@@ -30,7 +30,7 @@ export function VolumeListPage({ hostId, active = true }: { hostId: string; acti
   const [sortAsc, setSortAsc] = useState(() => loadUiPref('volumes.sortAsc', true));
   const [createOpen, setCreateOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [confirmDialog, confirm] = useConfirm();
+  const [confirmDialog, confirm] = useConfirm(active);
   const filterRef = useRef<HTMLInputElement>(null);
   const ctx = useContextMenu();
 

@@ -7,6 +7,8 @@ interface Props {
   message: string;
   confirmLabel?: string;
   danger?: boolean;
+  /** false while the owning keep-alive page is hidden — key handling pauses */
+  active?: boolean;
   onConfirm: () => void | Promise<void>;
   onCancel: () => void;
 }
@@ -20,6 +22,7 @@ export function ConfirmDialog({
   message,
   confirmLabel = t('确定'),
   danger = false,
+  active = true,
   onConfirm,
   onCancel,
 }: Props) {
@@ -28,19 +31,25 @@ export function ConfirmDialog({
 
   useEffect(() => {
     // destructive confirms focus Cancel so a stray Enter cannot fire them
-    initialFocusRef.current?.focus();
+    if (active) initialFocusRef.current?.focus();
+    if (!active) return;
     const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      // never confirm off a keystroke aimed at a text field (a hidden
+      // keep-alive page's input can be the typing surface)
+      const typing =
+        el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
       if (e.key === 'Escape') {
         e.preventDefault();
         onCancel();
-      } else if (e.key === 'Enter' && !danger) {
+      } else if (e.key === 'Enter' && !danger && !typing) {
         e.preventDefault();
         void onConfirm();
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onCancel, onConfirm, danger]);
+  }, [onCancel, onConfirm, danger, active]);
 
   return (
     <div className="modal-backdrop" onClick={onCancel}>
