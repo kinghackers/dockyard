@@ -128,11 +128,17 @@ export async function saveImageToFile(docker: Docker, name: string, destPath: st
   let bytes = 0;
   await new Promise<void>((resolve, reject) => {
     const out = fs.createWriteStream(destPath);
+    const fail = (err: Error) => {
+      // destroy the write side so its fd does not stay open until exit
+      // (on Windows that keeps the partial .tar locked)
+      out.destroy();
+      reject(err);
+    };
     stream.on('data', (c: Buffer) => {
       bytes += c.length;
     });
-    stream.on('error', reject);
-    out.on('error', reject);
+    stream.on('error', fail);
+    out.on('error', fail);
     out.on('finish', () => resolve());
     stream.pipe(out);
   });

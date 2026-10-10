@@ -507,7 +507,7 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
             void (async () => {
               const ok = await confirm({
                 title: t('删除容器'),
-                message: t("确认删除容器「{p0}」？数据卷将一并移除。", { p0: name }),
+                message: t("确认删除容器「{p0}」？此操作不可撤销。", { p0: name }),
                 confirmLabel: t('删除'),
                 danger: true,
               });

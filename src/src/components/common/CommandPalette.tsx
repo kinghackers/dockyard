@@ -82,6 +82,9 @@ export function CommandPalette() {
     }
 
     for (const [hostId, list] of Object.entries(containersByHost)) {
+      // stale cache: hosts that were disconnected/removed keep their last
+      // container list — searching those would navigate to dead hosts
+      if (!statuses[hostId]?.connected) continue;
       const host = connections.find((c) => c.id === hostId)?.name || hostId;
       for (const c of list) {
         out.push({

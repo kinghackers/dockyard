@@ -76,7 +76,9 @@ function detectProblems(list: ContainerSummary[]): Problem[] {
   return out;
 }
 
-const EVENT_LABEL: Record<string, string> = {
+// built per call (not at module load) so labels follow the active locale —
+// a module-level t() snapshot would freeze the pre-init locale
+const eventLabels = (): Record<string, string> => ({
   'container.start': t('启动'),
   'container.stop': t('停止'),
   'container.die': t('退出'),
@@ -95,7 +97,7 @@ const EVENT_LABEL: Record<string, string> = {
   'volume.destroy': t('删除卷'),
   'network.create': t('创建网络'),
   'network.destroy': t('删除网络'),
-};
+});
 
 function fmtEventTime(ts: number) {
   const d = new Date(ts);
@@ -124,7 +126,7 @@ function Sparkline({ points, color, height = 38 }: { points: number[]; color: st
 }
 
 function eventLabel(e: { type: string; action: string }) {
-  const known = EVENT_LABEL[`${e.type}.${e.action}`];
+  const known = eventLabels()[`${e.type}.${e.action}`];
   if (known) return known;
   // "health_status: healthy/unhealthy" — 只在状态真正变化时出现
   if (e.action.startsWith('health_status')) {

@@ -155,6 +155,9 @@ function parseStatsSample(stats: Docker.ContainerStats): ContainerStatsSample {
 
 export class DockerConnectionManager {
   private connections = new Map<string, ManagedConnection>();
+  private connecting = new Map<string, Promise<ConnectionStatus>>();
+  /** bumped on every disconnect — lets an in-flight connect detect cancellation */
+  private epoch = new Map<string, number>();
   private configPath: string;
   private groupsPath: string;
 
@@ -297,14 +300,40 @@ export class DockerConnectionManager {
   }
 
   async connect(id: string): Promise<ConnectionStatus> {
+    // concurrent connects for one id (double-click, renderer retry) would each
+    // build a tunnel and the loser would overwrite+leak the winner's — dedupe
+    const inFlight = this.connecting.get(id);
+    if (inFlight) return inFlight;
+    const p = this.doConnect(id).finally(() => this.connecting.delete(id));
+    this.connecting.set(id, p);
+    return p;
+  }
+
+  private async doConnect(id: string): Promise<ConnectionStatus> {
     const cfg = this.loadConfigs().find((c) => c.id === id);
     if (!cfg) throw new Error(`未找到连接配置: ${id}`);
 
     await this.disconnect(id);
+    // capture AFTER the disconnect above (which bumps the epoch itself)
+    const myEpoch = this.epoch.get(id) || 0;
 
+    // keep the tunnel reachable from the catch — if fetchInfo fails after the
+    // tunnel is up, it must be closed or the ssh2 client + local listener leak
+    let tunnel: SshTunnel | undefined;
     try {
-      const { docker, tunnel } = await this.buildDocker(cfg);
+      const built = await this.buildDocker(cfg);
+      tunnel = built.tunnel;
+      const docker = built.docker;
       const info = await this.fetchInfo(docker);
+      if ((this.epoch.get(id) || 0) !== myEpoch) {
+        // disconnect() raced this connect — honor it instead of resurrecting
+        try {
+          await tunnel?.close();
+        } catch {
+          /* ignore */
+        }
+        return { id, connected: false, error: '连接已被取消' };
+      }
       const managed: ManagedConnection = {
         config: cfg,
         docker,
@@ -314,6 +343,13 @@ export class DockerConnectionManager {
       this.connections.set(id, managed);
       return managed.status;
     } catch (e) {
+      if (tunnel) {
+        try {
+          await tunnel.close();
+        } catch {
+          /* ignore */
+        }
+      }
       const status: ConnectionStatus = {
         id,
         connected: false,
@@ -329,6 +365,7 @@ export class DockerConnectionManager {
   }
 
   async disconnect(id: string) {
+    this.epoch.set(id, (this.epoch.get(id) || 0) + 1);
     const m = this.connections.get(id);
     if (!m) return;
     if (m.tunnel) {
@@ -797,7 +834,16 @@ export class DockerConnectionManager {
     docker
       .getContainer(id)
       .stats({ stream: true }, (err: Error | null, s?: NodeJS.ReadableStream) => {
-        if (closed) return;
+        if (closed) {
+          // abort() ran while the request was in flight — destroy the late
+          // response or the never-ending stats stream leaks its socket
+          try {
+            (s as { destroy?: () => void } | undefined)?.destroy?.();
+          } catch {
+            /* ignore */
+          }
+          return;
+        }
         if (err || !s) {
           onError?.(err || new Error('资源统计流不可用'));
           return;
@@ -844,10 +890,31 @@ export class DockerConnectionManager {
     let reconnectTimer: NodeJS.Timeout | null = null;
     let retryDelay = 1500;
 
+    // exponential backoff: an unreachable daemon should not be hammered every
+    // 1.5s forever (resets once a stream comes back up). Guarded so an error
+    // followed by end (or vice versa) only schedules one retry.
+    const scheduleReconnect = () => {
+      if (aborted || reconnectTimer) return;
+      reconnectTimer = setTimeout(() => {
+        reconnectTimer = null;
+        attach();
+      }, retryDelay);
+      retryDelay = Math.min(retryDelay * 2, 30_000);
+    };
+
     const attach = () => {
       if (aborted) return;
       docker.getEvents({}, (err: Error | null, s?: NodeJS.ReadableStream) => {
-        if (aborted) return;
+        if (aborted) {
+          // abort() ran while the request was in flight — destroy the late
+          // response or the /events stream leaks its socket
+          try {
+            (s as { destroy?: () => void } | undefined)?.destroy?.();
+          } catch {
+            /* ignore */
+          }
+          return;
+        }
         if (err || !s) {
           onError?.(err || new Error('事件流不可用'));
           return;
@@ -885,13 +952,13 @@ export class DockerConnectionManager {
         });
         s.on('error', (e: Error) => {
           if (!aborted) onError?.(e);
+          // node streams do not emit 'end' after 'error' — a hard network
+          // failure must schedule its own re-attach or refresh dies forever
+          scheduleReconnect();
         });
         s.on('end', () => {
           if (aborted) return;
-          // exponential backoff: an unreachable daemon should not be hammered
-          // every 1.5s forever (resets once a stream comes back up)
-          reconnectTimer = setTimeout(attach, retryDelay);
-          retryDelay = Math.min(retryDelay * 2, 30_000);
+          scheduleReconnect();
         });
         // stream established — reset the backoff for the next drop
         retryDelay = 1500;
@@ -1407,8 +1474,12 @@ export class DockerConnectionManager {
       }
     }
 
+    // per-container samples use the docker formula (100% = one core), so the
+    // aggregate is normalized by host core count: the dashboard renders this
+    // as a share of total host capacity (matching memPercent = usage/limit)
+    const cpuCount = info.NCPU || 1;
     return {
-      cpuPercent: Math.min(cpuPercent, 100),
+      cpuPercent: Math.min(cpuPercent / cpuCount, 100),
       memUsage,
       memLimit,
       memPercent: memLimit > 0 ? (memUsage / memLimit) * 100 : 0,

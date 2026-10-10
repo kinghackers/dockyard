@@ -44,7 +44,7 @@ type SortKey = 'name' | 'state' | 'image' | 'project' | 'created';
 /** stable empty list so the store selector returns the same reference when a host has no data yet */
 const EMPTY_LIST: ContainerSummary[] = [];
 
-export function ContainerListPage({ hostId }: { hostId: string }) {
+export function ContainerListPage({ hostId, active = true }: { hostId: string; active?: boolean }) {
   const t = useT();
   const openTab = useAppStore((s) => s.openTab);
   const toast = useAppStore((s) => s.toast);
@@ -255,7 +255,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
   const removeOne = async (id: string, name: string) => {
     const ok = await confirm({
       title: t('删除容器'),
-      message: t("确认删除容器「{p0}」？数据卷将一并移除。", { p0: name }),
+      message: t("确认删除容器「{p0}」？此操作不可撤销。", { p0: name }),
       confirmLabel: t('删除'),
       danger: true,
     });
@@ -267,7 +267,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
   const removeMany = async (ids: string[]) => {
     const ok = await confirm({
       title: t('批量删除容器'),
-      message: t("确认删除选中的 {p0} 个容器？数据卷将一并移除。", { p0: ids.length }),
+      message: t("确认删除选中的 {p0} 个容器？此操作不可撤销。", { p0: ids.length }),
       confirmLabel: t('删除'),
       danger: true,
     });
@@ -319,7 +319,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
         ? removeOne(ids[0], first.name)
         : removeMany(ids));
     },
-  });
+  }, active);
 
   const rowMenu = (c: ContainerSummary): ContextMenuItem[] => {
     const a = getContainerActions(c.state, c.status);

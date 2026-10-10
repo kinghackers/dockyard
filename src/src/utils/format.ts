@@ -49,18 +49,18 @@ export function fmtTimeAgo(value: number | string | null | undefined): string {
   if (sec < 60) return t('刚刚');
 
   const min = Math.floor(sec / 60);
-  if (min < 60) return t('{p0}前', { p0: `${min} ${unitOf('分钟')}` });
+  if (min < 60) return t('{p0}前', { p0: `${min} ${unitOf('分钟')}` }); // i18n:allow-zh (via unitOf→t)
 
   const hour = Math.floor(min / 60);
-  if (hour < 24) return t('{p0}前', { p0: `${hour} ${unitOf('小时')}` });
+  if (hour < 24) return t('{p0}前', { p0: `${hour} ${unitOf('小时')}` }); // i18n:allow-zh (via unitOf→t)
 
   const day = Math.floor(hour / 24);
-  if (day < 30) return t('{p0}前', { p0: `${day} ${unitOf('天')}` });
+  if (day < 30) return t('{p0}前', { p0: `${day} ${unitOf('天')}` }); // i18n:allow-zh (via unitOf→t)
 
   const month = Math.floor(day / 30);
-  if (month < 12) return t('{p0}前', { p0: `${month} ${unitOf('个月')}` });
+  if (month < 12) return t('{p0}前', { p0: `${month} ${unitOf('个月')}` }); // i18n:allow-zh (via unitOf→t)
 
-  return t('{p0}前', { p0: `${Math.floor(day / 365)} ${unitOf('年')}` });
+  return t('{p0}前', { p0: `${Math.floor(day / 365)} ${unitOf('年')}` }); // i18n:allow-zh (via unitOf→t)
 }
 
 /** Exact local timestamp for the hover `title`; "-" if unparseable. */

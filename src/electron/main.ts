@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { DockerConnectionManager } from './docker/connectionManager';
 import { registerIpc, abortAllStreams } from './docker/ipcHandlers';
+import { sweepStaleComposeTls } from './docker/composeRunner';
 
 const isDev = process.env.NODE_ENV === 'development';
 
@@ -135,7 +136,8 @@ app.whenReady().then(() => {
     }
   }
   manager = new DockerConnectionManager(dataDir);
-  registerIpc(manager, () => (mainWindow ? [mainWindow] : []));
+  registerIpc(manager);
+  sweepStaleComposeTls(dataDir);
 
   // Production-only CSP (dev needs Vite's inline HMR scripts/styles).
   // style-src unsafe-inline is required: components use inline style props.

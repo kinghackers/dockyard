@@ -123,8 +123,13 @@ export function HomePage({ active = true }: { active?: boolean }) {
   const list = connections.filter((c) => !!statuses[c.id]);
   const onlineList = list.filter((c) => statuses[c.id]?.connected);
   const infoOf = (id: string) => liveInfo[id] ?? statuses[id]?.info;
+  // info is undefined until the first refresh completes (or when systemInfo
+  // returned nothing) — treat those as 0 instead of crashing the page
   const sum = (pick: (i: NonNullable<ConnectionStatus['info']>) => number | undefined) =>
-    onlineList.reduce((acc, c) => acc + (pick(infoOf(c.id)!) || 0), 0);
+    onlineList.reduce((acc, c) => {
+      const info = infoOf(c.id);
+      return acc + (info ? pick(info) || 0 : 0);
+    }, 0);
 
   const lastEventOf = (hostId: string) => recentEvents.find((e) => e.hostId === hostId);
 

@@ -37,7 +37,7 @@ function tagsLabel(img: ImageSummary): string {
   return img.repoTags.length > 0 ? img.repoTags.join(', ') : `<none>:${img.id.slice(7, 19)}`;
 }
 
-export function ImageListPage({ hostId }: { hostId: string }) {
+export function ImageListPage({ hostId, active = true }: { hostId: string; active?: boolean }) {
   const t = useT();
   const toast = useAppStore((s) => s.toast);
   const setRefreshing = useAppStore((s) => s.setRefreshing);
@@ -320,7 +320,7 @@ export function ImageListPage({ hostId }: { hostId: string }) {
         ? removeOne(ids[0], tagsLabel(first))
         : removeMany(ids));
     },
-  });
+  }, active);
 
   const rowMenu = (img: ImageSummary): ContextMenuItem[] => {
     const ids = checked.has(img.id) && checked.size > 1 ? [...checked] : [img.id];

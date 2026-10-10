@@ -3,16 +3,19 @@ import { useEffect, useRef } from 'react';
 type HotkeyHandler = (e: KeyboardEvent) => void;
 
 /**
- * Bind keyboard shortcuts while the component is mounted.
+ * Bind keyboard shortcuts while the component is mounted and active.
  * `combo` examples: 'mod+f', 'f5', 'delete', 'ctrl+a'.
  * Handlers are ignored while typing in inputs unless the combo uses a modifier
- * (except Escape).
+ * (except Escape). Keep-alive pages stay mounted while hidden — pass their
+ * `active` flag so a hidden surface cannot steal shortcuts (invisible F5,
+ * delete-confirm dialogs, selection mutations) from the visible one.
  */
-export function useHotkeys(map: Record<string, HotkeyHandler>) {
+export function useHotkeys(map: Record<string, HotkeyHandler>, active = true) {
   const mapRef = useRef(map);
   mapRef.current = map;
 
   useEffect(() => {
+    if (!active) return;
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
       const typing =
@@ -43,5 +46,5 @@ export function useHotkeys(map: Record<string, HotkeyHandler>) {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, []);
+  }, [active]);
 }

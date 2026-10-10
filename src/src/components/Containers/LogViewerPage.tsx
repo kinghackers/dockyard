@@ -50,7 +50,15 @@ const LogLine = memo(function LogLine({ line, q }: { line: string; q: string }) 
   );
 });
 
-export function LogViewerPage({ hostId, containerId }: { hostId: string; containerId: string }) {
+export function LogViewerPage({
+  hostId,
+  containerId,
+  active = true,
+}: {
+  hostId: string;
+  containerId: string;
+  active?: boolean;
+}) {
   const t = useT();
   const toast = useAppStore((s) => s.toast);
   const [lines, setLines] = useState<string[]>([]);
@@ -230,7 +238,7 @@ export function LogViewerPage({ hostId, containerId }: { hostId: string; contain
         return;
       }
     },
-  });
+  }, active);
 
   const highlightQuery = logFilter.trim();
 

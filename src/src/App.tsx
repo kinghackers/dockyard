@@ -61,6 +61,9 @@ export default function App() {
       }
     } catch (e) {
       console.error(e);
+      // a silent failure here shows the "no connections" empty state, which
+      // invites re-creating configs — make the config-load failure visible
+      toast(t('连接配置加载失败：{p0}', { p0: e instanceof Error ? e.message : String(e) }), 'error');
     }
   }, [setConnections, setGroups, setAllStatuses, toast]);
 

@@ -15,7 +15,7 @@ import { t, useT } from '../../i18n';
 
 type SortKey = 'name' | 'id' | 'driver' | 'scope' | 'subnet';
 
-export function NetworkListPage({ hostId }: { hostId: string }) {
+export function NetworkListPage({ hostId, active = true }: { hostId: string; active?: boolean }) {
   const t = useT();
   const toast = useAppStore((s) => s.toast);
   const setRefreshing = useAppStore((s) => s.setRefreshing);
@@ -190,7 +190,7 @@ export function NetworkListPage({ hostId }: { hostId: string }) {
       const first = list.find((n) => n.id === ids[0]);
       void (ids.length === 1 && first ? removeOne(ids[0], first.name) : removeMany(ids));
     },
-  });
+  }, active);
 
   const rowMenu = (n: NetworkSummary): ContextMenuItem[] => {
     const ids = checked.has(n.id) && checked.size > 1 ? [...checked] : [n.id];

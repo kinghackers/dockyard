@@ -16,7 +16,7 @@ import { t, useT } from '../../i18n';
 
 type SortKey = 'name' | 'driver' | 'mountpoint' | 'scope' | 'created';
 
-export function VolumeListPage({ hostId }: { hostId: string }) {
+export function VolumeListPage({ hostId, active = true }: { hostId: string; active?: boolean }) {
   const t = useT();
   const toast = useAppStore((s) => s.toast);
   const setRefreshing = useAppStore((s) => s.setRefreshing);
@@ -185,7 +185,7 @@ export function VolumeListPage({ hostId }: { hostId: string }) {
       if (names.length === 0) return;
       void (names.length === 1 ? removeOne(names[0]) : removeMany(names));
     },
-  });
+  }, active);
 
   const rowMenu = (v: VolumeSummary): ContextMenuItem[] => {
     const ids = checked.has(v.name) && checked.size > 1 ? [...checked] : [v.name];

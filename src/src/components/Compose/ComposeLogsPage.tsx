@@ -47,7 +47,15 @@ const ComposeLogLine = memo(function ComposeLogLine({
  * Aggregated compose-project logs: streams every service container into one
  * view with a [service] prefix, filterable by service name.
  */
-export function ComposeLogsPage({ hostId, projectName }: { hostId: string; projectName: string }) {
+export function ComposeLogsPage({
+  hostId,
+  projectName,
+  active = true,
+}: {
+  hostId: string;
+  projectName: string;
+  active?: boolean;
+}) {
   const t = useT();
   const toast = useAppStore((s) => s.toast);
   const [containers, setContainers] = useState<ContainerSummary[]>([]);
@@ -132,7 +140,10 @@ export function ComposeLogsPage({ hostId, projectName }: { hostId: string; proje
     unsubs.push(
       window.dockerApi.onLogData((p) => {
         const cid = p.key.startsWith(`${hostId}:`) ? p.key.slice(hostId.length + 1) : p.key;
-        const service = nameById.get(cid) || cid.slice(0, 12);
+        const service = nameById.get(cid);
+        // only this project's streams — single-container viewers on the same
+        // host share the channel and would otherwise leak lines in here
+        if (!service) return;
         const raw = (partialsRef.current[cid] || '') + p.data;
         const parts = raw.split('\n');
         partialsRef.current[cid] = parts.pop() ?? '';
@@ -141,7 +152,8 @@ export function ComposeLogsPage({ hostId, projectName }: { hostId: string; proje
     );
     unsubs.push(
       window.dockerApi.onLogError((p) => {
-        if (!p.key.startsWith(`${hostId}:`)) return;
+        const cid = p.key.startsWith(`${hostId}:`) ? p.key.slice(hostId.length + 1) : p.key;
+        if (!nameById.get(cid)) return;
         setError(p.error);
       })
     );
@@ -237,7 +249,7 @@ export function ComposeLogsPage({ hostId, projectName }: { hostId: string; proje
     escape: () => {
       if (filter) setFilter('');
     },
-  });
+  }, active);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, overflow: 'hidden' }}>

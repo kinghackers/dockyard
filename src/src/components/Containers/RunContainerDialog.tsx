@@ -23,12 +23,16 @@ interface PairRow {
   value: string;
 }
 
-const RESTART_POLICIES = [
-  { value: 'no', label: t('不自动重启') },
-  { value: 'on-failure', label: t('失败时重启') },
-  { value: 'always', label: t('总是重启') },
-  { value: 'unless-stopped', label: t('除非手动停止') },
-] as const;
+// resolved through the component's t() so labels follow locale changes (a
+// module-level t() snapshot would freeze the pre-init locale)
+function restartPolicyOptions(t: ReturnType<typeof useT>) {
+  return [
+    { value: 'no', label: t('不自动重启') },
+    { value: 'on-failure', label: t('失败时重启') },
+    { value: 'always', label: t('总是重启') },
+    { value: 'unless-stopped', label: t('除非手动停止') },
+  ] as const;
+}
 
 export function RunContainerDialog({ hostId, initialImage, onClose, onCreated }: Props) {
   const t = useT();
@@ -190,7 +194,7 @@ export function RunContainerDialog({ hostId, initialImage, onClose, onCreated }:
                 value={restartPolicy || 'no'}
                 onChange={(e) => setRestartPolicy(e.target.value as CreateContainerOptions['restartPolicy'])}
               >
-                {RESTART_POLICIES.map((p) => (
+                {restartPolicyOptions(t).map((p) => (
                   <option key={p.value} value={p.value}>
                     {p.label}
                   </option>

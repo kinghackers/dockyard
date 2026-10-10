@@ -165,6 +165,10 @@ export function CleanupDialog({ hostId, onClose, onDone }: Props) {
                   {t('重试')}
                 </button>
               </div>
+            ) : !host ? (
+              <div style={{ padding: '24px 8px', color: 'var(--text-dim)', textAlign: 'center', fontSize: 12 }}>
+                {t('没有已连接的 Docker 主机，请先在左侧连接一台主机。')}
+              </div>
             ) : !df ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-dim)', padding: 8 }}>
                 <Loader2 size={14} className="spinner" /> {t('正在统计磁盘占用…')}

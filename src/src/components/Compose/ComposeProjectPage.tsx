@@ -239,7 +239,7 @@ export function ComposeProjectPage({
       void (async () => {
         const ok = await confirm({
           title: t('删除容器'),
-          message: t("确认删除容器「{p0}」？数据卷将一并移除。", { p0: c.name }),
+          message: t("确认删除容器「{p0}」？此操作不可撤销。", { p0: c.name }),
           confirmLabel: t('删除'),
           danger: true,
         });
@@ -247,7 +247,7 @@ export function ComposeProjectPage({
         void action(() => window.dockerApi.removeContainer(hostId, c.id, true), t('已删除'));
       })();
     },
-  });
+  }, active);
 
   const rowMenu = (c: ContainerSummary): ContextMenuItem[] => {
     const a = getContainerActions(c.state, c.status);
@@ -375,7 +375,7 @@ export function ComposeProjectPage({
         void (async () => {
           const ok = await confirm({
             title: t('删除容器'),
-            message: t("确认删除容器「{p0}」？数据卷将一并移除。", { p0: c.name }),
+            message: t("确认删除容器「{p0}」？此操作不可撤销。", { p0: c.name }),
             confirmLabel: t('删除'),
             danger: true,
           });

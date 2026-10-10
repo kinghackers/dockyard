@@ -56,6 +56,7 @@ export function SettingsPage() {
       <div className="form-row" style={{ maxWidth: 320 }}>
         <label style={{ display: 'flex', alignItems: 'center', gap: 8, textTransform: 'none' }}>
           <List size={14} />
+          {/* i18n:allow-zh — shown in all three languages on purpose */}
           语言 / 語言 / Language
         </label>
         <select
@@ -67,12 +68,16 @@ export function SettingsPage() {
             setI18nPref(next);
           }}
         >
+          {/* i18n:allow-zh — locale names render in their own language */}
           <option value="auto">跟随系统 / 跟隨系統 / Auto</option>
+          {/* i18n:allow-zh */}
           <option value="zh-CN">简体中文</option>
+          {/* i18n:allow-zh */}
           <option value="zh-TW">繁體中文</option>
           <option value="en">English</option>
         </select>
         <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+          {/* i18n:allow-zh — trilingual hint on purpose */}
           切换立即生效 / 切換立即生效 / Applies immediately
         </div>
       </div>

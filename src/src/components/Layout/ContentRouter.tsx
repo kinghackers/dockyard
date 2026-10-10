@@ -25,7 +25,7 @@ function renderView(view: OpenTab, active = true) {
     return <DashboardPage hostId={view.hostId} active={active} />;
   }
   if (view.kind === 'aggregateContainers') {
-    return <AggregateContainersPage />;
+    return <AggregateContainersPage active={active} />;
   }
   if (view.kind === 'settings') {
     return <SettingsPage />;
@@ -34,30 +34,30 @@ function renderView(view: OpenTab, active = true) {
 
   switch (view.kind) {
     case 'containers':
-      return <ContainerListPage hostId={view.hostId} />;
+      return <ContainerListPage hostId={view.hostId} active={active} />;
     case 'containerDetail':
       return view.containerId ? (
-        <ContainerDetailPage hostId={view.hostId} containerId={view.containerId} />
+        <ContainerDetailPage hostId={view.hostId} containerId={view.containerId} active={active} />
       ) : null;
     case 'images':
-      return <ImageListPage hostId={view.hostId} />;
+      return <ImageListPage hostId={view.hostId} active={active} />;
     case 'networks':
-      return <NetworkListPage hostId={view.hostId} />;
+      return <NetworkListPage hostId={view.hostId} active={active} />;
     case 'volumes':
-      return <VolumeListPage hostId={view.hostId} />;
+      return <VolumeListPage hostId={view.hostId} active={active} />;
     case 'compose':
       return <ComposeListPage hostId={view.hostId} />;
     case 'composeProject':
       return view.projectName ? (
-        <ComposeProjectPage hostId={view.hostId} projectName={view.projectName} />
+        <ComposeProjectPage hostId={view.hostId} projectName={view.projectName} active={active} />
       ) : null;
     case 'logs':
       return view.containerId ? (
-        <LogViewerPage hostId={view.hostId} containerId={view.containerId} />
+        <LogViewerPage hostId={view.hostId} containerId={view.containerId} active={active} />
       ) : null;
     case 'composeLogs':
       return view.projectName ? (
-        <ComposeLogsPage hostId={view.hostId} projectName={view.projectName} />
+        <ComposeLogsPage hostId={view.hostId} projectName={view.projectName} active={active} />
       ) : null;
     case 'terminal':
       // no containerId → SSH host shell

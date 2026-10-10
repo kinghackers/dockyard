@@ -162,12 +162,21 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
     const hostViews = { ...get().hostViews };
     delete hostViews[id];
+    // drop cached container lists / stat histories too — they would otherwise
+    // linger (and resurface in the command palette) for a host that no longer
+    // exists
+    const containersByHost = { ...get().containersByHost };
+    delete containersByHost[id];
+    const statsHistory = { ...get().statsHistory };
+    delete statsHistory[id];
     set({
       connections: get().connections.filter((c) => c.id !== id),
       statuses,
       tabs,
       activeTabId,
       hostViews,
+      containersByHost,
+      statsHistory,
     });
   },
 

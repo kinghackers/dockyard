@@ -55,7 +55,6 @@ export function ContainerDetailPage({
   const [cpuCores, setCpuCores] = useState('');
   const [savingRes, setSavingRes] = useState(false);
   const [confirmDialog, confirm] = useConfirm();
-  const liveSupported = useRef(true);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -121,45 +120,72 @@ export function ContainerDetailPage({
   useEffect(() => {
     if (!isRunning) {
       setLive(null);
-      // allow retrying stats next time the container starts
-      liveSupported.current = true;
       return;
     }
-    if (!liveSupported.current) return;
     let cancelled = false;
     let close: (() => void) | null = null;
     let offData: (() => void) | null = null;
     let offErr: (() => void) | null = null;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
 
-    void (async () => {
+    const detach = () => {
+      offData?.();
+      offErr?.();
+      offData = null;
+      offErr = null;
+    };
+    const retryLater = (ms: number) => {
+      if (cancelled || retryTimer) return;
+      retryTimer = setTimeout(() => {
+        retryTimer = null;
+        void open();
+      }, ms);
+    };
+
+    const open = async () => {
+      if (cancelled) return;
+      // subscribe BEFORE openStats: the first sample can arrive between the
+      // invoke resolving and a later subscription (same ordering LogViewer
+      // relies on for its initial tail)
+      detach();
+      offData = window.dockerApi.onStatsData((p) => {
+        if (p.hostId === hostId && p.containerId === containerId) {
+          setLive(p.sample);
+        }
+      });
+      offErr = window.dockerApi.onStatsError((p) => {
+        if (p.key !== `${hostId}:${containerId}`) return;
+        // stats may be briefly unavailable (restart race) — drop the stream
+        // and retry: this effect only re-runs when isRunning flips
+        close?.();
+        close = null;
+        retryLater(5000);
+      });
+      close = () => {
+        void window.dockerApi.closeStats(hostId, containerId);
+      };
       try {
         await window.dockerApi.openStats(hostId, containerId);
-        if (cancelled) return;
-        offData = window.dockerApi.onStatsData((p) => {
-          if (p.hostId === hostId && p.containerId === containerId) {
-            setLive(p.sample);
-          }
-        });
-        offErr = window.dockerApi.onStatsError((p) => {
-          if (p.key === `${hostId}:${containerId}`) {
-            // stats may be briefly unavailable (restart race) — stop this stream
-            // but keep liveSupported so the next start can retry
-            close?.();
-            close = null;
-          }
-        });
-        close = () => {
-          void window.dockerApi.closeStats(hostId, containerId);
-        };
+        if (cancelled) {
+          detach();
+          close?.();
+          close = null;
+        }
       } catch {
-        // openStats failed (e.g. container already exited) — try again next cycle
+        // openStats failed (e.g. container mid-restart) — retry shortly
+        close?.();
+        close = null;
+        detach();
+        retryLater(5000);
       }
-    })();
+    };
+
+    void open();
 
     return () => {
       cancelled = true;
-      offData?.();
-      offErr?.();
+      if (retryTimer) clearTimeout(retryTimer);
+      detach();
       close?.();
       setLive(null);
     };

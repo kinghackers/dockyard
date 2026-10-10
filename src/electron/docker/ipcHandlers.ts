@@ -38,7 +38,7 @@ function safeSend(win: BrowserWindow | null | undefined, channel: string, payloa
   if (win && !win.isDestroyed()) win.webContents.send(channel, payload);
 }
 
-export function registerIpc(manager: DockerConnectionManager, getWindows: () => BrowserWindow[]) {
+export function registerIpc(manager: DockerConnectionManager) {
   // ---- connection config ----
   ipcMain.handle('docker:listConnections', () => manager.listConfigs());
   ipcMain.handle('docker:configHealth', () => manager.configHealth());
@@ -195,11 +195,34 @@ export function registerIpc(manager: DockerConnectionManager, getWindows: () => 
       logStreams.get(key)?.abort();
       const win = BrowserWindow.fromWebContents(e.sender);
 
-      const stream = await manager.containerLogStream(hostId, containerId, {
-        tail: tail ?? 200,
-        follow: true,
-      });
-      const destroyable = stream as NodeJS.ReadableStream & { destroy?: () => void };
+      // claim the key synchronously: a second open (or a close) that arrives
+      // while this one is still awaiting the daemon must abort the attempt —
+      // otherwise the follow:true stream resolves unregistered and can never
+      // be killed again
+      let superseded = false;
+      const claim = { abort: () => { superseded = true; logStreams.delete(key); } };
+      logStreams.set(key, claim);
+
+      let destroyable: NodeJS.ReadableStream & { destroy?: () => void };
+      try {
+        const stream = await manager.containerLogStream(hostId, containerId, {
+          tail: tail ?? 200,
+          follow: true,
+        });
+        destroyable = stream as NodeJS.ReadableStream & { destroy?: () => void };
+      } catch (err) {
+        if (logStreams.get(key) === claim) logStreams.delete(key);
+        if (superseded) return true; // cancelled mid-open — not a viewer error
+        throw err;
+      }
+      if (superseded) {
+        try {
+          destroyable.destroy?.();
+        } catch {
+          /* ignore */
+        }
+        return true;
+      }
 
       // Docker multiplexed frames: [type(1),0,0,0,size(4,BE)] + payload.
       // Frames can span chunks, so keep a residual buffer.
@@ -286,7 +309,7 @@ export function registerIpc(manager: DockerConnectionManager, getWindows: () => 
         }
         logStreams.delete(key);
       };
-      logStreams.set(key, { abort });
+      if (logStreams.get(key) === claim) logStreams.set(key, { abort });
       return true;
     }
   );
@@ -304,8 +327,40 @@ export function registerIpc(manager: DockerConnectionManager, getWindows: () => 
       const win = BrowserWindow.fromWebContents(e.sender);
       // dev double-mounts reuse ids; kill any stale session first
       execSessions.get(sessionId)?.kill();
-      const exec = await manager.createExec(hostId, containerId, ['/bin/sh', '-c', 'bash || sh || ash']);
-      const stream = await manager.startExec(exec.id, hostId);
+
+      // claim the slot synchronously: an overlapping open (or the viewer's
+      // close) racing the daemon round-trips must abort this attempt, or the
+      // loser's stream stays alive pumping duplicate output into the same id
+      let superseded = false;
+      const claim = {
+        write: () => {},
+        resize: () => {},
+        kill: () => {
+          superseded = true;
+          execSessions.delete(sessionId);
+        },
+      };
+      execSessions.set(sessionId, claim);
+
+      let stream: NodeJS.ReadWriteStream;
+      let execId: string;
+      try {
+        const exec = await manager.createExec(hostId, containerId, ['/bin/sh', '-c', 'bash || sh || ash']);
+        execId = exec.id;
+        stream = await manager.startExec(execId, hostId);
+      } catch (err) {
+        if (execSessions.get(sessionId) === claim) execSessions.delete(sessionId);
+        if (superseded) return true; // cancelled mid-open — not a viewer error
+        throw err;
+      }
+      if (superseded) {
+        try {
+          stream.end();
+        } catch {
+          /* ignore */
+        }
+        return true;
+      }
 
       const onData = (buf: Buffer) => {
         safeSend(win, 'docker:execData', { sessionId, data: buf.toString('utf8') });
@@ -324,7 +379,7 @@ export function registerIpc(manager: DockerConnectionManager, getWindows: () => 
           stream.write(chunk);
         },
         resize: (h: number, w: number) => {
-          void manager.resizeExec(exec.id, hostId, h, w);
+          void manager.resizeExec(execId, hostId, h, w);
         },
         kill: () => {
           try {
@@ -345,7 +400,40 @@ export function registerIpc(manager: DockerConnectionManager, getWindows: () => 
     const win = BrowserWindow.fromWebContents(e.sender);
     // a stale session with this id (e.g. dev double-mount) must not leak its shell
     execSessions.get(sessionId)?.kill();
-    const stream = await manager.openHostShellStream(hostId);
+
+    // same synchronous claim as openExec: an overlapping open/close during the
+    // SSH channel round-trip must abort this attempt
+    let superseded = false;
+    const claim = {
+      write: () => {},
+      resize: () => {},
+      kill: () => {
+        superseded = true;
+        execSessions.delete(sessionId);
+      },
+    };
+    execSessions.set(sessionId, claim);
+
+    let stream: NodeJS.ReadWriteStream;
+    try {
+      stream = await manager.openHostShellStream(hostId);
+    } catch (err) {
+      if (execSessions.get(sessionId) === claim) execSessions.delete(sessionId);
+      if (superseded) return true; // cancelled mid-open — not a viewer error
+      throw err;
+    }
+    if (superseded) {
+      // close() not end(): end() only EOFs a PTY channel and leaves the sshd
+      // session slot alive (until MaxSessions blocks new channels)
+      try {
+        const ch = stream as unknown as { close?: () => void };
+        if (typeof ch.close === 'function') ch.close();
+        else stream.end();
+      } catch {
+        /* ignore */
+      }
+      return true;
+    }
 
     // Never write/end a closed channel: stray packets on a closed SSH channel
     // can make sshd drop the whole connection (taking the docker tunnel down).
@@ -628,10 +716,4 @@ export function abortAllStreams() {
   eventStreams.clear();
   for (const { abort } of statsStreams.values()) abort();
   statsStreams.clear();
-}
-
-export function broadcastToAll(windows: BrowserWindow[], channel: string, payload: unknown) {
-  for (const w of windows) {
-    if (!w.isDestroyed()) w.webContents.send(channel, payload);
-  }
 }

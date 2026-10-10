@@ -43,8 +43,15 @@ export function useAutoReconnect() {
               attemptsRef.current[c.id] = 0;
               useAppStore.getState().toast(t("已自动重连 {p0}", { p0: c.name }), 'success');
             }
-          } catch {
-            /* failed connect updates statuses → effect reschedules with backoff */
+          } catch (e) {
+            // a REJECTED connect (IPC error) never updates statuses on its
+            // own — record the failure here or this effect won't reschedule
+            // and reconnection for this host stalls forever
+            useAppStore.getState().setStatus({
+              id: c.id,
+              connected: false,
+              error: e instanceof Error ? e.message : String(e),
+            });
           }
         })();
       }, delay);

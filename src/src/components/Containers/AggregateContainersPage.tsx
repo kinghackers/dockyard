@@ -114,7 +114,7 @@ export function AggregateContainersPage({ active = true }: { active?: boolean })
     f5: () => void load(),
     'mod+f': () => filterRef.current?.focus(),
     escape: () => setSelected(null),
-  });
+  }, active);
 
   const filtered = useMemo(() => {
     const q = filter.trim().toLowerCase();

@@ -101,8 +101,11 @@ export async function createSshDockerTunnel(
         // docker system dial-stdio: speak Docker API over stdio
         conn.exec('docker system dial-stdio', (err, stream) => {
           if (err) {
-            // fallback: pipe to the unix socket via socat
-            conn.exec(`socat -u STDIO UNIX-CONNECT:${dockerSocketPath}`, (err2, stream2) => {
+            // fallback: pipe to the unix socket via socat. The socket path
+            // comes from connection config — single-quote it so a crafted
+            // value can't smuggle extra shell commands to the remote host
+            const safeSocket = dockerSocketPath.replace(/'/g, `'\\''`);
+            conn.exec(`socat -u STDIO UNIX-CONNECT:'${safeSocket}'`, (err2, stream2) => {
               if (err2) {
                 client.destroy();
                 return;
@@ -151,90 +154,6 @@ export async function createSshDockerTunnel(
       } else {
         // post-connect failure: tear everything down so callers see clean
         // ECONNRESETs instead of hanging on a half-dead tunnel
-        console.error(`[sshTunnel] connection error after ready: ${err.message}`);
-        cleanup();
-      }
-    });
-
-    conn.connect(buildSshConfig(ssh));
-  });
-}
-
-/** Forward a remote TCP port through SSH (for docker daemon on tcp://). */
-export async function createSshTcpTunnel(
-  ssh: SshAuthOptions,
-  remoteHost: string,
-  remotePort: number
-): Promise<SshTunnel> {
-  return new Promise((resolve, reject) => {
-    const conn = new Client();
-    let server: net.Server | null = null;
-    let settled = false;
-    const sockets = new Set<net.Socket>();
-
-    const cleanup = () => {
-      for (const s of sockets) {
-        try {
-          s.destroy();
-        } catch {
-          /* ignore */
-        }
-      }
-      sockets.clear();
-      try {
-        server?.close();
-      } catch {
-        /* ignore */
-      }
-      try {
-        conn.end();
-      } catch {
-        /* ignore */
-      }
-    };
-
-    conn.on('ready', () => {
-      server = net.createServer((client) => {
-        sockets.add(client);
-        client.on('close', () => sockets.delete(client));
-        conn.forwardOut('127.0.0.1', 0, remoteHost, remotePort, (err, stream) => {
-          if (err) {
-            client.destroy();
-            return;
-          }
-          client.pipe(stream as unknown as NodeJS.WritableStream);
-          (stream as unknown as NodeJS.ReadableStream).pipe(client);
-          stream.on('close', () => client.destroy());
-          client.on('close', () => stream.end());
-        });
-      });
-
-      server.on('error', (e) => {
-        if (!settled) {
-          settled = true;
-          cleanup();
-          reject(e);
-        }
-      });
-
-      server.listen(0, '127.0.0.1', () => {
-        const addr = server!.address() as net.AddressInfo;
-        if (!settled) {
-          settled = true;
-          resolve({
-            localPort: addr.port,
-            close: async () => cleanup(),
-          });
-        }
-      });
-    });
-
-    conn.on('error', (err) => {
-      if (!settled) {
-        settled = true;
-        cleanup();
-        reject(err);
-      } else {
         console.error(`[sshTunnel] connection error after ready: ${err.message}`);
         cleanup();
       }
