@@ -88,13 +88,13 @@ export function HostGuard({
         {phase === 'connecting' || connecting ? (
           <>
             <span className="spinner" style={{ width: 28, height: 28, borderWidth: 3 }} />
-            <h3>{t('正在连接')}{conn?.name || hostId}…</h3>
+            <h3>{t('正在连接')} {conn?.name || hostId}…</h3>
             <p>{t('首次打开会自动建立到 Docker 主机的连接')}</p>
           </>
         ) : (
           <>
             <ServerCrash size={36} strokeWidth={1.2} color="var(--text-muted)" />
-            <h3>{t('未连接到')}{conn?.name || hostId}</h3>
+            <h3>{t('未连接到')} {conn?.name || hostId}</h3>
             <p style={{ maxWidth: 420, lineHeight: 1.6 }}>
               {error
                 ? t("连接失败：{p0}", { p0: error })

@@ -572,9 +572,9 @@ export function ContainerDetailPage({
             <div className="stat-card">
               <div className="stat-label">{t('块 I/O')}</div>
               <div className="stat-value" style={{ fontSize: 15 }}>
-                {t('读')}{fmtBytes(blockRead)}
+                {t('读')} {fmtBytes(blockRead)}
               </div>
-              <div className="stat-sub">{t('写')}{fmtBytes(blockWrite)}</div>
+              <div className="stat-sub">{t('写')} {fmtBytes(blockWrite)}</div>
             </div>
           </div>
 

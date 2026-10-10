@@ -65,7 +65,7 @@ export function ImageHistoryDialog({ hostId, imageId, title, onClose, toast }: P
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 720, maxWidth: '90vw' }}>
         <div className="modal-header">
-          <span>{t('镜像历史 ·')}{title}</span>
+          <span>{t('镜像历史 ·')} {title}</span>
           <button className="btn ghost icon-btn" onClick={onClose}>
             <X size={15} />
           </button>
@@ -89,8 +89,8 @@ export function ImageHistoryDialog({ hostId, imageId, title, onClose, toast }: P
                   {detail.architecture ? ` · ${detail.architecture}` : ''}
                   {detail.os ? `/${detail.os}` : ''} · {fmtBytes(detail.size)}
                 </div>
-                <div>{t('创建于')}{detail.created ? new Date(detail.created).toLocaleString() : '-'}</div>
-                {detail.author ? <div>{t('作者')}{detail.author}</div> : null}
+                <div>{t('创建于')} {detail.created ? new Date(detail.created).toLocaleString() : '-'}</div>
+                {detail.author ? <div>{t('作者')} {detail.author}</div> : null}
                 {detail.configEntrypoint?.length ? (
                   <div className="mono">ENTRYPOINT {detail.configEntrypoint.join(' ')}</div>
                 ) : null}

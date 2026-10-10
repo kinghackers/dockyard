@@ -595,7 +595,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
         {checked.size > 0 && (
           <>
             <div style={{ width: 1, height: 18, background: 'var(--border)', margin: '0 4px' }} />
-            <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>{t('已选')}{checked.size}</span>
+            <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>{t('已选')} {checked.size}</span>
             <button
               className="btn"
               onClick={() =>

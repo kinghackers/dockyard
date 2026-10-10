@@ -265,7 +265,7 @@ export function DashboardPage({ hostId, active = true }: { hostId?: string; acti
             <div className="stat-card">
               <div className="stat-label">{t('运行中容器')}</div>
               <div className="stat-value">{stats.containersRunning}</div>
-              <div className="stat-sub">{t('共')}{stats.containersTotal}{t('个')}</div>
+              <div className="stat-sub">{t('共')} {stats.containersTotal} {t('个')}</div>
             </div>
             <div className="stat-card">
               <div className="stat-label">{t('镜像')}</div>
@@ -385,7 +385,7 @@ export function DashboardPage({ hostId, active = true }: { hostId?: string; acti
             <Database size={15} color="var(--volume)" />
             <span className="name">{t('块 I/O')}</span>
             <div style={{ flex: 1, color: 'var(--text-dim)', fontSize: 12 }}>
-              {t('读')}{fmtBytes(stats.blockRead)} &nbsp;&nbsp; {t('写')}{fmtBytes(stats.blockWrite)}
+              {t('读')} {fmtBytes(stats.blockRead)} &nbsp;&nbsp; {t('写')} {fmtBytes(stats.blockWrite)}
             </div>
           </div>
 
@@ -404,7 +404,7 @@ export function DashboardPage({ hostId, active = true }: { hostId?: string; acti
                 >
                   <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 2 }}>
                     <span style={{ color }}>●</span> {label}
-                    <span style={{ float: 'right' }}>{t('近')}{hist.length}{t('次采样')}</span>
+                    <span style={{ float: 'right' }}>{t('近')} {hist.length} {t('次采样')}</span>
                   </div>
                   <Sparkline points={pts} color={color} />
                 </div>

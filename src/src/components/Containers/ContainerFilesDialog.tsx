@@ -90,7 +90,7 @@ export function ContainerFilesDialog({ hostId, containerId, onClose }: Props) {
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 640 }}>
         <div className="modal-header">
-          <span>{t('容器文件 ·')}{containerId.slice(0, 12)}</span>
+          <span>{t('容器文件 ·')} {containerId.slice(0, 12)}</span>
           <button className="btn ghost icon-btn" onClick={onClose}>
             <X size={15} />
           </button>

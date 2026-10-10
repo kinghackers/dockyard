@@ -66,10 +66,10 @@ function HostCard({
       {online && info ? (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 12px', marginTop: 8 }}>
           <span className="stat-sub" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <Boxes size={12} /> {t('容器')}{info.containersRunning ?? 0}/{info.containers ?? 0} {t('运行中')}
+            <Boxes size={12} /> {t('容器')} {info.containersRunning ?? 0}/{info.containers ?? 0} {t('运行中')}
           </span>
           <span className="stat-sub" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <Images size={12} /> {t('镜像')}{info.images ?? 0}
+            <Images size={12} /> {t('镜像')} {info.images ?? 0}
           </span>
           <span className="stat-sub" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
             <Cpu size={12} /> {info.nCPU ?? '—'} vCPU
@@ -85,7 +85,7 @@ function HostCard({
       )}
       {online && lastEvent && (
         <div className="stat-sub" style={{ marginTop: 8, borderTop: '1px solid var(--border)', paddingTop: 6 }}>
-          {t('最近：')}{lastEvent.action}
+          {t('最近：')} {lastEvent.action}
           {lastEvent.name ? ` · ${lastEvent.name}` : ''}
           <span style={{ marginLeft: 6, opacity: 0.7 }}>{timeLabel(lastEvent.time)}</span>
         </div>
@@ -153,14 +153,14 @@ export function HomePage({ active = true }: { active?: boolean }) {
           <div className="stat-label">{t('连接')}</div>
           <div className="stat-value">
             {onlineList.length}
-            <span style={{ fontSize: 14, color: 'var(--text-muted)' }}> / {list.length}{t('在线')}</span>
+            <span style={{ fontSize: 14, color: 'var(--text-muted)' }}> / {list.length} {t('在线')}</span>
           </div>
-          <div className="stat-sub">{t('共')}{connections.length}{t('个连接配置')}</div>
+          <div className="stat-sub">{t('共')} {connections.length} {t('个连接配置')}</div>
         </div>
         <div className="stat-card">
           <div className="stat-label">{t('容器（全部主机）')}</div>
           <div className="stat-value">{sum((i) => i.containersRunning)}</div>
-          <div className="stat-sub">{t('运行中 / 共')}{sum((i) => i.containers)}{t('个')}</div>
+          <div className="stat-sub">{t('运行中 / 共')} {sum((i) => i.containers)} {t('个')}</div>
         </div>
         <div className="stat-card">
           <div className="stat-label">{t('镜像（全部主机）')}</div>
