@@ -454,6 +454,11 @@ export function ImageListPage({ hostId }: { hostId: string }) {
             </button>
           </>
         )}
+        {filter && (
+          <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>
+            {filtered.length}/{list.length} {t('个镜像')}
+          </span>
+        )}
         <div style={{ flex: 1 }} />
         <input
           className="search-input"
@@ -553,7 +558,7 @@ export function ImageListPage({ hostId }: { hostId: string }) {
                 </th>
                 <SortableTh label={t('仓库:标签')} active={sortKey === 'tags'} asc={sortAsc} onSort={() => toggleSort('tags')} />
                 <SortableTh label={'ID'} active={sortKey === 'id'} asc={sortAsc} onSort={() => toggleSort('id')} />
-                <SortableTh label={t('大小')} active={sortKey === 'size'} asc={sortAsc} onSort={() => toggleSort('size')} />
+                <SortableTh label={t('大小')} active={sortKey === 'size'} asc={sortAsc} onSort={() => toggleSort('size')} align="right" />
                 <SortableTh label={t('创建时间')} active={sortKey === 'created'} asc={sortAsc} onSort={() => toggleSort('created')} />
               </tr>
             </thead>
@@ -597,10 +602,18 @@ export function ImageListPage({ hostId }: { hostId: string }) {
                       style={{ width: 12, height: 12 }}
                     />
                   </td>
-                  <td>
+                  <td style={{ maxWidth: 300 }} title={img.repoTags.length > 0 ? img.repoTags.join('\n') : undefined}>
                     {img.repoTags.length > 0 ? (
                       img.repoTags.map((t) => (
-                        <div key={t} style={{ color: 'var(--text-bright)' }}>
+                        <div
+                          key={t}
+                          style={{
+                            color: 'var(--text-bright)',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
                           {t}
                         </div>
                       ))
@@ -613,7 +626,9 @@ export function ImageListPage({ hostId }: { hostId: string }) {
                   <td className="mono" style={{ color: 'var(--text-dim)' }}>
                     {img.id.slice(7, 19)}
                   </td>
-                  <td>{fmtBytes(img.size)}</td>
+                  <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                    {fmtBytes(img.size)}
+                  </td>
                   <td
                     style={{ color: 'var(--text-muted)', fontSize: 11, whiteSpace: 'nowrap' }}
                     title={fmtAbsolute(img.created * 1000)}

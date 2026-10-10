@@ -257,6 +257,11 @@ export function VolumeListPage({ hostId }: { hostId: string }) {
             </button>
           </>
         )}
+        {filter && (
+          <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>
+            {filtered.length}/{list.length} {t('个数据卷')}
+          </span>
+        )}
         <div style={{ flex: 1 }} />
         <div style={{ position: 'relative' }}>
           <Search size={13} style={{ position: 'absolute', left: 8, top: 8, color: 'var(--text-muted)' }} />
@@ -347,7 +352,18 @@ export function VolumeListPage({ hostId }: { hostId: string }) {
                       style={{ width: 12, height: 12 }}
                     />
                   </td>
-                  <td style={{ color: 'var(--text-bright)' }}>{v.name}</td>
+                  <td
+                    style={{
+                      color: 'var(--text-bright)',
+                      maxWidth: 200,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                    title={v.name}
+                  >
+                    {v.name}
+                  </td>
                   <td>
                     <span
                       className="chip"
@@ -357,7 +373,18 @@ export function VolumeListPage({ hostId }: { hostId: string }) {
                       {localizeVolumeDriver(v.driver)}
                     </span>
                   </td>
-                  <td className="mono" style={{ color: 'var(--text-dim)', fontSize: 11 }}>
+                  <td
+                    className="mono"
+                    title={v.mountpoint}
+                    style={{
+                      color: 'var(--text-dim)',
+                      fontSize: 11,
+                      maxWidth: 280,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
                     {v.mountpoint}
                   </td>
                   <td>{localizeScope(v.scope)}</td>

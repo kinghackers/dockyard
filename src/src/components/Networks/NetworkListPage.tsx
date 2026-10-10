@@ -260,6 +260,11 @@ export function NetworkListPage({ hostId }: { hostId: string }) {
             </button>
           </>
         )}
+        {filter && (
+          <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>
+            {filtered.length}/{list.length} {t('个网络')}
+          </span>
+        )}
         <div style={{ flex: 1 }} />
         <div style={{ position: 'relative' }}>
           <Search size={13} style={{ position: 'absolute', left: 8, top: 8, color: 'var(--text-muted)' }} />

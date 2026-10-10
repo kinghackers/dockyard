@@ -633,6 +633,11 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
             </button>
           </>
         )}
+        {(filter || stateFilter !== 'all') && (
+          <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>
+            {filtered.length}/{list.length} {t('个容器')}
+          </span>
+        )}
         <div style={{ flex: 1 }} />
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <select

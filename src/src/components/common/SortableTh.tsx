@@ -7,19 +7,22 @@ interface SortableThProps {
   active: boolean;
   asc: boolean;
   onSort: () => void;
+  /** cell alignment; numeric columns (size, counts) read better right-aligned */
+  align?: 'left' | 'right';
 }
 
 /**
  * Sortable table header cell with keyboard support and aria-sort,
  * replacing the bare `<th onClick>` pattern across list pages.
  */
-export function SortableTh({ label, active, asc, onSort }: SortableThProps) {
+export function SortableTh({ label, active, asc, onSort, align = 'left' }: SortableThProps) {
   return (
     <th
       className="sortable"
       role="button"
       tabIndex={0}
       aria-sort={active ? (asc ? 'ascending' : 'descending') : 'none'}
+      style={align === 'right' ? { textAlign: 'right' } : undefined}
       onClick={onSort}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
