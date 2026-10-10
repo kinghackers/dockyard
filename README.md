@@ -89,7 +89,8 @@ npm run dist     # 打包 Windows NSIS 安装包（推送 v* tag 到 GitHub 会�
 
 ## 路线图
 
-- 多平台发布：Windows 自动发布工作流已就绪（GitHub Releases，见 `.github/workflows/release.yml`）；macOS / Linux 安装包与对应签名/公证待补
+- 多平台发布：Windows / macOS（dmg+zip，x64+arm64）/ Linux（AppImage+deb）三平台自动发布工作流已就绪（`.github/workflows/release.yml`，tag 触发）
+- 代码签名：Windows SmartScreen / macOS Gatekeeper 消除（选型与接入见 [docs/CODE_SIGNING.md](docs/CODE_SIGNING.md)）
 - 安装包代码签名
 - 容器指标实时图表
 - 更多镜像仓库集成

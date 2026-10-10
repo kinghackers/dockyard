@@ -23,7 +23,7 @@
     "build:electron": "node scripts/build-electron.mjs",
     "dist": "npm run build && electron-builder --win",
     "dist:dir": "npm run build && electron-builder --win --dir",
-    "dist:compat": "npm run build && electron-builder --win --config.asar=false --config.directories.output=out",
+    "dist:compat": "npm run build && electron-builder --win --config.asar=false --config.directories.output=out --config.electronDist=node_modules/electron/dist --config.win.signAndEditExecutable=false",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.node.json --noEmit",
     "check:ipc": "node scripts/check-ipc.mjs",
     "check:logic": "node scripts/check-logic.mjs",
@@ -77,7 +77,6 @@
     "appId": "com.dockyard.dockyard",
     "productName": "Dockyard",
     "copyright": "Copyright © 2026 Dockyard",
-    "electronDist": "node_modules/electron/dist",
     "npmRebuild": false,
     "asar": true,
     "directories": {
@@ -97,8 +96,6 @@
     ],
     "win": {
       "icon": "build/icon.ico",
-      "sign": null,
-      "signAndEditExecutable": false,
       "target": [
         {
           "target": "nsis",
@@ -121,6 +118,38 @@
       "allowToChangeInstallationDirectory": true,
       "deleteAppDataOnUninstall": false,
       "artifactName": "Dockyard-${version}-Setup.${ext}"
+    },
+    "mac": {
+      "icon": "build/icon.png",
+      "category": "public.app-category.developer-tools",
+      "hardenedRuntime": true,
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["x64", "arm64"]
+        },
+        {
+          "target": "zip",
+          "arch": ["x64", "arm64"]
+        }
+      ],
+      "artifactName": "Dockyard-${version}-${arch}.${ext}"
+    },
+    "linux": {
+      "icon": "build/icon.png",
+      "category": "Development",
+      "maintainer": "kinghackers <kinghackers@users.noreply.github.com>",
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": ["x64"]
+        },
+        {
+          "target": "deb",
+          "arch": ["x64"]
+        }
+      ],
+      "artifactName": "Dockyard-${version}-${arch}.${ext}"
     }
   }
 }

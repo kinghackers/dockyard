@@ -11,9 +11,34 @@ permissions:
   contents: write
 
 jobs:
-  release:
-    name: Build Windows installer & publish GitHub Release
-    runs-on: windows-latest
+  # 打 tag 时先创建草稿 Release（带自动变更日志），
+  # 避免三个矩阵任务并发创建同一 Release 的竞态
+  prepare:
+    name: Prepare draft release
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create draft release (skip if exists)
+        run: |
+          if gh release view "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "release $GITHUB_REF_NAME already exists, reuse it"
+          else
+            gh release create "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" \
+              --draft --title "$GITHUB_REF_NAME" --generate-notes
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build:
+    name: Build ${{ matrix.os }}
+    needs: prepare
+    # workflow_dispatch（无 tag）时 prepare 被跳过，此时构建照常执行
+    if: ${{ always() && (needs.prepare.result == 'success' || needs.prepare.result == 'skipped') }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -21,35 +46,57 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # undici 8（jsdom 依赖）要求 Node >= 22.19
+          node-version: 22
           cache: npm
           cache-dependency-path: package-lock.json
 
       - name: Install dependencies
         run: npm ci
 
-      # dist = vite build + build-electron.mjs + electron-builder --win
-      # 产物写入 release/（见 package.json build.directories.output）
-      - name: Build & package Windows installer (NSIS)
-        # 当前 build.win.sign 为 null（未做代码签名），安装包在 Windows 上会触发 SmartScreen 警告（P2 待办）
-        run: npm run dist
+      # vite build + build-electron.mjs，再按 runner 平台选择 electron-builder target
+      # 配置了 CSC_LINK / CSC_KEY_PASSWORD secrets 时自动签名；未配置则跳过（未签名安装包）
+      - name: Build & package
+        shell: bash
+        run: |
+          case "$RUNNER_OS" in
+            Windows) TARGET="--win" ;;
+            macOS)   TARGET="--mac" ;;
+            Linux)   TARGET="--linux" ;;
+            *) echo "Unknown RUNNER_OS: $RUNNER_OS" >&2; exit 1 ;;
+          esac
+          npm run build
+          npx electron-builder "$TARGET"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
 
-      - name: Publish to GitHub Release
+      # 产物统一上传到草稿 Release；Glob 无匹配时 softprops 默认静默跳过
+      - name: Upload artifacts to draft release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          # 仅上传 Windows NSIS 安装包与自动更新元数据
+          draft: true
           files: |
-            release/*Setup.exe
+            release/*.exe
+            release/*.dmg
+            release/*.zip
+            release/*.AppImage
+            release/*.deb
             release/*.blockmap
-            release/latest.yml
-          draft: false
-          prerelease: false
-          generate_release_notes: true
+            release/latest*.yml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # TODO(P2): 增加 macOS / Linux target 与对应 runner（macos-latest / ubuntu-latest）
-      #           macOS 需配置 Developer ID 证书做 codesign + notarize；Windows 需 EV 代码签名消除 SmartScreen 警告
+  # 三个平台全部构建成功后，把草稿 Release 正式发布
+  publish:
+    name: Publish draft release
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Flip draft release to published
+        run: gh release edit "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" --draft=false --latest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

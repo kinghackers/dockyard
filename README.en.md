@@ -89,8 +89,8 @@ Connection credentials are stored encrypted on the local machine; exports can st
 
 ## Roadmap
 
-- Multi-platform release: the Windows release workflow is in place (GitHub Releases, see `.github/workflows/release.yml`); macOS / Linux installers and their signing/notarization are pending
-- Code signing for installers
+- Multi-platform release: the release workflow now builds Windows / macOS (dmg+zip, x64+arm64) / Linux (AppImage+deb) automatically (`.github/workflows/release.yml`, tag-triggered)
+- Code signing: eliminate the Windows SmartScreen / macOS Gatekeeper warnings (options & integration guide: [docs/CODE_SIGNING.md](docs/CODE_SIGNING.md))
 - Live per-container metrics charts
 - Broader registry integrations
 
