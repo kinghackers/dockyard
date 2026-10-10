@@ -73,6 +73,7 @@
     "ssh2@1.17.0": true
   },
   "build": {
+    "publish": null,
     "appId": "com.dockyard.dockyard",
     "productName": "Dockyard",
     "copyright": "Copyright © 2026 Dockyard",
