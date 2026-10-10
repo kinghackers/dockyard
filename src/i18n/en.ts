@@ -35,7 +35,7 @@ export const en: Record<string, string> = {
   'Docker Socket 路径（远程）': 'Docker socket path (remote)',
   'Docker 主机': 'Docker host',
   'Docker 版本': 'Docker version',
-  'Docker 管理器 ·': 'Docker Manager ·',
+  'Dockyard ·': 'Dockyard ·',
   'SSH 主机': 'SSH host',
   'SSH 端口': 'SSH port',
   'SSH 隧道': 'SSH tunnel',

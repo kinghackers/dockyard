@@ -105,7 +105,7 @@ try {
   const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
   if (pkg.build?.win?.icon) ok(`package.json win.icon = ${pkg.build.win.icon}`);
   else fail('package.json build.win.icon not set');
-  if (pkg.build?.productName === 'Docker 管理器') ok('productName matches UI brand');
+  if (pkg.build?.productName === 'Dockyard') ok('productName matches UI brand');
   else fail(`unexpected productName: ${pkg.build?.productName}`);
 } catch (e) {
   fail(`package.json unreadable: ${e.message}`);

@@ -196,7 +196,7 @@ export function HomePage({ active = true }: { active?: boolean }) {
         <div className="stat-label">{t('软件信息')}</div>
         <div className="stat-sub" style={{ fontSize: 12, lineHeight: 1.9 }}>
           <div>
-            <strong style={{ color: 'var(--text-bright)' }}>Dockyard</strong>（docker-manager）v{pkg.version}
+            <strong style={{ color: 'var(--text-bright)' }}>Dockyard</strong> v{pkg.version}
             {' · '}{t('Electron 桌面端 · 数据仅保存在本机')}
           </div>
           <div style={{ color: 'var(--text-muted)' }}>

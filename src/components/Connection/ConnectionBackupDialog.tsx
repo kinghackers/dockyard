@@ -14,7 +14,7 @@ interface Props {
 }
 
 type BackupFile = {
-  app: 'docker-manager';
+  app: 'docker-manager' | 'dockyard';
   version: 1;
   exportedAt: string;
   includeSecrets: boolean;
@@ -51,7 +51,7 @@ export function ConnectionBackupDialog({
 
   const exportJson = () => {
     const payload: BackupFile = {
-      app: 'docker-manager',
+      app: 'dockyard',
       version: 1,
       exportedAt: new Date().toISOString(),
       includeSecrets,
@@ -62,7 +62,7 @@ export function ConnectionBackupDialog({
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `docker-manager-connections-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `dockyard-connections-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
     toast(includeSecrets ? t('已导出（含敏感信息，请妥善保管）') : t('已导出（不含密码/密钥）'), 'success');

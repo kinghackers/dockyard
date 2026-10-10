@@ -13,7 +13,7 @@ let tray: Tray | null = null;
 let minimizeToTray = false;
 let quitting = false;
 
-const APP_DISPLAY_NAME = 'Docker 管理器';
+const APP_DISPLAY_NAME = 'Dockyard';
 
 function showMainWindow() {
   if (mainWindow && !mainWindow.isDestroyed()) {
@@ -128,7 +128,7 @@ app.whenReady().then(() => {
   Menu.setApplicationMenu(null);
   if (process.platform === 'win32') {
     // required for toast notifications to attribute to this app
-    app.setAppUserModelId('com.dockyard.docker-manager');
+    app.setAppUserModelId('com.dockyard.dockyard');
   }
   // 数据目录（旧构建曾写死为 'idea-docker'，已改名 'config'）
   const dataDir = path.join(app.getPath('userData'), 'config');
@@ -140,6 +140,16 @@ app.whenReady().then(() => {
       console.log(`[main] 已迁移旧数据目录 ${legacyDir} -> ${dataDir}`);
     } catch (err) {
       console.error(`[main] 迁移旧数据目录失败（将以空配置启动）:`, err);
+    }
+  }
+  // 一次性迁移：旧包名 docker-manager 对应的 userData 目录（Windows 上 userData 路径含包名）-> 新包名 dockyard
+  const legacyUserConfig = path.join(app.getPath('appData'), 'docker-manager', 'config');
+  if (!fs.existsSync(dataDir) && fs.existsSync(legacyUserConfig)) {
+    try {
+      fs.cpSync(legacyUserConfig, dataDir, { recursive: true });
+      console.log(`[main] 已迁移旧包名用户数据 ${legacyUserConfig} -> ${dataDir}`);
+    } catch (err) {
+      console.error(`[main] 迁移旧包名用户数据失败（将以空配置启动）:`, err);
     }
   }
   manager = new DockerConnectionManager(dataDir);
@@ -173,7 +183,7 @@ app.whenReady().then(() => {
   ipcMain.on('ui:notify', (_e, p: { title?: string; body?: string }) => {
     try {
       if (Notification.isSupported()) {
-        new Notification({ title: p.title || 'Docker 管理器', body: p.body || '' }).show();
+        new Notification({ title: p.title || 'Dockyard', body: p.body || '' }).show();
       }
     } catch {
       /* ignore */

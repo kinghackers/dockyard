@@ -202,7 +202,7 @@ export function SettingsPage() {
 
       <div className="section-title">{t('关于')}</div>
       <div style={{ fontSize: 12, color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: 8 }}>
-        <Info size={13} /> {t('Docker 管理器 ·')} {formatBuildLabel()}
+        <Info size={13} /> {t('Dockyard ·')} {formatBuildLabel()}
       </div>
       <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6, lineHeight: 1.7 }}>
         {t('快捷键：Ctrl+P 打开命令面板 · 列表页 Ctrl+F 搜索 / F5 刷新 / Ctrl+A 全选 / Del 删除 ·')}

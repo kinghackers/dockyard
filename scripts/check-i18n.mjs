@@ -1,10 +1,10 @@
 /**
- * i18n gate for the renderer (src/src):
+ * i18n gate for the renderer (src):
  *   1. bare Chinese — user-visible strings that are NOT wrapped in t()
  *   2. missing keys — t('…') literals with no English entry in i18n/en.ts
  *   3. dead keys   — en.ts entries whose key no longer appears in any t() call
  *
- * Key = the zh-CN source string itself (see src/src/i18n/index.ts), so a
+ * Key = the zh-CN source string itself (see src/i18n/index.ts), so a
  * missing en entry silently degrades EN users to Chinese — this gate keeps
  * that from regressing. Exit code 1 on any violation.
  */

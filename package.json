@@ -1,11 +1,20 @@
 {
-  "name": "docker-manager",
-  "productName": "Docker 管理器",
+  "name": "dockyard",
+  "productName": "Dockyard",
   "version": "0.2.0",
-  "description": "多主机 Docker 管理客户端",
+  "description": "多主机 Docker 管理客户端 / Multi-host Docker manager",
   "author": "Dockyard",
+  "license": "MIT",
+  "homepage": "https://gitee.com/kinghackers/dockyard",
+  "repository": {
+    "type": "git",
+    "url": "https://gitee.com/kinghackers/dockyard.git"
+  },
+  "bugs": {
+    "url": "https://gitee.com/kinghackers/dockyard/issues"
+  },
   "main": "dist-electron/main.js",
-  "private": true,
+  "private": false,
   "scripts": {
     "start": "electron dist-electron/main.js",
     "dev": "concurrently -k \"vite\" \"node scripts/dev-electron.mjs\"",
@@ -64,8 +73,8 @@
     "ssh2@1.17.0": true
   },
   "build": {
-    "appId": "com.dockyard.docker-manager",
-    "productName": "Docker 管理器",
+    "appId": "com.dockyard.dockyard",
+    "productName": "Dockyard",
     "copyright": "Copyright © 2026 Dockyard",
     "electronDist": "node_modules/electron/dist",
     "npmRebuild": false,
@@ -103,14 +112,14 @@
           ]
         }
       ],
-      "artifactName": "DockerManager-${version}-Setup.${ext}"
+      "artifactName": "Dockyard-${version}-Setup.${ext}"
     },
     "nsis": {
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
       "deleteAppDataOnUninstall": false,
-      "artifactName": "DockerManager-${version}-Setup.${ext}"
+      "artifactName": "Dockyard-${version}-Setup.${ext}"
     }
   }
 }

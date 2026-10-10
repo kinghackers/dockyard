@@ -14,7 +14,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 function walk(dir, acc = []) {
   for (const name of readdirSync(dir)) {
-    if (name === 'node_modules' || name === 'dist' || name === 'dist-electron') continue;
+    if (name === 'node_modules' || name === 'dist' || name === 'dist-electron' || name === 'out' || name === 'out-win' || name === 'release' || name === 'release-build') continue;
     const p = join(dir, name);
     const st = statSync(p);
     if (st.isDirectory()) walk(p, acc);
@@ -87,7 +87,7 @@ if (errors === 0 || declared.size > 0) ok(`${declared.size} methods declared, ${
 console.log('\n[3] dockerApi usages are declared');
 const useRe = /dockerApi\.(\w+)\s*\(/g;
 const used = new Set();
-for (const f of files.filter((f) => f.includes(`${join('src', 'src')}`) || f.includes('src\\src') || f.includes('src/src'))) {
+for (const f of files.filter((f) => f.startsWith(join(root, 'src', '')))) {
   const text = readFileSync(f, 'utf8');
   let u;
   while ((u = useRe.exec(text))) used.add(u[1]);

@@ -1,4 +1,4 @@
-# Docker 管理器（Dockyard）
+# Dockyard
 
 多远程 Docker 管理客户端（Electron + React）。
 
@@ -57,8 +57,8 @@ npm run dist:compat  # 兼容模式：asar=false（本机 Defender 锁 app.asar 
 
 | 文件 | 说明 |
 |------|------|
-| `DockerManager-<版本>-Setup.exe` | NSIS 安装包（可选安装路径） |
-| `win-unpacked/` | 绿色免安装目录，直接运行 `Docker 管理器.exe` |
+| `Dockyard-<版本>-Setup.exe` | NSIS 安装包（可选安装路径） |
+| `win-unpacked/` | 绿色免安装目录，直接运行 `Dockyard.exe` |
 
 注意事项：
 
