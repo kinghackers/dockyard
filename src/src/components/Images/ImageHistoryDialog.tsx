@@ -57,7 +57,7 @@ export function ImageHistoryDialog({ hostId, imageId, title, onClose, toast }: P
       .join('\n');
     void navigator.clipboard?.writeText(text);
     setCopied(true);
-    toast('已复制构建历史', 'info');
+    toast(t('已复制构建历史'), 'info');
     setTimeout(() => setCopied(false), 1500);
   };
 

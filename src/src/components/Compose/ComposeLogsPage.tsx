@@ -212,7 +212,7 @@ export function ComposeLogsPage({ hostId, projectName }: { hostId: string; proje
         const all = await window.dockerApi.listContainers(hostId, true);
         const members = all.filter((c) => c.composeProject === projectName);
         setContainers([...members]);
-        toast('已重新连接项目日志', 'info');
+        toast(t('已重新连接项目日志'), 'info');
       } catch (e) {
         reportError(e, toast);
       }

@@ -53,7 +53,7 @@ export default function App() {
             !health.encryptionAvailable &&
             list.some((c) => c.sshPassword || c.sshPassphrase || c.key || c.cert)
           ) {
-            toast('系统加密存储不可用，SSH/TLS 凭据将以明文保存在本机配置文件中', 'info');
+            toast(t('系统加密存储不可用，SSH/TLS 凭据将以明文保存在本机配置文件中'), 'info');
           }
         } catch {
           /* health check is best-effort */
@@ -133,7 +133,7 @@ export default function App() {
     try {
       await window.dockerApi.disconnect(id);
       useAppStore.getState().setStatus({ id, connected: false });
-      toast('已断开连接', 'info');
+      toast(t('已断开连接'), 'info');
     } catch (e) {
       toast(e instanceof Error ? e.message : String(e), 'error');
     }
@@ -164,7 +164,7 @@ export default function App() {
           onSaved={async () => {
             setConnDialogOpen(false);
             await loadConnections();
-            toast('连接配置已保存', 'success');
+            toast(t('连接配置已保存'), 'success');
           }}
         />
       )}

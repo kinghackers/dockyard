@@ -35,12 +35,12 @@ export function ComposeUpDialog({ hostId, onClose, onDeployed, toast }: Props) {
   const deploy = async () => {
     if (!filePath.trim() || busy) return;
     setBusy(true);
-    setOutput('正在执行 docker compose up -d …');
+    setOutput(t('正在执行 docker compose up -d …'));
     try {
       const res = await window.dockerApi.composeUp(hostId, filePath.trim());
       setOutput(res.output || (res.ok ? t('(无输出)') : t('部署失败')));
       if (res.ok) {
-        toast('Compose 项目已部署', 'success');
+        toast(t('Compose 项目已部署'), 'success');
         await onDeployed();
       } else {
         toast(t("部署失败（退出码 {p0}）", { p0: res.exitCode ?? '-' }), 'error');

@@ -904,7 +904,7 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
           onSubmit={async (name) => {
             try {
               await window.dockerApi.renameContainer(hostId, renameFor.id, name);
-              toast('已重命名', 'success');
+              toast(t('已重命名'), 'success');
               setRenameFor(null);
               await load();
             } catch (e) {

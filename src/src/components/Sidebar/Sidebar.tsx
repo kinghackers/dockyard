@@ -494,7 +494,7 @@ export function Sidebar({ onAddConnection, onEditConnection, onConnect, onDiscon
         icon: <Copy size={13} />,
         onSelect: () => {
           void navigator.clipboard?.writeText(id);
-          useAppStore.getState().toast('已复制容器 ID', 'info');
+          useAppStore.getState().toast(t('已复制容器 ID'), 'info');
         },
       });
       if (a.canRemove) {
