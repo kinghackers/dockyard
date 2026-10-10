@@ -423,6 +423,7 @@ export const en: Record<string, string> = {
   '私钥密码': 'Key passphrase',
   '私钥未加密则留空': 'Leave empty if the key has no passphrase',
   '私钥路径': 'Private key path',
+  '刚刚': 'just now',
   '秒': ' seconds',
   '移动到目录': 'Move to folder',
   '移除中': 'Removing',

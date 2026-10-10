@@ -3,6 +3,7 @@ import { X, Loader2, Copy, Check } from 'lucide-react';
 import type { ImageDetail } from '../../types/docker';
 import { reportError } from '../../utils/connection';
 import { useModalKeys } from '../../utils/useModalKeys';
+import { fmtTimeAgo, fmtAbsolute } from '../../utils/format';
 import { t, useT } from '../../i18n';
 
 function fmtBytes(n?: number): string {
@@ -89,7 +90,9 @@ export function ImageHistoryDialog({ hostId, imageId, title, onClose, toast }: P
                   {detail.architecture ? ` · ${detail.architecture}` : ''}
                   {detail.os ? `/${detail.os}` : ''} · {fmtBytes(detail.size)}
                 </div>
-                <div>{t('创建于')} {detail.created ? new Date(detail.created).toLocaleString() : '-'}</div>
+                <div title={fmtAbsolute(detail.created)}>
+                  {t('创建于')} {fmtTimeAgo(detail.created)}
+                </div>
                 {detail.author ? <div>{t('作者')} {detail.author}</div> : null}
                 {detail.configEntrypoint?.length ? (
                   <div className="mono">ENTRYPOINT {detail.configEntrypoint.join(' ')}</div>
@@ -124,8 +127,11 @@ export function ImageHistoryDialog({ hostId, imageId, title, onClose, toast }: P
                 <tbody>
                   {detail.history.map((h, i) => (
                     <tr key={i} style={{ cursor: 'default' }}>
-                      <td style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                        {h.created ? new Date(h.created).toLocaleString() : '-'}
+                      <td
+                        style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}
+                        title={fmtAbsolute(h.created)}
+                      >
+                        {fmtTimeAgo(h.created)}
                       </td>
                       <td className="mono" style={{ fontSize: 11 }}>
                         {h.emptyLayer ? '—' : fmtBytes(h.size)}

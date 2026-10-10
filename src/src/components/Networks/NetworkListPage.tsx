@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { RefreshCw, Trash2, Search, Plus, ArrowUp, ArrowDown, Copy } from 'lucide-react';
+import { RefreshCw, Trash2, Search, Plus, ArrowUp, ArrowDown, Copy, X } from 'lucide-react';
 import type { NetworkSummary } from '../../types/docker';
 import { useAppStore } from '../../stores/appStore';
 import { reportError } from '../../utils/connection';
@@ -266,11 +266,24 @@ export function NetworkListPage({ hostId }: { hostId: string }) {
           <input
             ref={filterRef}
             className="search-input"
-            style={{ paddingLeft: 26 }}
+            style={{ paddingLeft: 26, paddingRight: filter ? 26 : undefined }}
             placeholder={t('过滤网络（Ctrl+F）')}
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
           />
+          {filter && (
+            <button
+              className="btn ghost icon-btn"
+              style={{ position: 'absolute', right: 2, top: 2, width: 22, height: 22 }}
+              title={t('清除过滤')}
+              onClick={() => {
+                setFilter('');
+                filterRef.current?.focus();
+              }}
+            >
+              <X size={12} />
+            </button>
+          )}
         </div>
       </div>
 
@@ -282,6 +295,11 @@ export function NetworkListPage({ hostId }: { hostId: string }) {
         ) : filtered.length === 0 ? (
           <div className="empty-state">
             <p>{list.length === 0 ? t('暂无网络') : t('没有匹配的网络')}</p>
+            {list.length > 0 && (
+              <button className="btn ghost" onClick={() => setFilter('')}>
+                <X size={12} /> {t('清除过滤')}
+              </button>
+            )}
           </div>
         ) : (
           <table className="table">

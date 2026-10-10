@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { RefreshCw, Search, FileText, Info, ArrowUp, ArrowDown } from 'lucide-react';
+import { RefreshCw, Search, FileText, Info, ArrowUp, ArrowDown, X } from 'lucide-react';
 import type { ContainerSummary } from '../../types/docker';
 import { useAppStore } from '../../stores/appStore';
 import { usePolling } from '../../hooks/usePolling';
@@ -12,6 +12,7 @@ import {
 } from '../../utils/localize';
 import { ListError, ListLoading } from '../common/ListFeedback';
 import { SortableTh } from '../common/SortableTh';
+import { fmtTimeAgo, fmtAbsolute } from '../../utils/format';
 import { t, useT } from '../../i18n';
 
 interface Row {
@@ -201,11 +202,24 @@ export function AggregateContainersPage({ active = true }: { active?: boolean })
             <input
               ref={filterRef}
               className="search-input"
-              style={{ paddingLeft: 26 }}
+              style={{ paddingLeft: 26, paddingRight: filter ? 26 : undefined }}
               placeholder={t('跨主机搜索名称 / 镜像 / 项目（Ctrl+F）')}
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
             />
+            {filter && (
+              <button
+                className="btn ghost icon-btn"
+                style={{ position: 'absolute', right: 2, top: 2, width: 22, height: 22 }}
+                title={t('清除过滤')}
+                onClick={() => {
+                  setFilter('');
+                  filterRef.current?.focus();
+                }}
+              >
+                <X size={12} />
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -222,6 +236,17 @@ export function AggregateContainersPage({ active = true }: { active?: boolean })
         ) : sorted.length === 0 ? (
           <div className="empty-state">
             <p>{rows.length === 0 ? t('没有容器') : t('没有匹配的容器')}</p>
+            {rows.length > 0 && (
+              <button
+                className="btn ghost"
+                onClick={() => {
+                  setFilter('');
+                  setStateFilter('all');
+                }}
+              >
+                <X size={12} /> {t('清除过滤')}
+              </button>
+            )}
           </div>
         ) : (
           <table className="table">
@@ -269,8 +294,11 @@ export function AggregateContainersPage({ active = true }: { active?: boolean })
                     {r.c.image}
                   </td>
                   <td style={{ color: 'var(--compose)' }}>{r.c.composeProject || '-'}</td>
-                  <td style={{ color: 'var(--text-muted)', fontSize: 11 }}>
-                    {new Date(r.c.created * 1000).toLocaleString()}
+                  <td
+                    style={{ color: 'var(--text-muted)', fontSize: 11, whiteSpace: 'nowrap' }}
+                    title={fmtAbsolute(r.c.created * 1000)}
+                  >
+                    {fmtTimeAgo(r.c.created * 1000)}
                   </td>
                   <td>
                     <button

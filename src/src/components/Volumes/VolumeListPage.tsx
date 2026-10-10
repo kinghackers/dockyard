@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { RefreshCw, Trash2, Search, Plus, ArrowUp, ArrowDown, Copy } from 'lucide-react';
+import { RefreshCw, Trash2, Search, Plus, ArrowUp, ArrowDown, Copy, X } from 'lucide-react';
 import type { VolumeSummary } from '../../types/docker';
 import { useAppStore } from '../../stores/appStore';
 import { reportError } from '../../utils/connection';
@@ -11,6 +11,7 @@ import { CreateVolumeDialog } from './CreateVolumeDialog';
 import { ContextMenu, useContextMenu, type ContextMenuItem } from '../common/ContextMenu';
 import { ListError, ListLoading } from '../common/ListFeedback';
 import { SortableTh } from '../common/SortableTh';
+import { fmtTimeAgo, fmtAbsolute } from '../../utils/format';
 import { t, useT } from '../../i18n';
 
 type SortKey = 'name' | 'driver' | 'mountpoint' | 'scope' | 'created';
@@ -262,11 +263,24 @@ export function VolumeListPage({ hostId }: { hostId: string }) {
           <input
             ref={filterRef}
             className="search-input"
-            style={{ paddingLeft: 26 }}
+            style={{ paddingLeft: 26, paddingRight: filter ? 26 : undefined }}
             placeholder={t('过滤数据卷（Ctrl+F）')}
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
           />
+          {filter && (
+            <button
+              className="btn ghost icon-btn"
+              style={{ position: 'absolute', right: 2, top: 2, width: 22, height: 22 }}
+              title={t('清除过滤')}
+              onClick={() => {
+                setFilter('');
+                filterRef.current?.focus();
+              }}
+            >
+              <X size={12} />
+            </button>
+          )}
         </div>
       </div>
 
@@ -278,6 +292,11 @@ export function VolumeListPage({ hostId }: { hostId: string }) {
         ) : filtered.length === 0 ? (
           <div className="empty-state">
             <p>{list.length === 0 ? t('暂无数据卷') : t('没有匹配的数据卷')}</p>
+            {list.length > 0 && (
+              <button className="btn ghost" onClick={() => setFilter('')}>
+                <X size={12} /> {t('清除过滤')}
+              </button>
+            )}
           </div>
         ) : (
           <table className="table">
@@ -342,8 +361,11 @@ export function VolumeListPage({ hostId }: { hostId: string }) {
                     {v.mountpoint}
                   </td>
                   <td>{localizeScope(v.scope)}</td>
-                  <td style={{ color: 'var(--text-muted)', fontSize: 11 }}>
-                    {v.created ? new Date(v.created).toLocaleString() : '-'}
+                  <td
+                    style={{ color: 'var(--text-muted)', fontSize: 11, whiteSpace: 'nowrap' }}
+                    title={fmtAbsolute(v.created)}
+                  >
+                    {fmtTimeAgo(v.created)}
                   </td>
                 </tr>
               ))}

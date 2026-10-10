@@ -17,6 +17,7 @@ import {
   Copy,
   Info,
   Pencil,
+  X,
 } from 'lucide-react';
 import type { ContainerSummary } from '../../types/docker';
 import { useAppStore } from '../../stores/appStore';
@@ -35,6 +36,7 @@ import { ContextMenu, useContextMenu, type ContextMenuItem } from '../common/Con
 import { ListError, ListLoading } from '../common/ListFeedback';
 import { SortableTh } from '../common/SortableTh';
 import { InputDialog } from '../common/InputDialog';
+import { fmtTimeAgo, fmtAbsolute } from '../../utils/format';
 import { t, useT } from '../../i18n';
 
 type SortKey = 'name' | 'state' | 'image' | 'project' | 'created';
@@ -657,11 +659,24 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
             <input
               ref={filterRef}
               className="search-input"
-              style={{ paddingLeft: 26 }}
+              style={{ paddingLeft: 26, paddingRight: filter ? 26 : undefined }}
               placeholder={t('过滤名称 / 镜像 / 项目（Ctrl+F）')}
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
             />
+            {filter && (
+              <button
+                className="btn ghost icon-btn"
+                style={{ position: 'absolute', right: 2, top: 2, width: 22, height: 22 }}
+                title={t('清除过滤')}
+                onClick={() => {
+                  setFilter('');
+                  filterRef.current?.focus();
+                }}
+              >
+                <X size={12} />
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -678,6 +693,17 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
         ) : filtered.length === 0 ? (
           <div className="empty-state">
             <p>{list.length === 0 ? t('暂无容器') : t('没有匹配的容器')}</p>
+            {list.length > 0 && (
+              <button
+                className="btn ghost"
+                onClick={() => {
+                  setFilter('');
+                  setStateFilter('all');
+                }}
+              >
+                <X size={12} /> {t('清除过滤')}
+              </button>
+            )}
           </div>
         ) : (
           <table className="table">
@@ -785,8 +811,11 @@ export function ContainerListPage({ hostId }: { hostId: string }) {
                   <td className="mono" style={{ fontSize: 11 }}>
                     {formatPortMappings(c.ports)}
                   </td>
-                  <td style={{ color: 'var(--text-muted)', fontSize: 11 }}>
-                    {new Date(c.created * 1000).toLocaleString()}
+                  <td
+                    style={{ color: 'var(--text-muted)', fontSize: 11, whiteSpace: 'nowrap' }}
+                    title={fmtAbsolute(c.created * 1000)}
+                  >
+                    {fmtTimeAgo(c.created * 1000)}
                   </td>
                   <td>
                     <ContainerRowActions
