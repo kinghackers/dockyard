@@ -59,6 +59,10 @@ jobs:
       - name: Build & package
         shell: bash
         run: |
+          # secrets 未配置时 env 注入的是空串，electron-builder 会把空 CSC_LINK
+          # 当作已定义的证书文件路径（报 ".../dockyard not a file"），必须移除
+          if [ -z "$CSC_LINK" ]; then unset CSC_LINK; fi
+          if [ -z "$CSC_KEY_PASSWORD" ]; then unset CSC_KEY_PASSWORD; fi
           case "$RUNNER_OS" in
             Windows) TARGET="--win" ;;
             macOS)   TARGET="--mac" ;;
