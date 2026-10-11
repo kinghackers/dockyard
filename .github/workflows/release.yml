@@ -100,6 +100,24 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # --generate-notes 只能产出自动变更日志，无法自定义，
+      # 因此在这里把「安装须知」抬头拼到正文最前面，再追加自动生成的日志
+      - name: Prepend install note to release notes
+        run: |
+          set -e
+          gh release view "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" --json body -q .body > auto-notes.md
+          {
+            cat .github/release-notes-header.md
+            printf '\n---\n\n'
+            cat auto-notes.md
+          } > notes.md
+          gh release edit "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" --notes-file notes.md
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Flip draft release to published
         run: gh release edit "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" --draft=false --latest
         env:
