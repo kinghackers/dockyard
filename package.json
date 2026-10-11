@@ -1,7 +1,7 @@
 {
   "name": "dockyard",
   "productName": "Dockyard",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "多主机 Docker 管理客户端 / Multi-host Docker manager",
   "author": "Dockyard",
   "license": "MIT",
