@@ -39,6 +39,19 @@
 
 Go to [GitHub Releases](https://github.com/kinghackers/dockyard/releases) (or [Gitee Releases](https://gitee.com/kinghackers/dockyard/releases)) and download the Windows installer (`Dockyard-x.y.z-Setup.exe`).
 
+### Windows install note
+
+Dockyard installers are **not currently code-signed** (see [Code Signing Policy](#code-signing-policy) below). Windows therefore shows a security prompt on first run — this is expected and does not mean the file is broken. Pick your case:
+
+| Prompt | Looks like | What to do |
+| --- | --- | --- |
+| **SmartScreen** (blue dialog, has buttons) | "Windows protected your PC" | Click **More info** → **Run anyway**. |
+| **Smart App Control (SAC)** (hard block, no override) | "This app has been blocked for your protection" | ① First try: right-click the installer → **Properties** → tick **Unblock** → OK, then run it;<br>② Still blocked: **Windows Security → App & browser control → Smart App Control settings → Off**, install, then **turn it back on** (freely toggleable since the April 2026 update KB5083769; on older builds the switch is one-way). |
+
+> On macOS Gatekeeper shows "unidentified developer". Depending on your macOS version either right-click → **Open**, or open **System Settings → Privacy & Security** and choose **Open Anyway**.
+>
+> If you would rather not rely on any trust verdict, build from source instead — every build definition is public and auditable (next section).
+
 ### Build from source
 
 ```bash
@@ -90,10 +103,10 @@ Connection credentials are stored encrypted on the local machine; exports can st
 ### Code Signing Policy
 
 - Dockyard releases are built automatically by GitHub Actions from tagged commits of this repository; all build definitions live in this repository and are publicly auditable.
-- Windows installers are code-signed via [SignPath Foundation](https://signpath.org); every signing request is manually approved by the maintainer before publication.
-- Roles: this is a single-maintainer project — the maintainer acts as Author, Reviewer, and Approver, with multi-factor authentication enabled on both the GitHub and SignPath accounts.
-- Signed artifacts are published exclusively as assets of the corresponding GitHub Release (tag); this is the only distribution channel covered by this policy.
-- The code signing certificate is issued to **SignPath Foundation** (the publisher). Private keys are generated and stored on SignPath Foundation's HSM and are never accessible to the project.
+- Signed artifacts, when available, are published exclusively as assets of the corresponding GitHub Release (tag); this is the only distribution channel covered by this policy.
+- **Current status: unsigned.** This is a single-maintainer project. It applied to [SignPath Foundation](https://signpath.org) for free open-source code signing and was declined; commercial certificates are not currently feasible. Because releases are unsigned, Windows may show SmartScreen warnings or Smart App Control blocks — see [Windows install note](#windows-install-note) for how to proceed. Until then, the strongest guarantee offered is that every artifact is reproducible from the public repository: build from source and compare.
+- If code signing becomes available, this section will be updated and the release notes for that version will announce it.
+- The maintainer acts as Author, Reviewer, and Approver, with multi-factor authentication enabled on the distribution accounts.
 
 ## Roadmap
 

@@ -39,6 +39,19 @@
 
 前往 [GitHub Releases](https://github.com/kinghackers/dockyard/releases)（或 [Gitee Releases](https://gitee.com/kinghackers/dockyard/releases)）下载 Windows 安装包（`Dockyard-x.y.z-Setup.exe`）。
 
+### Windows 安装须知
+
+Dockyard 的安装包**目前没有代码签名**（原因见下方 [Code Signing Policy](#code-signing-policy)），因此 Windows 首次运行会给出安全提示，属正常现象并非文件损坏。按提示类型分别处理：
+
+| 提示 | 表现 | 处理方式 |
+| --- | --- | --- |
+| **SmartScreen**（蓝框，有按钮） | 「Windows 已保护你的电脑」 | 点击 **更多信息** → **仍要运行** 即可。 |
+| **智能应用控制 SAC**（无「仍要运行」，直接阻止） | 「此应用已被阻止，可能对你的设备有害」 | ① 先试：右键安装包 → **属性** → 常规页底部勾选 **解除锁定** → 确定，再双击运行；<br>② 仍被拦：**Windows 安全中心 → 应用和浏览器控制 → 智能应用控制设置 → 关闭**，装完**可以再开回来**（2026 年 4 月 KB5083769 起支持自由切换；更早的版本关闭后不可逆，请自行权衡）。 |
+
+> macOS 同理会出现「无法验证开发者」提示：视系统版本，走右键 → **打开**，或「系统设置 → 隐私与安全性 → **仍要打开**」。
+>
+> 若希望完全不依赖信任判断，可直接从源码构建（见下一节）——所有构建脚本公开可审计。
+
 ### 从源码构建
 
 ```bash
@@ -90,10 +103,10 @@ npm run dist     # 打包 Windows NSIS 安装包（推送 v* tag 到 GitHub 会�
 ### Code Signing Policy
 
 - Dockyard releases are built automatically by GitHub Actions from tagged commits of this repository; all build definitions live in this repository and are publicly auditable.
-- Windows installers are code-signed via [SignPath Foundation](https://signpath.org); every signing request is manually approved by the maintainer before publication.
-- Roles: this is a single-maintainer project — the maintainer acts as Author, Reviewer, and Approver, with multi-factor authentication enabled on both the GitHub and SignPath accounts.
-- Signed artifacts are published exclusively as assets of the corresponding GitHub Release (tag); this is the only distribution channel covered by this policy.
-- The code signing certificate is issued to **SignPath Foundation** (the publisher). Private keys are generated and stored on SignPath Foundation's HSM and are never accessible to the project.
+- Signed artifacts, when available, are published exclusively as assets of the corresponding GitHub Release (tag); this is the only distribution channel covered by this policy.
+- **Current status: unsigned.** This is a single-maintainer project. It applied to [SignPath Foundation](https://signpath.org) for free open-source code signing and was declined; commercial certificates are not currently feasible. Because releases are unsigned, Windows may show SmartScreen warnings or Smart App Control blocks — see [Windows 安装须知](#windows-安装须知) for how to proceed. Until then, the strongest guarantee offered is that every artifact is reproducible from the public repository: build from source and compare.
+- If code signing becomes available, this section will be updated and the release notes for that version will announce it.
+- The maintainer acts as Author, Reviewer, and Approver, with multi-factor authentication enabled on the distribution accounts.
 
 ## 路线图
 
