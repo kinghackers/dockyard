@@ -87,6 +87,14 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md). App source lives in `src/`, the Electr
 
 Connection credentials are stored encrypted on the local machine; exports can strip secrets. See [SECURITY.md](./SECURITY.md).
 
+### Code Signing Policy
+
+- Dockyard releases are built automatically by GitHub Actions from tagged commits of this repository; all build definitions live in this repository and are publicly auditable.
+- Windows installers are code-signed via [SignPath Foundation](https://signpath.org); every signing request is manually approved by the maintainer before publication.
+- Roles: this is a single-maintainer project — the maintainer acts as Author, Reviewer, and Approver, with multi-factor authentication enabled on both the GitHub and SignPath accounts.
+- Signed artifacts are published exclusively as assets of the corresponding GitHub Release (tag); this is the only distribution channel covered by this policy.
+- The code signing certificate is issued to **SignPath Foundation** (the publisher). Private keys are generated and stored on SignPath Foundation's HSM and are never accessible to the project.
+
 ## Roadmap
 
 - Multi-platform release: the release workflow now builds Windows / macOS (dmg+zip, x64+arm64) / Linux (AppImage+deb) automatically (`.github/workflows/release.yml`, tag-triggered)

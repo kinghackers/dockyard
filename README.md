@@ -87,6 +87,14 @@ npm run dist     # 打包 Windows NSIS 安装包（推送 v* tag 到 GitHub 会�
 
 连接凭据在**本机加密存储**；导出连接配置时可选择剔除敏感信息。详见 [SECURITY.md](./SECURITY.md)。
 
+### Code Signing Policy
+
+- Dockyard releases are built automatically by GitHub Actions from tagged commits of this repository; all build definitions live in this repository and are publicly auditable.
+- Windows installers are code-signed via [SignPath Foundation](https://signpath.org); every signing request is manually approved by the maintainer before publication.
+- Roles: this is a single-maintainer project — the maintainer acts as Author, Reviewer, and Approver, with multi-factor authentication enabled on both the GitHub and SignPath accounts.
+- Signed artifacts are published exclusively as assets of the corresponding GitHub Release (tag); this is the only distribution channel covered by this policy.
+- The code signing certificate is issued to **SignPath Foundation** (the publisher). Private keys are generated and stored on SignPath Foundation's HSM and are never accessible to the project.
+
 ## 路线图
 
 - 多平台发布：Windows / macOS（dmg+zip，x64+arm64）/ Linux（AppImage+deb）三平台自动发布工作流已就绪（`.github/workflows/release.yml`，tag 触发）
