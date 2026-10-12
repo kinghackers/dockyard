@@ -46,11 +46,21 @@ Dockyard installers are **not currently code-signed** (see [Code Signing Policy]
 | Prompt | Looks like | What to do |
 | --- | --- | --- |
 | **SmartScreen** (blue dialog, has buttons) | "Windows protected your PC" | Click **More info** → **Run anyway**. |
-| **Smart App Control (SAC)** (hard block, no override) | "This app has been blocked for your protection" | ① First try: right-click the installer → **Properties** → tick **Unblock** → OK, then run it;<br>② Still blocked: **Windows Security → App & browser control → Smart App Control settings → Off**, install, then **turn it back on** (freely toggleable since the April 2026 update KB5083769; on older builds the switch is one-way). |
+| **Smart App Control (SAC)** (hard block, no override) | "This app has been blocked for your protection" | SAC decides on cloud reputation — **unsigned means blocked**, and "right-click → Unblock" does **not** help it. The only no-cost workaround is to **turn it off temporarily**: **Windows Security → App & browser control → Smart App Control settings → Off**, install, then **turn it back on** (freely toggleable since the April 2026 update KB5083769; on older builds the switch is one-way). |
 
 > On macOS Gatekeeper shows "unidentified developer". Depending on your macOS version either right-click → **Open**, or open **System Settings → Privacy & Security** and choose **Open Anyway**.
 >
 > If you would rather not rely on any trust verdict, build from source instead — every build definition is public and auditable (next section).
+
+### One-line install (Windows, recommended)
+
+Rather not deal with the prompts by hand? Run this one line in PowerShell (admin or not) to auto-download and launch the installer (it clears Mark-of-the-Web to soften the SmartScreen prompt):
+
+```powershell
+irm https://raw.githubusercontent.com/kinghackers/dockyard/master/install.ps1 | iex
+```
+
+> This script only simplifies the **SmartScreen** flow. If the device has **SAC** enabled, the unsigned installer will still be hard-blocked — turn SAC off temporarily first (see above).
 
 ### Build from source
 
