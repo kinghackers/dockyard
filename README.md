@@ -61,6 +61,8 @@ irm https://raw.githubusercontent.com/kinghackers/dockyard/master/install.ps1 | 
 ```
 
 > 该脚本只简化 **SmartScreen** 流程；若设备开启了 **SAC**，未签名安装包仍会被硬拦，需先按上方「临时关闭 SAC」处理。
+>
+> Winget 清单已就绪于 `packaging/winget/`（合并进 [microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs) 后即可 `winget install kinghackers.Dockyard`）。
 
 ### 从源码构建
 

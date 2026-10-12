@@ -1,0 +1,22 @@
+PackageIdentifier: kinghackers.Dockyard
+PackageVersion: 0.2.2
+PackageLocale: en-US
+Publisher: kinghackers
+PublisherUrl: https://github.com/kinghackers/dockyard
+PublisherSupportUrl: https://github.com/kinghackers/dockyard/issues
+PackageName: Dockyard
+PackageUrl: https://github.com/kinghackers/dockyard
+License: MIT
+LicenseUrl: https://github.com/kinghackers/dockyard/blob/master/LICENSE
+ShortDescription: A cross-platform desktop client for managing Docker across multiple hosts.
+Description: Dockyard is a free and open-source desktop application for managing Docker across multiple hosts. It connects to local and remote Docker daemons over SSH or TCP and brings containers, images, volumes, and networks from every host into a single unified interface, with an integrated terminal and live log viewer.
+Moniker: dockyard
+Tags:
+  - docker
+  - container
+  - devops
+  - docker-management
+ReleaseNotes: Unsigned release; see the "Windows install note" in the repository README for first-run prompts.
+ReleaseNotesUrl: https://github.com/kinghackers/dockyard/releases/tag/v0.2.2
+ManifestType: defaultLocale
+ManifestVersion: 1.9.0

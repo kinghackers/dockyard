@@ -1,0 +1,15 @@
+PackageIdentifier: kinghackers.Dockyard
+PackageVersion: 0.2.2
+PackageLocale: zh-CN
+Publisher: kinghackers
+PublisherUrl: https://github.com/kinghackers/dockyard
+PublisherSupportUrl: https://github.com/kinghackers/dockyard/issues
+PackageName: Dockyard
+PackageUrl: https://github.com/kinghackers/dockyard
+License: MIT
+LicenseUrl: https://github.com/kinghackers/dockyard/blob/master/LICENSE
+ShortDescription: 跨主机的多主机 Docker 桌面管理客户端。
+Description: Dockyard 是一款免费开源的桌面应用，用于统一管理分布在多台主机上的 Docker。它通过 SSH 或 TCP 连接本地与远程 Docker 守护进程，把各主机的容器、镜像、卷和网络汇聚到同一界面，并内置终端与实时日志查看器。
+ReleaseNotes: 未签名版本；Windows 安装须知见仓库 README。
+ManifestType: locale
+ManifestVersion: 1.9.0

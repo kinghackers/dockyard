@@ -1,0 +1,15 @@
+PackageIdentifier: kinghackers.Dockyard
+PackageVersion: 0.2.2
+InstallerType: nullsoft
+Installers:
+  - Architecture: x64
+    InstallerUrl: https://github.com/kinghackers/dockyard/releases/download/v0.2.2/Dockyard-0.2.2-Setup.exe
+    InstallerSha256: ccccaea1618bad805d7abccf4858f6427479bd7c69f236562ee4393889726e0e
+    InstallerSwitches:
+      Silent: /S
+      SilentWithProgress: /S
+    UpgradeBehavior: install
+    AppsAndFeaturesEntries:
+      - DisplayName: Dockyard
+ManifestType: installer
+ManifestVersion: 1.9.0

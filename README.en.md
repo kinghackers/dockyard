@@ -61,6 +61,8 @@ irm https://raw.githubusercontent.com/kinghackers/dockyard/master/install.ps1 | 
 ```
 
 > This script only simplifies the **SmartScreen** flow. If the device has **SAC** enabled, the unsigned installer will still be hard-blocked — turn SAC off temporarily first (see above).
+>
+> A winget manifest is ready under `packaging/winget/` (once merged into [microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs) you can run `winget install kinghackers.Dockyard`).
 
 ### Build from source
 
