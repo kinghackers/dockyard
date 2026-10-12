@@ -120,6 +120,12 @@ npm run dist     # 打包 Windows NSIS 安装包（推送 v* tag 到 GitHub 会�
 - If code signing becomes available, this section will be updated and the release notes for that version will announce it.
 - The maintainer acts as Author, Reviewer, and Approver, with multi-factor authentication enabled on the distribution accounts.
 
+## 发布
+
+1. **升版本号**：修改仓库根 `package.json` 的 `version`（如 `0.2.2` → `0.2.3`）。
+2. **提交并打 tag**：`git commit -am "chore(release): vX.Y.Z"` → `git tag -a vX.Y.Z -m "vX.Y.Z"` → `git push github master --tags`。打 `v*` tag 会触发 `.github/workflows/release.yml`：三平台构建 → 上传草稿 Release → 翻为正式发布；Release 正文自动拼上「安装须知」抬头。
+3. **同步 winget 清单**：把 `packaging/winget/` 复制到本地 winget-pkgs fork 的 `manifests/k/kinghackers/Dockyard/X.Y.Z/`，或直接在本机跑 `wingetcreate submit packaging/winget`，将新版本合并进社区仓库（详见 `packaging/winget/README.md`）。
+
 ## 路线图
 
 - 多平台发布：Windows / macOS（dmg+zip，x64+arm64）/ Linux（AppImage+deb）三平台自动发布工作流已就绪（`.github/workflows/release.yml`，tag 触发）

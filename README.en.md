@@ -120,6 +120,12 @@ Connection credentials are stored encrypted on the local machine; exports can st
 - If code signing becomes available, this section will be updated and the release notes for that version will announce it.
 - The maintainer acts as Author, Reviewer, and Approver, with multi-factor authentication enabled on the distribution accounts.
 
+## Releasing
+
+1. **Bump the version**: edit `version` in the root `package.json` (e.g. `0.2.2` → `0.2.3`).
+2. **Commit and tag**: `git commit -am "chore(release): vX.Y.Z"` → `git tag -a vX.Y.Z -m "vX.Y.Z"` → `git push github master --tags`. A `v*` tag triggers `.github/workflows/release.yml`: three-platform build → upload to a draft release → flip to published; the release notes automatically prepend the install-note header.
+3. **Sync the winget manifest**: copy `packaging/winget/` into your winget-pkgs fork at `manifests/k/kinghackers/Dockyard/X.Y.Z/`, or simply run `wingetcreate submit packaging/winget` on your machine to merge the new version into the community repo (see `packaging/winget/README.md`).
+
 ## Roadmap
 
 - Multi-platform release: the release workflow now builds Windows / macOS (dmg+zip, x64+arm64) / Linux (AppImage+deb) automatically (`.github/workflows/release.yml`, tag-triggered)
